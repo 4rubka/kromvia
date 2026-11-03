@@ -6,10 +6,17 @@ import s from "./download.module.css";
 export const metadata: Metadata = { title: "Download", description: "Download the Kromvia launcher for Windows, macOS and Linux." };
 
 const PLATFORMS = [
-  { id: "windows", name: "Windows", note: "Windows 10 and 11, 64-bit" },
-  { id: "macos", name: "macOS", note: "Apple Silicon" },
-  { id: "linux-appimage", name: "Linux", note: "AppImage, any distro" },
-  { id: "linux-deb", name: "Debian / Ubuntu", note: ".deb package" },
+  { name: "Windows", note: "Windows 10 and 11, 64-bit", bee: "os-windows", files: [{ id: "windows", label: "Download" }] },
+  { name: "macOS", note: "Apple Silicon", bee: "os-macos", files: [{ id: "macos", label: "Download" }] },
+  {
+    name: "Linux",
+    note: "AppImage for any distro, or a .deb for Debian and Ubuntu",
+    bee: "os-linux",
+    files: [
+      { id: "linux-appimage", label: "AppImage" },
+      { id: "linux-deb", label: ".deb" },
+    ],
+  },
 ];
 
 const mb = (n: number) => `${(n / 1024 / 1024).toFixed(0)} MB`;
@@ -30,20 +37,28 @@ export default async function Download() {
       </header>
       <div className={s.grid}>
         {PLATFORMS.map((p) => {
-          const file = rel?.files.find((f) => f.platform === p.id);
+          const files = p.files.flatMap((f) => {
+            const file = rel?.files.find((r) => r.platform === f.id);
+            return file ? [{ ...file, label: f.label }] : [];
+          });
           return (
-            <div key={p.id} className={`block ${s.card}`}>
+            <div key={p.name} className={`block ${s.card}`}>
+              <img src={`/bee/${p.bee}.webp`} alt="" className={s.bee} />
               <h2>{p.name}</h2>
-              <p className="dim">{p.note}</p>
-              {file ? (
-                <a href={file.url} className="btn">
-                  <Glyph name="download" size={16} /> Download <span className={s.size}>{mb(file.size)}</span>
-                </a>
-              ) : (
-                <span className="btn ghost" aria-disabled="true">
-                  Coming soon
-                </span>
-              )}
+              <p className={`dim ${s.note}`}>{p.note}</p>
+              <div className={s.buttons}>
+                {files.length ? (
+                  files.map((f) => (
+                    <a key={f.platform} href={f.url} className="btn">
+                      <Glyph name="download" size={16} /> {f.label} <span className={s.size}>{mb(f.size)}</span>
+                    </a>
+                  ))
+                ) : (
+                  <span className="btn ghost" aria-disabled="true">
+                    Coming soon
+                  </span>
+                )}
+              </div>
             </div>
           );
         })}

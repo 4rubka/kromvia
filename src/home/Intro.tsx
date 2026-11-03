@@ -10,21 +10,38 @@ export const INTRO_CREDITS = [
 export function Intro({ onDone }: { onDone: () => void }) {
   const { t } = useI18n();
   const video = useRef<HTMLVideoElement>(null);
+  const retried = useRef(false);
+
+  const play = (v: HTMLVideoElement) =>
+    v.play().catch(() => {
+      v.muted = true;
+      return v.play();
+    });
+
+  const fallback = () => {
+    const v = video.current;
+    if (!v || retried.current) return onDone();
+    retried.current = true;
+    fetch("/intro.mp4")
+      .then((r) => (r.ok ? r.blob() : Promise.reject()))
+      .then((blob) => {
+        v.src = URL.createObjectURL(new Blob([blob], { type: "video/mp4" }));
+        return play(v);
+      })
+      .catch(onDone);
+  };
 
   useEffect(() => {
     const v = video.current;
-    v?.play().catch(() => {
-      v.muted = true;
-      v.play().catch(onDone);
-    });
+    if (v) play(v).catch(fallback);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <div className="intro" role="dialog" aria-modal="true" aria-label="Kromvia">
-      <video ref={video} playsInline onEnded={onDone} onError={onDone}>
+      <video ref={video} playsInline onEnded={onDone} onError={fallback}>
         <source src="/intro.webm" type="video/webm" />
-        <source src="/intro.mp4" type="video/mp4" />
+        <source src="/intro.mp4" type="video/mp4" onError={fallback} />
       </video>
       <div className="intro-credits">
         {INTRO_CREDITS.map((line) => (

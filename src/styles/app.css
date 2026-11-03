@@ -2574,8 +2574,15 @@ kbd {
   max-width: none;
 }
 
-.card h3,
 .side-label {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.card h3 {
   font-family: var(--font-display);
   font-size: var(--text-xs);
   font-weight: 600;
@@ -2592,9 +2599,6 @@ kbd {
 }
 
 .home-side .side-block {
-  --b-face: color-mix(in srgb, var(--surface) 88%, var(--accent) 12%);
-  --b-top: var(--b-face);
-  --b-side: var(--b-face);
   gap: var(--space-3);
   padding: var(--space-5);
 }

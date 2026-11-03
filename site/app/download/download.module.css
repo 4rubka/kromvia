@@ -1,21 +1,54 @@
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
 }
 
 .card {
   display: grid;
+  align-content: start;
   gap: 6px;
   justify-items: start;
-  padding: 24px 24px 28px;
+  min-height: 220px;
+  padding: 26px 0 30px 28px;
+  overflow: hidden;
+}
+
+.bee {
+  position: absolute;
+  right: -6px;
+  bottom: -14px;
+  width: 42%;
+  max-height: 210px;
+  object-fit: contain;
+  object-position: bottom right;
+  filter: drop-shadow(0 12px 20px rgb(0 0 0 / 0.35));
+  transition: transform 260ms var(--ease-out);
+  pointer-events: none;
+}
+
+.card:hover .bee {
+  transform: translateY(-6px) rotate(-3deg);
 }
 
 .card h2 {
   font-size: 22px;
 }
 
-.card :global(.btn) {
+.card:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: calc(50% - 8px);
+}
+
+.note {
+  max-width: 58%;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-top: 14px;
 }
 
@@ -46,6 +79,16 @@
   padding-left: 20px;
   color: var(--text-muted);
   line-height: 1.9;
+}
+
+@media (max-width: 760px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .card:last-child:nth-child(odd) {
+    width: 100%;
+  }
 }
 
 @media (max-width: 560px) {
