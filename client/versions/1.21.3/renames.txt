@@ -1,0 +1,29 @@
+# 1.21.11 renamed ResourceLocation to Identifier and moved a few classes and methods.
+Identifier -> ResourceLocation
+.identifier() -> .location()
+model.player.PlayerModel -> model.PlayerModel
+renderer.rendertype -> renderer
+RenderTypes -> RenderType
+ARGB.srgbLerp -> ARGB.lerp
+# 1.21.9 renamed the player renderer to Avatar* and moved PlayerSkin.
+AvatarRenderState -> PlayerRenderState
+AvatarRenderer -> PlayerRenderer
+world.entity.player.PlayerSkin -> client.resources.PlayerSkin
+# 1.21.6 renamed WorldVersion.getName().
+getCurrentVersion().name() -> getCurrentVersion().getName()
+# 1.21.5 gave DynamicTexture a debug name.
+DynamicTexture(LOGO::toString, -> DynamicTexture(
+DynamicTexture(texture::toString, -> DynamicTexture(
+DynamicTexture(id::toString, -> DynamicTexture(
+# 1.21.4 renamed the equipment fields of the render state.
+state.headEquipment -> state.headItem
+state.chestEquipment -> state.chestItem
+renderer/rendertype/ -> renderer/
+model/player/PlayerModel -> model/PlayerModel
+org.jspecify.annotations.Nullable -> org.jetbrains.annotations.Nullable
+getIdentifier -> getLocation
+.getGameProfile().name() -> .getGameProfile().getName()
+.getProfile().name() -> .getProfile().getName()
+mc.hasControlDown() -> net.minecraft.client.gui.screens.Screen.hasControlDown()
+mc.hasShiftDown() -> net.minecraft.client.gui.screens.Screen.hasShiftDown()
+mc.screen.resize(w.getGuiScaledWidth(), w.getGuiScaledHeight()); -> mc.screen.resize(mc, w.getGuiScaledWidth(), w.getGuiScaledHeight());

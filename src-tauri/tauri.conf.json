@@ -1,0 +1,54 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Kromvia",
+  "version": "0.1.0",
+  "identifier": "com.kromvia.launcher",
+  "build": {
+    "beforeDevCommand": "bun run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "bun run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Kromvia",
+        "width": 1100,
+        "height": 700,
+        "minWidth": 860,
+        "minHeight": 560
+      }
+    ],
+    "security": {
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["$APPDATA/instances/*/minecraft/screenshots/*.png"]
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "resources": {
+      "resources/client/*": "client/"
+    },
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQ4MjYxRDA4Q0Q2M0I5OUYKUldTZnVXUE5DQjBtMkNVSjFaTHB5UThIVGxnR1JXcnRWVDZQdDBGaVFDQy9Zekhyb3F4djNTK0kK",
+      "endpoints": [
+        "https://api.kromvia.com/update/{{target}}/{{arch}}/{{current_version}}",
+        "https://github.com/4rubka/kromvia/releases/latest/download/latest.json"
+      ]
+    }
+  }
+}

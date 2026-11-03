@@ -1,0 +1,40 @@
+# 1.21.11 renamed ResourceLocation to Identifier and moved a few classes and methods.
+Identifier -> ResourceLocation
+.identifier() -> .location()
+model.player.PlayerModel -> model.PlayerModel
+renderer.rendertype -> renderer
+RenderTypes -> RenderType
+ARGB.srgbLerp -> ARGB.lerp
+# 1.21.9 renamed the player renderer to Avatar* and moved PlayerSkin.
+AvatarRenderState -> PlayerRenderState
+AvatarRenderer -> PlayerRenderer
+world.entity.player.PlayerSkin -> client.resources.PlayerSkin
+# 1.21.6 renamed WorldVersion.getName().
+getCurrentVersion().name() -> getCurrentVersion().getName()
+# 1.21.5 gave DynamicTexture a debug name.
+DynamicTexture(LOGO::toString, -> DynamicTexture(
+DynamicTexture(texture::toString, -> DynamicTexture(
+DynamicTexture(id::toString, -> DynamicTexture(
+# 1.21.4 renamed the equipment fields of the render state.
+state.headEquipment -> state.headItem
+state.chestEquipment -> state.chestItem
+# 1.21.1 has no render states: layers get the entity, and compat has stand-ins for the states.
+net.minecraft.client.renderer.entity.state.PlayerRenderState -> com.kromvia.client.compat.PlayerRenderState
+net.minecraft.client.renderer.entity.state.EntityRenderState -> com.kromvia.client.compat.EntityRenderState
+RenderLayerParent<PlayerRenderState, PlayerModel> -> RenderLayerParent<net.minecraft.client.player.AbstractClientPlayer, PlayerModel<net.minecraft.client.player.AbstractClientPlayer>>
+# 1.21.1 has FastColor.ARGB32 instead of ARGB, and NativeImage pixels in ABGR.
+net.minecraft.util.ARGB -> com.kromvia.client.compat.ARGB
+setPixel(x, y, argb) -> setPixelRGBA(x, y, net.minecraft.util.FastColor.ABGR32.fromArgb32(argb))
+img.setPixel(px, py, -> img.setPixelRGBA(px, py,
+new DustParticleOptions(Mth.hsvToRgb((tick % 120) / 120f, 0.8f, 1f), 1.2f) -> new DustParticleOptions(net.minecraft.world.phys.Vec3.fromRGB24(Mth.hsvToRgb((tick % 120) / 120f, 0.8f, 1f)).toVector3f(), 1.2f)
+packet.gameTime() -> packet.getGameTime()
+renderer/rendertype/ -> renderer/
+model/player/PlayerModel -> model/PlayerModel
+org.jspecify.annotations.Nullable -> org.jetbrains.annotations.Nullable
+getIdentifier -> getLocation
+.getGameProfile().name() -> .getGameProfile().getName()
+.getProfile().name() -> .getProfile().getName()
+mc.hasControlDown() -> net.minecraft.client.gui.screens.Screen.hasControlDown()
+mc.hasShiftDown() -> net.minecraft.client.gui.screens.Screen.hasShiftDown()
+getDeltaTracker -> getTimer
+mc.schedule( -> mc.tell(

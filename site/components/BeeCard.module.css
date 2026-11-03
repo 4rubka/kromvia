@@ -1,0 +1,85 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.card {
+  --b-side: rgb(0 0 0 / 0.3);
+  --side-h: 6px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 38%;
+  align-items: stretch;
+  min-height: 210px;
+  overflow: hidden;
+}
+
+.card[data-tone="violet"] {
+  --b-face: linear-gradient(135deg, #6d3fe0, #4f2fb8);
+  --b-rim: #a78bfa;
+}
+
+.card[data-tone="blue"] {
+  --b-face: linear-gradient(135deg, #2f5fe0, #1f3fa8);
+  --b-rim: #7fa4ff;
+}
+
+.card[data-tone="indigo"] {
+  --b-face: linear-gradient(135deg, #4b3fd0, #2c2580);
+  --b-rim: #9a8cff;
+}
+
+.card.card::before {
+  background:
+    linear-gradient(rgb(255 255 255 / 0.18) 0 2px, transparent 2px calc(100% - var(--side-h)), var(--b-side) calc(100% - var(--side-h))),
+    var(--b-face);
+}
+
+.text {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 26px 0 30px 28px;
+}
+
+.text h3 {
+  font-size: clamp(20px, 2.2vw, 26px);
+  color: #fff;
+}
+
+.text p {
+  color: rgb(255 255 255 / 0.85);
+  font-size: 15px;
+}
+
+.bee {
+  align-self: end;
+  justify-self: end;
+  width: 100%;
+  max-height: 200px;
+  margin: 0 -6px -18px 0;
+  object-fit: contain;
+  object-position: bottom right;
+  filter: drop-shadow(0 12px 20px rgb(0 0 0 / 0.35));
+  transition: transform 260ms var(--ease-out);
+}
+
+.card:hover .bee {
+  transform: translateY(-6px) rotate(-3deg);
+}
+
+@media (max-width: 760px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 420px) {
+  .card {
+    grid-template-columns: minmax(0, 1fr) 34%;
+  }
+
+  .text {
+    padding: 22px 0 26px 22px;
+  }
+}

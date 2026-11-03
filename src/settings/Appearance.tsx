@@ -1,0 +1,240 @@
+import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { open, save } from "@tauri-apps/plugin-dialog";
+import { useI18n } from "../i18n";
+import { Glyph } from "../ui/Glyph";
+
+type Theme = { id: string; name: string };
+const THEME_KEY = "kromvia.customTheme";
+const CHANGED = "kromvia-appearance";
+
+function savedTheme() {
+  try {
+    return localStorage.getItem(THEME_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function changed() {
+  window.dispatchEvent(new Event(CHANGED));
+}
+
+export function useAppearance() {
+  const [background, setBackground] = useState<string | null>(null);
+  useEffect(() => {
+    const apply = () => {
+      invoke<string | null>("background_get").then(setBackground, () => setBackground(null));
+      const id = savedTheme();
+      const style = document.getElementById("custom-theme") ?? Object.assign(document.head.appendChild(document.createElement("style")), { id: "custom-theme" });
+      if (!id) {
+        style.textContent = "";
+        return;
+      }
+      invoke<string>("theme_css", { id }).then(
+        (css) => (style.textContent = css),
+        () => (style.textContent = ""),
+      );
+    };
+    apply();
+    window.addEventListener(CHANGED, apply);
+    return () => window.removeEventListener(CHANGED, apply);
+  }, []);
+  return background;
+}
+
+async function toBackground(file: Blob) {
+  const img = await createImageBitmap(file);
+  const k = Math.min(1, 1920 / img.width, 1080 / img.height);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(img.width * k);
+  canvas.height = Math.round(img.height * k);
+  canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.85);
+}
+
+export function AppearanceExtras() {
+  const { t } = useI18n();
+  const [themes, setThemes] = useState<Theme[]>([]);
+  const [active, setActive] = useState(savedTheme() ?? "");
+  const [hasBackground, setHasBackground] = useState(false);
+  const [autostart, setAutostart] = useState(false);
+  const [status, setStatus] = useState<{ error: boolean; text: string } | null>(null);
+  const fail = (e: unknown) => setStatus({ error: true, text: String(e) });
+
+  const load = () => {
+    invoke<Theme[]>("theme_list").then(setThemes, () => setThemes([]));
+    invoke<string | null>("background_get").then((b) => setHasBackground(!!b), () => {});
+  };
+  useEffect(() => {
+    load();
+    invoke<boolean>("autostart_get").then(setAutostart, () => {});
+  }, []);
+
+  const pick = (id: string) => {
+    setActive(id);
+    try {
+      if (id) localStorage.setItem(THEME_KEY, id);
+      else localStorage.removeItem(THEME_KEY);
+    } catch {}
+    changed();
+  };
+
+  const importTheme = async () => {
+    setStatus(null);
+    const path = await open({ filters: [{ name: "Theme", extensions: ["css", "zip"] }] });
+    if (!path) return;
+    invoke<Theme>("theme_import", { path }).then((th) => (load(), pick(th.id)), fail);
+  };
+
+  const removeTheme = () => invoke("theme_delete", { id: active }).then(() => (pick(""), load()), fail);
+
+  const setBackground = (image: string | null) =>
+    invoke("background_set", { image }).then(() => (setHasBackground(!!image), changed()), fail);
+
+  const toggleAutostart = (on: boolean) => invoke("autostart_set", { on }).then(() => setAutostart(on), fail);
+
+  return (
+    <>
+      <div className="field">
+        <span>{t("settings.customTheme")}</span>
+        <div className="actions">
+          <select className="input" value={active} onChange={(e) => pick(e.currentTarget.value)}>
+            <option value="">{t("settings.noCustomTheme")}</option>
+            {themes.map((th) => (
+              <option key={th.id} value={th.id}>
+                {th.name}
+              </option>
+            ))}
+          </select>
+          <button className="btn btn-ghost" onClick={importTheme}>
+            <Glyph name="file-import" /> {t("settings.importTheme")}
+          </button>
+          {active && (
+            <button className="btn btn-ghost" onClick={removeTheme}>
+              <Glyph name="trash" /> {t("settings.deleteTheme")}
+            </button>
+          )}
+        </div>
+        <span className="muted">{t("settings.themeHint")}</span>
+      </div>
+      <div className="field">
+        <span>{t("settings.background")}</span>
+        <div className="actions">
+          <label className="btn btn-ghost">
+            <Glyph name="upload" /> {t("settings.backgroundUpload")}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              hidden
+              onChange={(e) => {
+                const file = e.currentTarget.files?.[0];
+                e.currentTarget.value = "";
+                if (file) toBackground(file).then(setBackground, fail);
+              }}
+            />
+          </label>
+          {hasBackground && (
+            <button className="btn btn-ghost" onClick={() => setBackground(null)}>
+              <Glyph name="rotate" /> {t("settings.backgroundReset")}
+            </button>
+          )}
+        </div>
+      </div>
+      <label className="muted">
+        <input type="checkbox" checked={autostart} onChange={(e) => toggleAutostart(e.currentTarget.checked)} /> {t("settings.autostart")}
+      </label>
+      {status && <p className={status.error ? "error" : "muted"}>{status.text}</p>}
+    </>
+  );
+}
+
+export function SettingsBackup() {
+  const { t } = useI18n();
+  const [status, setStatus] = useState<{ error: boolean; text: string } | null>(null);
+
+  const exportAll = async () => {
+    setStatus(null);
+    const path = await save({ defaultPath: "kromvia-settings.json", filters: [{ name: "JSON", extensions: ["json"] }] });
+    if (!path) return;
+    const local: Record<string, string> = {};
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i)!;
+        if (k.startsWith("kromvia.")) local[k] = localStorage.getItem(k)!;
+      }
+    } catch {}
+    invoke("settings_export", { path, local }).then(
+      () => setStatus({ error: false, text: t("backup.exported") }),
+      (e) => setStatus({ error: true, text: String(e) }),
+    );
+  };
+
+  const localSettings = () => {
+    const local: Record<string, string> = {};
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i)!;
+        if (k.startsWith("kromvia.")) local[k] = localStorage.getItem(k)!;
+      }
+    } catch {}
+    return local;
+  };
+  const cloudSave = () => {
+    setStatus(null);
+    invoke("sync_put", { key: "settings", data: localSettings() }).then(
+      () => setStatus({ error: false, text: t("cloud.saved") }),
+      (e) => setStatus({ error: true, text: String(e) }),
+    );
+  };
+  const cloudRestore = () => {
+    setStatus(null);
+    invoke<Record<string, string> | null>("sync_get", { key: "settings" }).then(
+      (local) => {
+        if (!local) return setStatus({ error: true, text: t("cloud.nothing") });
+        try {
+          for (const [k, v] of Object.entries(local)) if (k.startsWith("kromvia.") && typeof v === "string") localStorage.setItem(k, v);
+        } catch {}
+        location.reload();
+      },
+      (e) => setStatus({ error: true, text: String(e) }),
+    );
+  };
+
+  const importAll = async () => {
+    setStatus(null);
+    const path = await open({ filters: [{ name: "JSON", extensions: ["json"] }] });
+    if (!path) return;
+    invoke<Record<string, string>>("settings_import", { path }).then(
+      (local) => {
+        try {
+          for (const [k, v] of Object.entries(local)) localStorage.setItem(k, v);
+        } catch {}
+        location.reload();
+      },
+      (e) => setStatus({ error: true, text: String(e) }),
+    );
+  };
+
+  return (
+    <section className="card">
+      <h2>{t("backup.title")}</h2>
+      <p className="muted">{t("backup.hint")}</p>
+      <div className="actions">
+        <button className="btn btn-ghost" onClick={exportAll}>
+          <Glyph name="file-export" /> {t("backup.export")}
+        </button>
+        <button className="btn btn-ghost" onClick={importAll}>
+          <Glyph name="file-import" /> {t("backup.import")}
+        </button>
+        <button className="btn btn-ghost" onClick={cloudSave}>
+          <Glyph name="upload" /> {t("cloud.saveSettings")}
+        </button>
+        <button className="btn btn-ghost" onClick={cloudRestore}>
+          <Glyph name="download" /> {t("cloud.restoreSettings")}
+        </button>
+      </div>
+      {status && <p className={status.error ? "error" : "muted"}>{status.text}</p>}
+    </section>
+  );
+}

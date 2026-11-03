@@ -1,0 +1,104 @@
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 400px) 1fr;
+  gap: 28px;
+  align-items: start;
+}
+
+.stageBox {
+  position: sticky;
+  top: 90px;
+  aspect-ratio: 4 / 5;
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+}
+
+.stageBar {
+  position: absolute;
+  right: 0;
+  bottom: 16px;
+  left: 0;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.stageBar button,
+.filters button {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.card {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 12px 10px 16px;
+  border: 0;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.card[aria-pressed="true"] {
+  --b-rim: var(--accent);
+  --b-face: color-mix(in srgb, var(--accent) 18%, var(--surface));
+  --b-side: var(--accent-deep);
+  color: var(--text);
+}
+
+.card img,
+.ph {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+}
+
+.ph {
+  background: var(--surface-2);
+}
+
+.credits {
+  margin: 48px 0 80px;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.credits a {
+  color: var(--text-muted);
+  text-decoration: underline;
+}
+
+@media (max-width: 760px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .stageBox {
+    position: relative;
+    top: 0;
+    max-height: 420px;
+    width: 100%;
+  }
+}

@@ -1,0 +1,87 @@
+def shared = rootProject.file('src/main/java')
+def own = file('src/main/java')
+def parents = []
+for (def p = findProperty('inherits'); p; ) {
+	def dir = rootProject.file("versions/$p")
+	parents << dir
+	def props = new Properties()
+	new File(dir, 'gradle.properties').withInputStream { props.load(it) }
+	p = props.getProperty('inherits')
+}
+def renames = file('renames.txt')
+def fx = findProperty('fx') == 'true'
+def fxDirs = fx ? [file('fx/src/main/java'), rootProject.file('fx/src/main/java')] : []
+def fxResources = fx ? [file('fx/src/main/resources')] + parents.collect { new File(it, 'fx/src/main/resources') } +
+		[rootProject.file('fx/src/main/resources')] : []
+def ownDirs = fx ? [own, file('fx/src/main/java')] : [own]
+
+if (parents.isEmpty() && !renames.isFile()) {
+	def roots = [own] + fxDirs + [shared]
+	sourceSets.main.java {
+		srcDirs = roots
+		exclude { el ->
+			if (el.directory) return false
+			def i = roots.findIndexOf { el.file.toPath().startsWith(it.toPath()) }
+			roots.take(i).any { new File(it, el.relativePath.pathString).isFile() }
+		}
+	}
+} else {
+	def rules = renames.isFile()
+			? renames.readLines().findAll { it.trim() && !it.startsWith('#') }.collect { it.split('->')*.trim() as List }
+			: []
+	def inherited = layout.buildDirectory.dir('inherited-src')
+	def mathRule = { r -> r[0].contains('org.joml') || r[1].contains('com.mojang.math') }
+	def renamed = { List rs -> { String line ->
+		rs.inject(line) { l, r ->
+			def re = java.util.regex.Pattern.quote(r[0])
+			if (r[0] ==~ /^\w.*/) re = '(?<!\\w)' + re
+			if (r[0] ==~ /.*\w$/) re = re + '(?!\\w)'
+			l.replaceAll(re, java.util.regex.Matcher.quoteReplacement(r[1]))
+		}
+	} }
+	def inherit = tasks.register('inheritSources', Sync) {
+		parents.each {
+			from(new File(it, 'src/main/java')) { filter(renamed(rules)) }
+			if (fx) from(new File(it, 'fx/src/main/java')) { filter(renamed(rules.findAll { r -> !mathRule(r) })) }
+		}
+		if (fx) from(rootProject.file('fx/src/main/java')) { filter(renamed(rules.findAll { r -> !mathRule(r) })) }
+		from(shared) { filter(renamed(rules)) }
+		into inherited
+		duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+		exclude { el -> !el.directory && ownDirs.any { new File(it, el.relativePath.pathString).isFile() } }
+		inputs.property 'rules', rules
+	}
+	sourceSets.main.java.srcDirs = ownDirs + [files(inherited).builtBy(inherit)]
+}
+sourceSets.main.resources.srcDirs = [file('src/main/resources')] + fxResources +
+		parents.collect { new File(it, 'src/main/resources') } + [rootProject.file('src/main/resources')]
+
+base.archivesName = "kromvia-client-${project.minecraft_version}"
+version = rootProject.version
+
+processResources {
+	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+	def props = [version: rootProject.version, minecraft: project.minecraft_version, fxMixins: fx ? ', "kromvia.fx.mixins.json", "kromvia.qol.mixins.json"' : '']
+	inputs.properties props
+	filesMatching("fabric.mod.json") {
+		expand props
+	}
+	from(rootProject.file('../src/art/cosmetics.json')) { into 'kromvia' }
+	if (fx) {
+		from(rootProject.file('../public/models')) {
+			include(['horns', 'horns-small','wings-angel', 'wings-low-poly', 'boots-of-swiftness', 'christmas', 'mage-robe', 'mecha-boost'].collect { "${it}.glb" })
+			into 'assets/kromvia/models'
+		}
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = project.java_version as int
+}
+
+def bundledName = "kromvia-client-${project.minecraft_version}.jar"
+tasks.register('bundle', Copy) {
+	from(tasks.findByName('remapJar') ?: tasks.jar)
+	into rootProject.file('../src-tauri/resources/client')
+	rename { bundledName }
+}

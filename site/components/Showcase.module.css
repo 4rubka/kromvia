@@ -1,0 +1,71 @@
+.showcase {
+  display: grid;
+  gap: 20px;
+}
+
+.stage {
+  position: relative;
+  height: clamp(360px, 42vw, 500px);
+}
+
+.glow {
+  position: absolute;
+  inset: 10% 5% 0;
+  background: radial-gradient(ellipse 50% 45% at 50% 60%, rgb(139 92 246 / 0.35), transparent 70%);
+  pointer-events: none;
+}
+
+.player {
+  position: absolute;
+  inset: 0 0 50px;
+  z-index: 1;
+}
+
+.pedestal {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: min(62%, 280px);
+  transform: translateX(-50%);
+  filter: drop-shadow(0 24px 40px rgb(91 63 214 / 0.55));
+}
+
+.picks {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.pick {
+  --n: 4px;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  padding: 6px;
+  border: 0;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--border), inset 0 -3px 0 rgb(0 0 0 / 0.35);
+  cursor: pointer;
+  clip-path: polygon(
+    var(--n) 0, calc(100% - var(--n)) 0, calc(100% - var(--n)) var(--n), 100% var(--n),
+    100% calc(100% - var(--n)), calc(100% - var(--n)) calc(100% - var(--n)), calc(100% - var(--n)) 100%,
+    var(--n) 100%, var(--n) calc(100% - var(--n)), 0 calc(100% - var(--n)), 0 var(--n), var(--n) var(--n)
+  );
+  transition: background 140ms var(--ease-out), transform 140ms var(--ease-out);
+}
+
+.pick:hover {
+  background: var(--surface-2);
+  transform: translateY(-2px);
+}
+
+.pick[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface));
+  box-shadow: inset 0 0 0 2px var(--accent), inset 0 -3px 0 var(--accent-deep);
+}
+
+.pick img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}

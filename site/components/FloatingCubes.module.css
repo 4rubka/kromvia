@@ -1,0 +1,18 @@
+.layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.cube {
+  position: absolute;
+  opacity: 0.8;
+  animation: drift 7s ease-in-out infinite;
+}
+
+@keyframes drift {
+  50% {
+    transform: translateY(-14px) rotate(6deg);
+  }
+}

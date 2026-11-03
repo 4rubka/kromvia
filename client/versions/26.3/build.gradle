@@ -1,0 +1,10 @@
+plugins {
+	id 'net.fabricmc.fabric-loom'
+}
+
+apply from: rootProject.file('common.gradle')
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+}

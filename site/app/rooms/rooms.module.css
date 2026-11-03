@@ -1,0 +1,48 @@
+.head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 32px;
+}
+
+.bee {
+  width: clamp(140px, 22vw, 260px);
+}
+
+.cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.col {
+  padding: 24px 28px 30px;
+}
+
+.col h2 {
+  margin-bottom: 14px;
+  font-size: 22px;
+}
+
+.col ol {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--text-muted);
+  line-height: 1.8;
+}
+
+.col li + li {
+  margin-top: 8px;
+}
+
+@media (max-width: 760px) {
+  .head,
+  .cols {
+    grid-template-columns: 1fr;
+  }
+
+  .bee {
+    order: -1;
+  }
+}

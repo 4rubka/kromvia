@@ -1,0 +1,25 @@
+package com.kromvia.client.mixin;
+
+import com.kromvia.client.module.Features;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.gui.components.ChatComponent;
+import net.minecraft.network.chat.Component;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
+
+@Mixin(ChatComponent.class)
+public class ChatComponentMixin {
+	@Unique
+	private static final DateTimeFormatter KROMVIA_TIME = DateTimeFormatter.ofPattern("HH:mm");
+
+	@ModifyVariable(method = "addMessage(Lnet/minecraft/network/chat/Component;Lnet/minecraft/network/chat/MessageSignature;Lnet/minecraft/client/multiplayer/chat/GuiMessageSource;Lnet/minecraft/client/multiplayer/chat/GuiMessageTag;)V",
+			at = @At("HEAD"), argsOnly = true, ordinal = 0)
+	private Component kromvia$timestamp(Component message) {
+		if (!Features.CHAT_TIME.enabled) return message;
+		return Component.literal("[" + LocalTime.now().format(KROMVIA_TIME) + "] ").withStyle(ChatFormatting.DARK_GRAY).append(message);
+	}
+}

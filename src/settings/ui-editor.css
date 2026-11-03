@@ -1,0 +1,53 @@
+.ui-sample {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-4);
+  margin: var(--space-3) 0;
+  border-radius: var(--radius-md);
+  background: var(--bg);
+}
+
+.ui-sample .card {
+  min-width: 200px;
+  padding: var(--space-4);
+  text-align: center;
+}
+
+.ui-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.ui-grid label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.ui-grid label > span {
+  flex: 0 0 90px;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.ui-grid input[type="range"] {
+  flex: 1;
+  min-width: 0;
+}
+
+.ui-grid input[type="color"] {
+  width: 32px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: none;
+}
+
+.ui-hide {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kromvia-site",
+  "main": ".open-next/worker.js",
+  "account_id": "10ab8dc6c45c1dc91af42fc1ce87515b",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "kromvia-site" }],
+  "routes": [
+    { "pattern": "kromvia.com", "custom_domain": true },
+    { "pattern": "www.kromvia.com", "custom_domain": true }
+  ],
+  "workers_dev": false,
+  "preview_urls": false,
+  "observability": { "enabled": true }
+}

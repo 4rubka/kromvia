@@ -1,0 +1,49 @@
+.list {
+  display: grid;
+  gap: 20px;
+  max-width: 860px;
+  margin: 0 0 96px;
+  padding: 0;
+  list-style: none;
+}
+
+.entry {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 24px;
+}
+
+.entry time {
+  padding-top: 22px;
+  color: var(--text-dim);
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.card {
+  padding: 20px 24px 26px;
+}
+
+.card h2 {
+  margin-bottom: 10px;
+  font-size: 20px;
+}
+
+.card ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-muted);
+  line-height: 1.8;
+}
+
+@media (max-width: 640px) {
+  .entry {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .entry time {
+    padding-top: 0;
+  }
+}

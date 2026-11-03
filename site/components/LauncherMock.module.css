@@ -1,0 +1,309 @@
+.stage {
+  position: relative;
+  width: 100%;
+}
+
+.window {
+  --n: 8px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  transform-origin: 0 0;
+  transition: transform 500ms var(--ease-out);
+  background: linear-gradient(160deg, #1b1438 0%, #0c0a18 45%, #0a0b1c 100%);
+  box-shadow:
+    0 0 0 1px rgb(201 181 255 / 0.28),
+    0 0 0 6px rgb(139 92 246 / 0.12),
+    0 40px 120px -20px rgb(80 50 200 / 0.55),
+    0 20px 60px rgb(0 0 0 / 0.6);
+  clip-path: polygon(
+    var(--n) 0, calc(100% - var(--n)) 0, 100% var(--n), 100% calc(100% - var(--n)),
+    calc(100% - var(--n)) 100%, var(--n) 100%, 0 calc(100% - var(--n)), 0 var(--n)
+  );
+  font-size: 13px;
+  line-height: 1.45;
+  user-select: none;
+}
+
+.titlebar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgb(201 181 255 / 0.1);
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.titlebar img {
+  position: absolute;
+  left: 14px;
+}
+
+.dots {
+  position: absolute;
+  right: 14px;
+  display: flex;
+  gap: 8px;
+}
+
+.dots b {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+
+.body {
+  display: grid;
+  grid-template-columns: 58px 1fr 230px;
+  gap: 14px;
+  flex: 1;
+  min-height: 0;
+  padding: 14px 16px 16px 0;
+}
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding-top: 2px;
+  border-right: 1px solid rgb(201 181 255 / 0.08);
+  color: var(--text-dim);
+}
+
+.railLogo {
+  margin-bottom: 8px;
+}
+
+.railItem,
+.railOn {
+  --n: 3px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  clip-path: polygon(
+    var(--n) 0, calc(100% - var(--n)) 0, calc(100% - var(--n)) var(--n), 100% var(--n),
+    100% calc(100% - var(--n)), calc(100% - var(--n)) calc(100% - var(--n)), calc(100% - var(--n)) 100%,
+    var(--n) 100%, var(--n) calc(100% - var(--n)), 0 calc(100% - var(--n)), 0 var(--n), var(--n) var(--n)
+  );
+}
+
+.railOn {
+  background: var(--accent-grad);
+  color: #fff;
+  box-shadow: inset 0 -3px 0 var(--accent-deep), inset 0 1px 0 rgb(255 255 255 / 0.35);
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.label {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.quickbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 13px;
+}
+
+.server {
+  --n: 3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px 5px 4px;
+  background: hsl(var(--h) 45% 16%);
+  box-shadow: inset 0 0 0 1px hsl(var(--h) 60% 45%), inset 0 -2px 0 hsl(var(--h) 50% 8%);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  clip-path: polygon(
+    var(--n) 0, calc(100% - var(--n)) 0, calc(100% - var(--n)) var(--n), 100% var(--n),
+    100% calc(100% - var(--n)), calc(100% - var(--n)) calc(100% - var(--n)), calc(100% - var(--n)) 100%,
+    var(--n) 100%, var(--n) calc(100% - var(--n)), 0 calc(100% - var(--n)), 0 var(--n), var(--n) var(--n)
+  );
+}
+
+.server b {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  background: hsl(var(--h) 65% 50%);
+  font-size: 10px;
+}
+
+.server em {
+  color: hsl(var(--h) 70% 70%);
+  font-style: normal;
+  font-weight: 600;
+}
+
+.plus {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--border);
+  color: var(--text-muted);
+}
+
+.launchpad {
+  --b-face: #0d0a1c;
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  align-items: center;
+  gap: 18px;
+  height: 250px;
+  padding: 28px 26px 18px;
+  overflow: hidden;
+}
+
+.launchpad::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(1px 1px at 20% 30%, #fff8, transparent),
+    radial-gradient(1px 1px at 70% 20%, #fff6, transparent),
+    radial-gradient(1px 1px at 85% 60%, #fff5, transparent),
+    radial-gradient(1px 1px at 45% 75%, #fff4, transparent),
+    radial-gradient(ellipse 70% 80% at 80% 100%, rgb(31 99 214 / 0.35), transparent 70%);
+}
+
+.padBee {
+  width: 190px;
+  animation: hover 3s ease-in-out infinite;
+}
+
+@keyframes hover {
+  50% {
+    transform: translateY(-6px) rotate(-3deg);
+  }
+}
+
+.padCard {
+  --n: 4px;
+  display: grid;
+  gap: 4px;
+  max-width: 300px;
+  justify-self: end;
+  padding: 14px 18px 18px;
+  background: var(--accent-grad);
+  box-shadow: inset 0 0 0 1px var(--accent-hover), inset 0 -4px 0 var(--accent-deep);
+  text-align: center;
+  clip-path: polygon(
+    var(--n) 0, calc(100% - var(--n)) 0, calc(100% - var(--n)) var(--n), 100% var(--n),
+    100% calc(100% - var(--n)), calc(100% - var(--n)) calc(100% - var(--n)), calc(100% - var(--n)) 100%,
+    var(--n) 100%, var(--n) calc(100% - var(--n)), 0 calc(100% - var(--n)), 0 var(--n), var(--n) var(--n)
+  );
+}
+
+.padCard strong {
+  font-family: var(--font-display), sans-serif;
+  font-size: 20px;
+  color: #fff;
+}
+
+.padCard span {
+  color: rgb(255 255 255 / 0.85);
+  font-size: 12px;
+}
+
+.instances {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.instances strong {
+  flex: 1;
+  font-family: var(--font-display), sans-serif;
+  font-size: 18px;
+}
+
+.search {
+  width: 190px;
+  padding: 6px 10px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.import {
+  padding: 4px 12px 7px;
+  font-size: 12px;
+}
+
+.empty {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.aside {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.side {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px 15px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.side b {
+  margin-top: 4px;
+  color: var(--text);
+}
+
+.playing {
+  justify-items: center;
+}
+
+.playing .label {
+  justify-self: start;
+}
+
+.player {
+  width: 100%;
+  height: 220px;
+}
+
+.nick {
+  font-family: var(--font-display), sans-serif;
+  font-size: 18px;
+  color: var(--text);
+}
+
+.nickField {
+  padding: 5px 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.sideBtn {
+  margin-top: 6px;
+  padding: 4px 10px 7px;
+  font-size: 12px;
+}

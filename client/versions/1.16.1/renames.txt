@@ -1,0 +1,123 @@
+# 1.21.11 renamed ResourceLocation to Identifier and moved a few classes and methods.
+Identifier -> ResourceLocation
+.identifier() -> .location()
+model.player.PlayerModel -> model.PlayerModel
+renderer.rendertype -> renderer
+RenderTypes -> RenderType
+ARGB.srgbLerp -> ARGB.lerp
+# 1.21.9 renamed the player renderer to Avatar* and moved PlayerSkin.
+AvatarRenderState -> PlayerRenderState
+AvatarRenderer -> PlayerRenderer
+world.entity.player.PlayerSkin -> client.resources.PlayerSkin
+# 1.21.6 renamed WorldVersion.getName().
+getCurrentVersion().name() -> getCurrentVersion().getName()
+# 1.21.5 gave DynamicTexture a debug name.
+DynamicTexture(LOGO::toString, -> DynamicTexture(
+DynamicTexture(texture::toString, -> DynamicTexture(
+DynamicTexture(id::toString, -> DynamicTexture(
+# 1.21.4 renamed the equipment fields of the render state.
+state.headEquipment -> state.headItem
+state.chestEquipment -> state.chestItem
+# 1.21.1 has no render states: layers get the entity, and compat has stand-ins for the states.
+net.minecraft.client.renderer.entity.state.PlayerRenderState -> com.kromvia.client.compat.PlayerRenderState
+net.minecraft.client.renderer.entity.state.EntityRenderState -> com.kromvia.client.compat.EntityRenderState
+RenderLayerParent<PlayerRenderState, PlayerModel> -> RenderLayerParent<net.minecraft.client.player.AbstractClientPlayer, PlayerModel<net.minecraft.client.player.AbstractClientPlayer>>
+# 1.21.1 has FastColor.ARGB32 instead of ARGB, and NativeImage pixels in ABGR.
+net.minecraft.util.ARGB -> com.kromvia.client.compat.ARGB
+setPixel(x, y, argb) -> setPixelRGBA(x, y, argb & 0xFF00FF00 | argb >> 16 & 0xFF | (argb & 0xFF) << 16)
+img.setPixel(px, py, -> img.setPixelRGBA(px, py,
+new DustParticleOptions(Mth.hsvToRgb((tick % 120) / 120f, 0.8f, 1f), 1.2f) -> new DustParticleOptions(net.minecraft.world.phys.Vec3.fromRGB24(Mth.hsvToRgb((tick % 120) / 120f, 0.8f, 1f)).toVector3f(), 1.2f)
+packet.gameTime() -> packet.getGameTime()
+# 1.20.6 builds ResourceLocations with new, and has the options screen one package up.
+ResourceLocation.fromNamespaceAndPath( -> new ResourceLocation(
+gui.screens.options.OptionsScreen -> gui.screens.OptionsScreen
+CrossbowItem.getChargeDuration(use, mc.player) -> CrossbowItem.getChargeDuration(use)
+# 1.20.4 has no menu blur, effects are not holders yet, and connecting takes no transfer state.
+if (minecraft.options.getMenuBackgroundBlurriness() >= 1) g.blurBeforeThisStratum(); -> // No menu blur in this version.
+e.getEffect().value() -> e.getEffect()
+ServerAddress.parseString(data.ip), data, false, null) -> ServerAddress.parseString(data.ip), data, false)
+# 1.20.1 has no PlayerSkin (compat has one), keys player renderers by model name, and scrolls on one axis.
+net.minecraft.client.resources.PlayerSkin -> com.kromvia.client.compat.PlayerSkin
+renderers.getOrDefault(player.skin.model(), renderers.get(PlayerSkin.Model.WIDE)) -> renderers.getOrDefault(player.skin.model().id, renderers.get("default"))
+PlayerFaceRenderer.draw(g, skin, x, y, size) -> PlayerFaceRenderer.draw(g, skin.texture(), x, y, size)
+mc().getSkinManager().lookupInsecure(mc().getGameProfile()) -> PlayerSkin.own()
+mc.getDebugOverlay().showDebugScreen() -> mc.options.renderDebug
+mouseScrolled(double x, double y, double scrollX, double scrollY) -> mouseScrolled(double x, double y, double scrollY)
+# 1.20 made AbstractButton.renderWidget public.
+protected final void renderWidget(GuiGraphics g -> public final void renderWidget(GuiGraphics g
+# 1.19.4: Entity.level is a field, cherry leaves only come falling, connecting takes no flag.
+target.level() -> target.level
+ParticleTypes.CHERRY_LEAVES -> ParticleTypes.FALLING_CHERRY_LEAVES
+ServerAddress.parseString(data.ip), data, false) -> ServerAddress.parseString(data.ip), data)
+# 1.19.3: no infinite effects, no cherry leaves, isHovered is a field.
+e.isInfiniteDuration() -> false
+ParticleTypes.FALLING_CHERRY_LEAVES -> ParticleTypes.FALLING_SPORE_BLOSSOM
+isHovered() -> isHovered
+# 1.19.2: joml is still com.mojang.math, widgets have x/y fields, no search hint, sounds are not holders.
+import org.joml.Quaternionf; -> import com.mojang.math.Quaternion;
+import org.joml.Vector3f; -> import com.mojang.math.Vector3f;
+new Quaternionf().rotateZ((float) Math.PI) -> Vector3f.ZP.rotation((float) Math.PI)
+new Quaternionf() -> new Quaternion(0, 0, 0, 1)
+net.minecraft.world.phys.Vec3.fromRGB24(Mth.hsvToRgb((tick % 120) / 120f, 0.8f, 1f)).toVector3f() -> new com.mojang.math.Vector3f(net.minecraft.world.phys.Vec3.fromRGB24(Mth.hsvToRgb((tick % 120) / 120f, 0.8f, 1f)))
+getX(), getY() -> x, y
+int x = getX(), y = getY(), w -> int x = this.x, y = this.y, w
+int x = getX(), w -> int x = this.x, w
+int y = getY() + -> int y = this.y +
+getX() + getWidth() -> x + getWidth()
+getY() + getHeight() -> y + getHeight()
+getY() + (getHeight() -> y + (getHeight()
+getX() + 2, -> x + 2,
+getX() - grow, y = getY() - grow -> this.x - grow, y = this.y - grow
+search.setHint(Component.literal("Search modules…")) -> search.setSuggestion("Search modules…")
+c.card.setPosition(x, y); -> c.card.x = x; c.card.y = y;
+c.gear.setPosition(x + ModuleCard.W - 17, y + 4); -> c.gear.x = x + ModuleCard.W - 17; c.gear.y = y + 4;
+p.widget.setY(y) -> p.widget.y = y
+SoundEvents.NOTE_BLOCK_PLING.value() -> SoundEvents.NOTE_BLOCK_PLING
+SoundEvents.UI_BUTTON_CLICK.value() -> SoundEvents.UI_BUTTON_CLICK
+mc.getFps() -> com.kromvia.client.mixin.MinecraftFpsAccessor.kromvia$fps()
+# 1.18.2: TextComponent, java.util.Random, no OptionInstance, no darkness/recovery compass/sculk soul.
+Component.literal( -> new net.minecraft.network.chat.TextComponent(
+Component.empty() -> net.minecraft.network.chat.TextComponent.EMPTY
+import net.minecraft.util.RandomSource; -> import java.util.Random;
+RandomSource RANDOM = RandomSource.create(); -> Random RANDOM = new Random();
+var gamma = (OptionInstanceAccessor<Double>) (Object) mc.options.gamma(); -> double gamma = mc.options.gamma;
+saved = mc.options.gamma().get(); -> saved = mc.options.gamma;
+gamma.kromvia$setValue(16.0); -> mc.options.gamma = 16.0;
+((OptionInstanceAccessor<Double>) (Object) mc.options.gamma()).kromvia$setValue(saved); -> mc.options.gamma = saved;
+Items.RECOVERY_COMPASS -> Items.COMPASS
+ParticleTypes.SCULK_SOUL -> ParticleTypes.SOUL
+(e.hasEffect(MobEffects.BLINDNESS) || e.hasEffect(MobEffects.DARKNESS)) -> e.hasEffect(MobEffects.BLINDNESS)
+rebuildWidgets() -> init(minecraft, width, height)
+p.yScale = base + Mth.sin(s.ageInTicks * speed) * amount -> p.xRot = p.xRot
+# 1.18.1: getBiome returns the Biome, not a holder.
+mc.level.getBiome(pos).unwrapKey().map( -> java.util.Optional.ofNullable(mc.level.registryAccess().registryOrThrow(net.minecraft.core.Registry.BIOME_REGISTRY).getKey(mc.level.getBiome(pos))).map(
+pretty(k.location().getPath()) -> pretty(k.getPath())
+# 1.17.1 is Java 16: no sealed classes.
+public abstract sealed class Setting<T> permits BoolSetting, ChoiceSetting, ColorSetting, SliderSetting, TextSetting { -> public abstract class Setting<T> {
+isHoveredOrFocused() -> isHovered()
+# 1.16.5: no Mth angle constants, key names live in GLFW, buttons are added with addButton.
+Mth.DEG_TO_RAD -> 0.017453292F
+Mth.TWO_PI -> 6.2831855F
+InputConstants.KEY_LSHIFT -> org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_SHIFT
+InputConstants.KEY_LALT -> org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_ALT
+InputConstants.KEY_RSHIFT -> org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_SHIFT
+InputConstants.KEY_R -> org.lwjgl.glfw.GLFW.GLFW_KEY_R
+InputConstants.KEY_C -> org.lwjgl.glfw.GLFW.GLFW_KEY_C
+InputConstants.PRESS -> org.lwjgl.glfw.GLFW.GLFW_PRESS
+addRenderableWidget -> addButton
+multiplayer.resolver.ServerAddress -> multiplayer.ServerAddress
+net.minecraft.client.model.geom.PartPose -> com.kromvia.client.compat.PartPose
+.getYRot() -> .yRot
+.getXRot() -> .xRot
+.getInventory() -> .inventory
+ConnectScreen.startConnecting(this, minecraft, ServerAddress.parseString(data.ip), data) -> minecraft.setScreen(new ConnectScreen(this, minecraft, data))
+clearWidgets(); -> buttons.clear(); children.clear();
+org.slf4j.LoggerFactory -> org.apache.logging.log4j.LogManager
+org.slf4j.Logger -> org.apache.logging.log4j.Logger
+LoggerFactory.getLogger -> LogManager.getLogger
+# No WorldOpenFlows before 1.19.
+minecraft.createWorldOpenFlows().openWorld(id, back) -> minecraft.loadLevel(id)
+# ServerData took a LAN flag before 1.20.2.
+ServerData.Type.OTHER -> false
+InputConstants.KEY_RETURN -> org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER
+InputConstants.KEY_NUMPADENTER -> org.lwjgl.glfw.GLFW.GLFW_KEY_KP_ENTER

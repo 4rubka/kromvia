@@ -1,0 +1,66 @@
+/**
+ * Line icons for buttons: Tabler Icons (https://tabler.io/icons, MIT), 24×24, drawn with a
+ * round 2px stroke in the text colour.
+ */
+const GLYPHS = {
+  "player-play": "M7 4v16l13-8z",
+  "player-pause": "M6 6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zm8 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1z",
+  "player-skip-forward": "M4 5v14l12-7zm16 0v14",
+  "player-skip-back": "M20 5v14L8 12zM4 5v14",
+  music: "M3 17a3 3 0 1 0 6 0a3 3 0 0 0-6 0m10 0a3 3 0 1 0 6 0a3 3 0 0 0-6 0M9 17V4h10v13M9 8h10",
+  "player-stop": "M5 7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z",
+  x: "M18 6L6 18M6 6l12 12",
+  trash: "M4 7h16m-10 4v6m4-6v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3",
+  plus: "M12 5v14m-7-7h14",
+  "file-import": "M14 3v4a1 1 0 0 0 1 1h4 M5 13V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2h-5.5M2 19h7m-3-3l3 3l-3 3",
+  "file-export": "M14 3v4a1 1 0 0 0 1 1h4 M11.5 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v5m-5 6h7m-3-3l3 3l-3 3",
+  copy: "M7 9.667A2.667 2.667 0 0 1 9.667 7h8.666A2.667 2.667 0 0 1 21 9.667v8.666A2.667 2.667 0 0 1 18.333 21H9.667A2.667 2.667 0 0 1 7 18.333z M4.012 16.737A2 2 0 0 1 3 15V5c0-1.1.9-2 2-2h10c.75 0 1.158.385 1.5 1",
+  "device-floppy": "M6 4h10l4 4v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2 M10 14a2 2 0 1 0 4 0a2 2 0 1 0-4 0m4-10v4H8V4",
+  bolt: "M13 3v7h6l-8 11v-7H5z",
+  map: "M3 7l6-3l6 3l6-3v13l-6 3l-6-3l-6 3V7m6-3v13m6-10v13",
+  "users-group": "M10 13a2 2 0 1 0 4 0a2 2 0 0 0-4 0m-2 8v-1a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v1M15 5a2 2 0 1 0 4 0a2 2 0 0 0-4 0m2 5h2a2 2 0 0 1 2 2v1M5 5a2 2 0 1 0 4 0a2 2 0 0 0-4 0m-2 8v-1a2 2 0 0 1 2-2h2",
+  broadcast: "M18.364 19.364a9 9 0 1 0-12.728 0 M15.536 16.536a5 5 0 1 0-7.072 0 M11 13a1 1 0 1 0 2 0a1 1 0 1 0-2 0",
+  "login-2": "M9 8V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2v-2 M3 12h13l-3-3m0 6l3-3",
+  check: "m5 12l5 5L20 7",
+  refresh: "M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4m-4 4a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4",
+  download: "M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M7 11l5 5l5-5m-5-7v12",
+  dots: "M4 12a1 1 0 1 0 2 0a1 1 0 1 0-2 0m7 0a1 1 0 1 0 2 0a1 1 0 1 0-2 0m7 0a1 1 0 1 0 2 0a1 1 0 1 0-2 0",
+  "terminal-2": "m8 9l3 3l-3 3m5 0h3 M3 6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z",
+  shirt: "m15 4l6 2v5h-3v8a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-8H3V6l6-2a3 3 0 0 0 6 0",
+  upload: "M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M7 9l5-5l5 5m-5-5v12",
+  search: "M3 10a7 7 0 1 0 14 0a7 7 0 1 0-14 0m18 11l-6-6",
+  "user-check": "M8 7a4 4 0 1 0 8 0a4 4 0 0 0-8 0M6 21v-2a4 4 0 0 1 4-4h4m1 4l2 2l4-4",
+  logout: "M14 8V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2v-2 M9 12h12l-3-3m0 6l3-3",
+  rotate: "M19.95 11a8 8 0 1 0-.5 4m.5 5v-5h-5",
+  "external-link": "M12 6H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6m-7 1l9-9m-5 0h5v5",
+  "user-plus": "M8 7a4 4 0 1 0 8 0a4 4 0 0 0-8 0m8 12h6m-3-3v6M6 21v-2a4 4 0 0 1 4-4h4",
+  "chevron-down": "m6 9l6 6l6-6",
+  "chevron-left": "m15 6l-6 6l6 6",
+  "chevron-right": "m9 6l6 6l-6 6",
+  "arrow-right": "M5 12h14m-6 6l6-6m-6-6l6 6",
+  pencil: "M4 20h4L18.5 9.5a2.828 2.828 0 1 0-4-4L4 16v4 M13.5 6.5l4 4",
+  folder: "M5 4h4l3 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2",
+  pin: "M15 4.5l-4 4L7 10l-1.5 1.5l7 7L14 17l1.5-4l4-4 M9 15l-4.5 4.5 M14.5 4L20 9.5",
+  tool: "M7 10h3V7L6.5 3.5a6 6 0 0 1 8 8l6 6a2 2 0 0 1-3 3l-6-6a6 6 0 0 1-8-8z",
+} as const;
+
+export type GlyphName = keyof typeof GLYPHS;
+
+export function Glyph({ name, size = 14 }: { name: GlyphName; size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="glyph"
+    >
+      <path d={GLYPHS[name]} />
+    </svg>
+  );
+}

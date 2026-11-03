@@ -1,0 +1,211 @@
+package com.kromvia.client.compat;
+
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiComponent;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.PlayerFaceRenderer;
+import com.kromvia.client.cosmetic.CosmeticsLayer;
+import com.mojang.blaze3d.platform.Lighting;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.math.Axis;
+import java.util.List;
+import net.minecraft.client.model.PlayerModel;
+import net.minecraft.client.model.geom.ModelPart;
+import net.minecraft.client.player.AbstractClientPlayer;
+import net.minecraft.client.renderer.entity.player.PlayerRenderer;
+import net.minecraft.client.renderer.texture.OverlayTexture;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.Minecraft;
+import com.kromvia.client.mixin.EntityRenderDispatcherAccessor;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.FormattedCharSequence;
+import com.kromvia.client.compat.PlayerSkin;
+import net.minecraft.world.item.ItemStack;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
+
+public final class Gfx {
+	private final PoseStack g;
+
+	private Gfx(PoseStack g) {
+		this.g = g;
+	}
+
+	public static Gfx of(PoseStack g) {
+		return new Gfx(g);
+	}
+
+	public PoseStack raw() {
+		return g;
+	}
+
+	public int guiWidth() {
+		return Minecraft.getInstance().getWindow().getGuiScaledWidth();
+	}
+
+	public int guiHeight() {
+		return Minecraft.getInstance().getWindow().getGuiScaledHeight();
+	}
+
+	public Pose pose() {
+		return new Pose(g);
+	}
+
+	public record Pose(PoseStack stack) {
+		public void pushMatrix() {
+			stack.pushPose();
+		}
+
+		public void popMatrix() {
+			stack.popPose();
+		}
+
+		public void translate(float x, float y) {
+			stack.translate(x, y, 0);
+		}
+
+		public void scale(float x, float y) {
+			stack.scale(x, y, 1);
+		}
+
+		public void rotate(float radians) {
+			stack.mulPose(new Quaternionf().rotateZ(radians));
+		}
+	}
+
+	public void fill(int x1, int y1, int x2, int y2, int color) {
+		GuiComponent.fill(g, x1, y1, x2, y2, color);
+	}
+
+	public void fillGradient(int x1, int y1, int x2, int y2, int top, int bottom) {
+		Gradient.draw(g, x1, y1, x2, y2, top, bottom);
+	}
+
+	public void drawString(Font font, String text, int x, int y, int color) {
+		font.drawShadow(g, text, x, y, color);
+	}
+
+	public void drawString(Font font, String text, int x, int y, int color, boolean shadow) {
+		if (shadow) font.drawShadow(g, text, x, y, color);
+		else font.draw(g, text, x, y, color);
+	}
+
+	public void drawString(Font font, Component text, int x, int y, int color) {
+		font.drawShadow(g, text, x, y, color);
+	}
+
+	public void drawString(Font font, Component text, int x, int y, int color, boolean shadow) {
+		if (shadow) font.drawShadow(g, text, x, y, color);
+		else font.draw(g, text, x, y, color);
+	}
+
+	public void drawString(Font font, FormattedCharSequence text, int x, int y, int color, boolean shadow) {
+		if (shadow) font.drawShadow(g, text, x, y, color);
+		else font.draw(g, text, x, y, color);
+	}
+
+	public void drawCenteredString(Font font, String text, int x, int y, int color) {
+		GuiComponent.drawCenteredString(g, font, text, x, y, color);
+	}
+
+	public void drawCenteredString(Font font, Component text, int x, int y, int color) {
+		GuiComponent.drawCenteredString(g, font, text, x, y, color);
+	}
+
+	public void renderItem(ItemStack stack, int x, int y) {
+		PoseStack view = RenderSystem.getModelViewStack();
+		view.pushPose();
+		view.mulPoseMatrix(g.last().pose());
+		RenderSystem.applyModelViewMatrix();
+		Minecraft.getInstance().getItemRenderer().renderGuiItem(stack, x, y);
+		view.popPose();
+		RenderSystem.applyModelViewMatrix();
+	}
+
+	public void blit(ResourceLocation texture, int x, int y, float u, float v, int w, int h, int regionW, int regionH, int texW, int texH, int color) {
+		RenderSystem.setShaderColor((color >> 16 & 0xFF) / 255F, (color >> 8 & 0xFF) / 255F, (color & 0xFF) / 255F, (color >>> 24) / 255F);
+		blit(texture, x, y, u, v, w, h, regionW, regionH, texW, texH);
+		RenderSystem.setShaderColor(1, 1, 1, 1);
+	}
+
+	public void blit(ResourceLocation texture, int x, int y, float u, float v, int w, int h, int regionW, int regionH, int texW, int texH) {
+		RenderSystem.setShaderTexture(0, texture);
+		RenderSystem.enableBlend();
+		GuiComponent.blit(g, x, y, w, h, u, v, regionW, regionH, texW, texH);
+		RenderSystem.disableBlend();
+	}
+
+	public void face(PlayerSkin skin, int x, int y, int size) {
+		RenderSystem.setShaderTexture(0, skin.texture());
+		PlayerFaceRenderer.draw(g, x, y, size);
+	}
+
+	public void entity(EntityRenderState state, float scale, Vector3f offset, Quaternionf rotation, Quaternionf cameraAngle, int x1, int y1, int x2, int y2) {
+		PlayerRenderState player = (PlayerRenderState) state;
+		var renderers = ((EntityRenderDispatcherAccessor) Minecraft.getInstance().getEntityRenderDispatcher()).kromvia$playerRenderers();
+		PlayerRenderer renderer = (PlayerRenderer) renderers.getOrDefault(player.skin.model().id, renderers.get("default"));
+		PlayerModel<AbstractClientPlayer> model = renderer.getModel();
+		PoseStack pose = g;
+		GuiComponent.enableScissor(x1, y1, x2, y2);
+		pose.pushPose();
+		pose.translate((x1 + x2) / 2F, (y1 + y2) / 2F, 50);
+		pose.scale(scale, scale, -scale);
+		pose.translate(offset.x, offset.y, offset.z);
+		pose.mulPose(rotation);
+		pose.mulPose(Axis.YP.rotationDegrees(180 - player.bodyRot));
+		pose.scale(-1, -1, 1);
+		pose.scale(0.9375F, 0.9375F, 0.9375F);
+		pose.translate(0, -1.501F, 0);
+		flush();
+		Lighting.setupForEntityInInventory();
+		for (ModelPart part : List.of(model.head, model.hat, model.body, model.jacket, model.rightArm, model.rightSleeve,
+				model.leftArm, model.leftSleeve, model.rightLeg, model.rightPants, model.leftLeg, model.leftPants)) {
+			part.resetPose();
+		}
+		model.setAllVisible(true);
+		model.crouching = false;
+		model.riding = false;
+		model.young = false;
+		model.attackTime = 0;
+		var buffers = Minecraft.getInstance().renderBuffers().bufferSource();
+		model.renderToBuffer(pose, buffers.getBuffer(model.renderType(player.skin.texture())), 0xF000F0, OverlayTexture.NO_OVERLAY, 1, 1, 1, 1);
+		new CosmeticsLayer(renderer).render(pose, buffers, 0xF000F0, player);
+		flush();
+		pose.popPose();
+		Lighting.setupFor3DItems();
+		GuiComponent.disableScissor();
+	}
+
+	public void widget(AbstractWidget widget, int mouseX, int mouseY, float delta) {
+		widget.render(g, mouseX, mouseY, delta);
+	}
+
+	public void nextStratum() {
+		flush();
+	}
+
+	public void blurBeforeThisStratum() {
+		flush();
+	}
+
+	public void enableScissor(int x1, int y1, int x2, int y2) {
+		GuiComponent.enableScissor(x1, y1, x2, y2);
+	}
+
+	public void disableScissor() {
+		GuiComponent.disableScissor();
+	}
+
+	private static final class Gradient extends GuiComponent {
+		static void draw(PoseStack pose, int x1, int y1, int x2, int y2, int top, int bottom) {
+			fillGradient(pose, x1, y1, x2, y2, top, bottom, 0);
+		}
+	}
+
+	private static void flush() {
+		RenderSystem.disableDepthTest();
+		Minecraft.getInstance().renderBuffers().bufferSource().endBatch();
+		RenderSystem.enableDepthTest();
+	}
+}

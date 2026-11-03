@@ -1,0 +1,67 @@
+# 1.21.11 renamed ResourceLocation to Identifier and moved a few classes and methods.
+Identifier -> ResourceLocation
+.identifier() -> .location()
+model.player.PlayerModel -> model.PlayerModel
+renderer.rendertype -> renderer
+RenderTypes -> RenderType
+ARGB.srgbLerp -> ARGB.lerp
+# 1.21.9 renamed the player renderer to Avatar* and moved PlayerSkin.
+AvatarRenderState -> PlayerRenderState
+AvatarRenderer -> PlayerRenderer
+world.entity.player.PlayerSkin -> client.resources.PlayerSkin
+# 1.21.6 renamed WorldVersion.getName().
+getCurrentVersion().name() -> getCurrentVersion().getName()
+# 1.21.5 gave DynamicTexture a debug name.
+DynamicTexture(LOGO::toString, -> DynamicTexture(
+DynamicTexture(texture::toString, -> DynamicTexture(
+DynamicTexture(id::toString, -> DynamicTexture(
+# 1.21.4 renamed the equipment fields of the render state.
+state.headEquipment -> state.headItem
+state.chestEquipment -> state.chestItem
+# 1.21.1 has no render states: layers get the entity, and compat has stand-ins for the states.
+net.minecraft.client.renderer.entity.state.PlayerRenderState -> com.kromvia.client.compat.PlayerRenderState
+net.minecraft.client.renderer.entity.state.EntityRenderState -> com.kromvia.client.compat.EntityRenderState
+RenderLayerParent<PlayerRenderState, PlayerModel> -> RenderLayerParent<net.minecraft.client.player.AbstractClientPlayer, PlayerModel<net.minecraft.client.player.AbstractClientPlayer>>
+# 1.21.1 has FastColor.ARGB32 instead of ARGB, and NativeImage pixels in ABGR.
+net.minecraft.util.ARGB -> com.kromvia.client.compat.ARGB
+setPixel(x, y, argb) -> setPixelRGBA(x, y, argb & 0xFF00FF00 | argb >> 16 & 0xFF | (argb & 0xFF) << 16)
+img.setPixel(px, py, -> img.setPixelRGBA(px, py,
+new DustParticleOptions(Mth.hsvToRgb((tick % 120) / 120f, 0.8f, 1f), 1.2f) -> new DustParticleOptions(net.minecraft.world.phys.Vec3.fromRGB24(Mth.hsvToRgb((tick % 120) / 120f, 0.8f, 1f)).toVector3f(), 1.2f)
+packet.gameTime() -> packet.getGameTime()
+# 1.20.6 builds ResourceLocations with new, and has the options screen one package up.
+ResourceLocation.fromNamespaceAndPath( -> new ResourceLocation(
+gui.screens.options.OptionsScreen -> gui.screens.OptionsScreen
+CrossbowItem.getChargeDuration(use, mc.player) -> CrossbowItem.getChargeDuration(use)
+# 1.20.4 has no menu blur, effects are not holders yet, and connecting takes no transfer state.
+if (minecraft.options.getMenuBackgroundBlurriness() >= 1) g.blurBeforeThisStratum(); -> // No menu blur in this version.
+e.getEffect().value() -> e.getEffect()
+ServerAddress.parseString(data.ip), data, false, null) -> ServerAddress.parseString(data.ip), data, false)
+# 1.20.1 has no PlayerSkin (compat has one), keys player renderers by model name, and scrolls on one axis.
+net.minecraft.client.resources.PlayerSkin -> com.kromvia.client.compat.PlayerSkin
+renderers.getOrDefault(player.skin.model(), renderers.get(PlayerSkin.Model.WIDE)) -> renderers.getOrDefault(player.skin.model().id, renderers.get("default"))
+PlayerFaceRenderer.draw(g, skin, x, y, size) -> PlayerFaceRenderer.draw(g, skin.texture(), x, y, size)
+mc().getSkinManager().lookupInsecure(mc().getGameProfile()) -> PlayerSkin.own()
+mc.getDebugOverlay().showDebugScreen() -> mc.options.renderDebug
+mouseScrolled(double x, double y, double scrollX, double scrollY) -> mouseScrolled(double x, double y, double scrollY)
+# 1.20 made AbstractButton.renderWidget public.
+protected final void renderWidget(GuiGraphics g -> public final void renderWidget(GuiGraphics g
+setPixel(x, y, argb) -> setPixelRGBA(x, y, net.minecraft.util.FastColor.ABGR32.fromArgb32(argb))
+renderer/rendertype/ -> renderer/
+model/player/PlayerModel -> model/PlayerModel
+org.jspecify.annotations.Nullable -> org.jetbrains.annotations.Nullable
+getIdentifier -> getLocation
+.getGameProfile().name() -> .getGameProfile().getName()
+.getProfile().name() -> .getProfile().getName()
+mc.hasControlDown() -> net.minecraft.client.gui.screens.Screen.hasControlDown()
+mc.hasShiftDown() -> net.minecraft.client.gui.screens.Screen.hasShiftDown()
+getDeltaTracker -> getTimer
+mc.schedule( -> mc.tell(
+ResourceLocation.withDefaultNamespace( -> new ResourceLocation(
+allMessages.removeFirst() -> allMessages.remove(0)
+ps.mulPose(nodes[d[0]]) -> ps.mulPoseMatrix(nodes[d[0]])
+SystemToast.SystemToastId ID = new SystemToast.SystemToastId(5000L) -> SystemToast.SystemToastIds ID = SystemToast.SystemToastIds.PERIODIC_NOTIFICATION
+.withColor(VIOLET) -> .withStyle(net.minecraft.network.chat.Style.EMPTY.withColor(VIOLET))
+# Before 1.20.3 WorldOpenFlows.loadLevel took the parent screen.
+createWorldOpenFlows().openWorld(id, back) -> createWorldOpenFlows().loadLevel(this, id)
+# ServerData took a LAN flag before 1.20.2.
+ServerData.Type.OTHER -> false

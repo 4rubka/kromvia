@@ -1,0 +1,337 @@
+:root {
+  --bg: #06050b;
+  --surface: #100e19;
+  --surface-2: #1a1726;
+  --border: #322c48;
+  --text: #f3f1fa;
+  --text-muted: #c3bdd6;
+  --text-dim: #8d86a6;
+  --accent: #8b5cf6;
+  --accent-hover: #a78bfa;
+  --accent-deep: #3b1f86;
+  --accent-2: #1f63d6;
+  --accent-grad: linear-gradient(120deg, #a35fd6, #6a5cf0 45%, #1f63d6);
+  --top: #c9b5ff;
+  --side: #2f55c8;
+  --bevel-top: rgb(255 255 255 / 0.07);
+  --page-glow: radial-gradient(ellipse 55% 45% at 55% 0%, rgb(0 92 198 / 0.2), transparent 70%),
+    radial-gradient(ellipse 50% 50% at 0% 100%, rgb(191 111 140 / 0.12), transparent 70%),
+    radial-gradient(ellipse 50% 50% at 100% 100%, rgb(135 87 153 / 0.14), transparent 70%);
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --wrap: 1200px;
+  --gutter: clamp(16px, 4vw, 40px);
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--text);
+  background: var(--page-glow), var(--bg);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+img {
+  max-width: 100%;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-sans), sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin: 0;
+  text-wrap: balance;
+}
+
+p {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent-hover);
+  outline-offset: 3px;
+}
+
+::selection {
+  background: var(--accent);
+  color: #fff;
+}
+
+.wrap {
+  width: 100%;
+  max-width: calc(var(--wrap) + var(--gutter) * 2);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.dim {
+  color: var(--text-dim);
+}
+
+.block,
+.btn,
+.field,
+.chip {
+  --n: 5px;
+  --step: polygon(
+    var(--n) 0, calc(100% - var(--n)) 0, calc(100% - var(--n)) var(--n), 100% var(--n),
+    100% calc(100% - var(--n)), calc(100% - var(--n)) calc(100% - var(--n)), calc(100% - var(--n)) 100%,
+    var(--n) 100%, var(--n) calc(100% - var(--n)), 0 calc(100% - var(--n)), 0 var(--n), var(--n) var(--n)
+  );
+  clip-path: var(--step);
+}
+
+.block {
+  --b-face: var(--surface);
+  --b-rim: var(--border);
+  --b-side: rgb(0 0 0 / 0.35);
+  --side-h: 4px;
+  position: relative;
+  isolation: isolate;
+  background: var(--b-rim);
+}
+
+.block::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+  background: linear-gradient(var(--bevel-top) 0 2px, var(--b-face) 2px calc(100% - var(--side-h)), var(--b-side) calc(100% - var(--side-h)));
+  clip-path: var(--step);
+}
+
+.block.glass {
+  --b-face: rgb(16 14 25 / 0.82);
+  --b-rim: rgb(201 181 255 / 0.18);
+}
+
+.block.glass::before {
+  backdrop-filter: blur(14px);
+}
+
+a.block,
+button.block {
+  transition: filter 160ms var(--ease-out), transform 160ms var(--ease-out);
+}
+
+a.block:hover,
+button.block:hover {
+  --b-face: var(--surface-2);
+  --b-rim: color-mix(in srgb, var(--accent) 55%, var(--border));
+}
+
+.btn {
+  --n: 4px;
+  --side-h: 4px;
+  --b-rim: var(--accent-hover);
+  --b-top: rgb(255 255 255 / 0.35);
+  --b-side: var(--accent-deep);
+  --b-fill: var(--accent-grad);
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px 13px;
+  border: 0;
+  background: var(--b-rim);
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter 140ms var(--ease-out);
+}
+
+.btn::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+  background:
+    linear-gradient(var(--b-top) 0 1px, transparent 1px calc(100% - var(--side-h)), var(--b-side) calc(100% - var(--side-h))),
+    var(--b-fill);
+  clip-path: var(--step);
+}
+
+.btn:hover {
+  filter: brightness(1.12);
+}
+
+.btn:active {
+  --side-h: 1px;
+  padding: 12px 18px 11px;
+}
+
+.btn.ghost {
+  --b-fill: var(--surface-2);
+  --b-rim: color-mix(in srgb, var(--text) 22%, var(--surface-2));
+  --b-top: rgb(255 255 255 / 0.08);
+  --b-side: rgb(0 0 0 / 0.45);
+}
+
+.btn.big {
+  --n: 6px;
+  --side-h: 6px;
+  padding: 16px 30px 22px;
+  font-family: var(--font-sans), sans-serif;
+  font-size: clamp(17px, 2vw, 22px);
+  font-weight: 600;
+}
+
+.btn.big:active {
+  --side-h: 2px;
+  padding: 20px 30px 18px;
+}
+
+.btn[aria-disabled="true"] {
+  cursor: default;
+  filter: saturate(0.4) brightness(0.8);
+}
+
+.field {
+  --n: 2px;
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--border);
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+}
+
+.chip {
+  --n: 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--border);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.chip.on {
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface));
+  box-shadow: inset 0 0 0 1px var(--accent);
+  color: #fff;
+}
+
+.section {
+  padding: clamp(64px, 10vw, 120px) 0;
+}
+
+.section-head {
+  display: grid;
+  gap: 14px;
+  max-width: 640px;
+  margin-bottom: clamp(32px, 5vw, 56px);
+}
+
+.section-head.center {
+  margin-inline: auto;
+  text-align: center;
+  justify-items: center;
+}
+
+.section-head h2 {
+  font-size: clamp(30px, 4.4vw, 48px);
+}
+
+.section-head p {
+  color: var(--text-muted);
+  font-size: 17px;
+}
+
+.page-head {
+  padding: clamp(48px, 8vw, 96px) 0 clamp(24px, 4vw, 40px);
+}
+
+.page-head h1 {
+  font-size: clamp(36px, 6vw, 64px);
+}
+
+.page-head p {
+  margin-top: 16px;
+  max-width: 640px;
+  color: var(--text-muted);
+  font-size: 18px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.prose {
+  max-width: 720px;
+  margin-bottom: 96px;
+  color: var(--text-muted);
+  font-size: 17px;
+}
+
+.prose h2 {
+  margin: 40px 0 12px;
+  color: var(--text);
+  font-size: 24px;
+}
+
+.prose p,
+.prose ul,
+.prose ol {
+  margin: 0 0 14px;
+}
+
+.prose li {
+  margin-bottom: 6px;
+}
+
+.prose a {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+
+.prose b {
+  color: var(--text);
+}

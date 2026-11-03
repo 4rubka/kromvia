@@ -1,0 +1,32 @@
+package com.kromvia.client.compat;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
+
+public abstract class DrawnButton extends Button {
+	protected DrawnButton(int x, int y, int w, int h, Component label, OnPress onPress) {
+		super(x, y, w, h, label, onPress, DEFAULT_NARRATION);
+	}
+
+	@Override
+	protected final void renderWidget(GuiGraphics g, int mouseX, int mouseY, float delta) {
+		drawContents(Gfx.of(g), mouseX, mouseY, delta);
+	}
+
+	@Override
+	public final void onPress() {
+		pressed();
+		super.onPress();
+	}
+
+	protected void pressed() {}
+
+	protected abstract void drawContents(Gfx g, int mouseX, int mouseY, float delta);
+
+	protected void drawDefaultLabel(Gfx g) {
+		renderString(g.raw(), Minecraft.getInstance().font, (active ? 0xFFFFFF : 0xA0A0A0) | Mth.ceil(alpha * 255) << 24);
+	}
+}

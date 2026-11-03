@@ -1,0 +1,57 @@
+.page {
+  display: grid;
+  gap: 16px;
+  padding-block: clamp(40px, 6vw, 80px);
+}
+
+.title {
+  font-size: clamp(30px, 5vw, 52px);
+  word-break: break-word;
+}
+
+.shot {
+  width: 100%;
+  image-rendering: auto;
+  box-shadow: 0 0 0 1px var(--border), 0 30px 80px rgb(0 0 0 / 0.5);
+}
+
+.log {
+  max-height: 70vh;
+  margin: 0;
+  padding: 20px;
+  overflow: auto;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.page a {
+  color: var(--accent-hover);
+}
+
+.files {
+  margin: 8px 0 0;
+  padding: 10px 20px 14px;
+  list-style: none;
+}
+
+.files li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 0;
+  font-size: 14px;
+  border-bottom: 1px solid rgb(201 181 255 / 0.08);
+  overflow-wrap: anywhere;
+}
+
+.files li:last-child {
+  border-bottom: 0;
+}

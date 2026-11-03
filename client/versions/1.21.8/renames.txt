@@ -1,0 +1,23 @@
+# 1.21.11 renamed ResourceLocation to Identifier and moved a few classes and methods.
+Identifier -> ResourceLocation
+.identifier() -> .location()
+model.player.PlayerModel -> model.PlayerModel
+renderer.rendertype -> renderer
+RenderTypes -> RenderType
+ARGB.srgbLerp -> ARGB.lerp
+# 1.21.9 renamed the player renderer to Avatar* and moved PlayerSkin.
+AvatarRenderState -> PlayerRenderState
+AvatarRenderer -> PlayerRenderer
+world.entity.player.PlayerSkin -> client.resources.PlayerSkin
+renderer/rendertype/ -> renderer/
+model/player/PlayerModel -> model/PlayerModel
+org.jspecify.annotations.Nullable -> org.jetbrains.annotations.Nullable
+getIdentifier -> getLocation
+AvatarRenderState -> PlayerRenderState
+.getGameProfile().name() -> .getGameProfile().getName()
+.getProfile().name() -> .getProfile().getName()
+mc.hasControlDown() -> net.minecraft.client.gui.screens.Screen.hasControlDown()
+mc.hasShiftDown() -> net.minecraft.client.gui.screens.Screen.hasShiftDown()
+# ChatScreen takes only the text before 1.21.9.
+ChatScreen(text, false) -> ChatScreen(text)
+mc.screen.resize(w.getGuiScaledWidth(), w.getGuiScaledHeight()); -> mc.screen.resize(mc, w.getGuiScaledWidth(), w.getGuiScaledHeight());

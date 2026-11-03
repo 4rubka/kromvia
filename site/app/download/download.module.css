@@ -1,0 +1,56 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.card {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  padding: 24px 24px 28px;
+}
+
+.card h2 {
+  font-size: 22px;
+}
+
+.card :global(.btn) {
+  margin-top: 14px;
+}
+
+.size {
+  opacity: 0.7;
+  font-weight: 600;
+}
+
+.after {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  margin: 64px 0 80px;
+}
+
+.after img {
+  width: 160px;
+  flex-shrink: 0;
+}
+
+.after h3 {
+  font-size: 20px;
+  margin-bottom: 8px;
+}
+
+.after ol {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--text-muted);
+  line-height: 1.9;
+}
+
+@media (max-width: 560px) {
+  .after {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

@@ -1,0 +1,462 @@
+import { useEffect, useState, type CSSProperties } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { useI18n } from "../i18n";
+import { Progress } from "../ui/Progress";
+import { Glyph } from "../ui/Glyph";
+import { usePaged } from "../ui/Pager";
+import { Empty } from "../ui/Empty";
+import { describe, useLauncher, type Instance } from "../lib/launcher";
+import { useJobs } from "../lib/jobs";
+import { SkinArt } from "../art/SkinArt";
+import { InstanceIcon } from "../art/ModelIcon";
+import { Console } from "./Console";
+import { CrashHelp } from "./CrashHelp";
+import { NewInstance } from "./NewInstance";
+import { ImportInstances } from "./ImportInstances";
+import { Flowers, Vines } from "./Decor";
+import { MinimapOffer } from "./MinimapOffer";
+
+export type Nav = "builds" | "content" | "skins" | "rooms";
+type LibrarySkin = { id: string; slim: boolean; dataUrl: string };
+
+const SERVERS = [
+  { name: "Hypixel", address: "mc.hypixel.net", color: "#e0a53c" },
+  { name: "CubeCraft", address: "play.cubecraft.net", color: "#3a8fd9" },
+  { name: "Wynncraft", address: "play.wynncraft.com", color: "#5fb83f" },
+  { name: "Minemen", address: "eu.minemen.club", color: "#d94a4a" },
+];
+
+type ServerStatus = { online: number; max: number; version: string; latencyMs: number };
+type Server = { name: string; address: string; color: string };
+
+const SERVERS_KEY = "kromvia.servers";
+const TINTS = ["#e0a53c", "#3a8fd9", "#5fb83f", "#d94a4a", "#b98cf0", "#12907e", "#d9466f"];
+const validAddress = (a: string) => /^[a-zA-Z0-9.:-]{1,253}$/.test(a) && !a.startsWith("-");
+
+function savedServers(): Server[] {
+  try {
+    const list = JSON.parse(localStorage.getItem(SERVERS_KEY) ?? "[]");
+    return Array.isArray(list) ? list.filter((s) => s && validAddress(s.address) && typeof s.name === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+const compact = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(n));
+
+const NEWS = [
+  { title: "Rooms", text: "Play your singleplayer world with friends through a code." },
+  { title: "New Right Shift menu", text: "Blur, smooth scrolling and cards that react to you." },
+  { title: "18 new modules", text: "Target HUD, TPS, Hit Colour, No Fog, Totem Pops and more." },
+];
+
+export function Home({ onNavigate }: { onNavigate: (page: Nav) => void }) {
+  const { t } = useI18n();
+  const l = useLauncher();
+  const { current, instances } = l;
+  const [creating, setCreating] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [skin, setSkin] = useState<LibrarySkin | null>(null);
+  const [showConsole, setShowConsole] = useState(false);
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState<Record<string, ServerStatus | null>>({});
+  const [custom, setCustom] = useState<Server[]>(savedServers);
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState({ name: "", address: "" });
+  const servers = [...SERVERS, ...custom];
+  const draftOk = draft.name.trim() !== "" && validAddress(draft.address.trim());
+
+  const saveCustom = (list: Server[]) => {
+    setCustom(list);
+    try {
+      localStorage.setItem(SERVERS_KEY, JSON.stringify(list));
+    } catch {}
+  };
+  const addServer = () => {
+    if (!draftOk) return;
+    const address = draft.address.trim();
+    saveCustom([
+      ...custom.filter((c) => c.address !== address),
+      { name: draft.name.trim(), address, color: TINTS[custom.length % TINTS.length] },
+    ]);
+    setDraft({ name: "", address: "" });
+    setAdding(false);
+  };
+  const [clientVersions, setClientVersions] = useState<string[]>([]);
+  useEffect(() => {
+    invoke<string[]>("client_versions").then(setClientVersions, () => {});
+  }, []);
+  const [boosted, setBoosted] = useState<Record<string, string>>({});
+  const boosts = useJobs("preset-", (key, error) => setBoosted((b) => ({ ...b, [key.slice("preset-".length)]: error ?? "" })));
+
+  const boost = (inst: Instance) =>
+    invoke<number>("preset_apply", { instanceId: inst.id, preset: "maxFps" }).then(
+      (id) => boosts.started(`preset-${inst.id}`, id),
+      (e) => setBoosted((b) => ({ ...b, [inst.id]: String(e) })),
+    );
+
+  const serverKey = servers.map((sv) => sv.address).join(",");
+  useEffect(() => {
+    const poll = () =>
+      servers.forEach((sv) =>
+        invoke<ServerStatus>("server_status", { address: sv.address }).then(
+          (st) => setStatus((m) => ({ ...m, [sv.address]: st })),
+          () => setStatus((m) => ({ ...m, [sv.address]: null })),
+        ),
+      );
+    poll();
+    const id = setInterval(poll, 60_000);
+    return () => clearInterval(id);
+  }, [serverKey]);
+
+  const who = l.account?.name ?? l.nick.trim();
+  useEffect(() => {
+    const look = (name: string) => invoke<LibrarySkin>("skin_lookup", { nick: name });
+    invoke<LibrarySkin[]>("wardrobe_list")
+      .then((list) => list[0] ?? Promise.reject())
+      .catch(() => look(who || "MHF_Steve"))
+      .catch(() => look("MHF_Steve"))
+      .then(setSkin, () => {});
+  }, [who]);
+
+  const job = current && l.jobOf(current.id);
+  const run = current && l.runOf(current.id);
+  const name = l.account?.name ?? (l.nick.trim() || t("home.guest"));
+  const recent = [...instances].sort((a, b) => b.created - a.created).slice(0, 3);
+  const shown = instances.filter((i) => i.name.toLowerCase().includes(query.trim().toLowerCase()));
+  const library = usePaged(shown, 12);
+  const roomCode = l.hosting ? l.rooms[l.hosting] : undefined;
+  const clientNote =
+    !current || clientVersions.length === 0
+      ? null
+      : current.loader?.kind !== "fabric"
+        ? t("home.clientFabricOnly")
+        : !clientVersions.includes(current.mcVersion)
+          ? t("home.clientMissing", { mc: current.mcVersion, versions: clientVersions.join(", ") })
+          : null;
+
+  const remove = (id: string) => {
+    if (confirmDelete !== id) return setConfirmDelete(id);
+    setConfirmDelete(null);
+    invoke("instance_delete", { id }).then(l.refresh, (e) => l.setError(id, String(e)));
+  };
+
+  const rowAction = (inst: Instance) => {
+    const j = l.jobOf(inst.id);
+    const r = l.runOf(inst.id);
+    if (j) return <Progress job={j} />;
+    if (r)
+      return (
+        <button className="btn btn-danger" onClick={() => invoke("game_stop", { runId: r.runId })}>
+          <Glyph name="player-stop" /> {t("game.stop")}
+        </button>
+      );
+    return (
+      <button className="btn" onClick={() => l.play(inst)}>
+        <Glyph name="player-play" /> {t("game.play")}
+      </button>
+    );
+  };
+
+  return (
+    <div className="home">
+      <div className="home-main">
+        <div className="quickbar">
+          <span className="quickbar-label">{t("home.quickPlay")}</span>
+          {servers.map((sv) => {
+            const st = status[sv.address];
+            const mine = custom.some((c) => c.address === sv.address);
+            return (
+              <span key={sv.address} className="server-wrap">
+                <button
+                  className="server"
+                  style={{ "--c": sv.color } as CSSProperties}
+                  title={st ? `${sv.address} · ${st.version.replace(/§./g, "")} · ${st.latencyMs} ms` : sv.address}
+                  disabled={!current || !!run || !!job}
+                  onClick={() => current && l.play(current, { join: sv.address })}
+                >
+                  <span className="letter">
+                    {sv.name[0]}
+                  </span>
+                  {sv.name}
+                  {st !== undefined && (
+                    <span className="online" data-up={!!st}>
+                      {st ? compact(st.online) : t("home.offline")}
+                    </span>
+                  )}
+                </button>
+                {mine && (
+                  <button
+                    className="server-remove"
+                    aria-label={t("servers.remove")}
+                    onClick={() => saveCustom(custom.filter((c) => c.address !== sv.address))}
+                  >
+                    ✕
+                  </button>
+                )}
+              </span>
+            );
+          })}
+          {adding ? (
+            <form
+              className="server-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                addServer();
+              }}
+            >
+              <input
+                className="input"
+                autoFocus
+                placeholder={t("servers.name")}
+                aria-label={t("servers.name")}
+                maxLength={24}
+                value={draft.name}
+                onChange={(e) => setDraft({ ...draft, name: e.currentTarget.value })}
+              />
+              <input
+                className="input"
+                placeholder="play.example.net"
+                aria-label={t("servers.address")}
+                value={draft.address}
+                onChange={(e) => setDraft({ ...draft, address: e.currentTarget.value })}
+              />
+              <button className="btn" disabled={!draftOk}>
+                <Glyph name="plus" /> {t("servers.add")}
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => setAdding(false)}>
+                <Glyph name="x" /> {t("common.cancel")}
+              </button>
+            </form>
+          ) : (
+            <button className="server add" aria-label={t("servers.addTitle")} title={t("servers.addTitle")} onClick={() => setAdding(true)}>
+              <Glyph name="plus" />
+            </button>
+          )}
+        </div>
+
+        <section className="launchpad tile-art-host">
+          <Vines />
+          <div className="launchpad-art">
+            <img className="launchpad-bee" src="/bee/empty-home.webp" alt="" draggable={false} />
+          </div>
+          {current ? (
+            <div className="launchpad-center">
+              {(job || run) && <img className="launch-bee" src={`/bee/${job ? "loading" : "idle"}.webp`} alt="" draggable={false} />}
+              {job ? (
+                <div className="launch busy">
+                  <Progress job={job} />
+                  <button className="btn btn-ghost" onClick={() => invoke("job_cancel", { id: job.id })}>
+                    <Glyph name="x" /> {t("common.cancel")}
+                  </button>
+                </div>
+              ) : run ? (
+                <button className="launch stop" onClick={() => invoke("game_stop", { runId: run.runId })}>
+                  <span className="launch-title">{t("game.stop")}</span>
+                  <span className="launch-sub">{current.name}</span>
+                </button>
+              ) : (
+                <span className="launch-wrap">
+                  <Flowers />
+                  <button className="launch" onClick={() => l.play(current)}>
+                    <span className="launch-title">
+                      {t("home.launch")} {current.mcVersion}
+                    </span>
+                    <span className="launch-sub">{current.name}</span>
+                  </button>
+                </span>
+              )}
+              {instances.length > 1 && (
+                <select
+                  className="launch-pick input"
+                  value={current.id}
+                  aria-label={t("home.pick")}
+                  onChange={(e) => l.setSelected(e.currentTarget.value)}
+                >
+                  {instances.map((i) => (
+                    <option key={i.id} value={i.id}>
+                      {i.name} · {describe(i, t("instance.vanilla"))}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {clientNote && <small className="muted">{clientNote}</small>}
+              {l.errors[current.id] && <p className="error">{l.errors[current.id]}</p>}
+              {run && <MinimapOffer inst={current} />}
+            </div>
+          ) : (
+            <div className="launchpad-center">
+              <button className="launch" onClick={() => setCreating(true)}>
+                <span className="launch-title">{t("instance.new")}</span>
+                <span className="launch-sub">{t("home.firstText")}</span>
+              </button>
+            </div>
+          )}
+        </section>
+
+        {recent.length > 0 && (
+          <section>
+            <h2 className="section-title">{t("home.jumpIn")}</h2>
+            <ul className="rows">
+              {recent.map((inst) => (
+                <li key={inst.id} className="row" data-selected={inst.id === current?.id} onClick={() => l.setSelected(inst.id)}>
+                  <InstanceIcon inst={inst} size={44} />
+                  <div className="row-main">
+                    <span className="row-name">
+                      {inst.name}
+                      {l.runOf(inst.id) && <span className="pill live">{t("home.running")}</span>}
+                    </span>
+                    <small className="muted">{describe(inst, t("instance.vanilla"))}</small>
+                  </div>
+                  <div className="row-action" onClick={(e) => e.stopPropagation()}>
+                    {(inst.loader?.kind === "fabric" || inst.loader?.kind === "quilt") &&
+                      (boosts.jobs[`preset-${inst.id}`] ? (
+                        <span className="muted small">{t("home.boosting")}</span>
+                      ) : boosted[inst.id] !== undefined ? (
+                        <span className="muted small" title={boosted[inst.id]}>
+                          {boosted[inst.id] ? t("home.boostPartly") : t("home.boosted")}
+                        </span>
+                      ) : (
+                        <button className="btn btn-ghost" title={t("home.boostHint")} onClick={() => boost(inst)}>
+                          <Glyph name="bolt" /> {t("home.boost")}
+                        </button>
+                      ))}
+                    {rowAction(inst)}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        <section>
+          <div className="library-head">
+            <h2 className="section-title">{t("home.instances")}</h2>
+            <div className="library-tools">
+              <input
+                className="input"
+                placeholder={t("home.search")}
+                aria-label={t("home.search")}
+                value={query}
+                onChange={(e) => setQuery(e.currentTarget.value)}
+              />
+              <button className="btn btn-ghost" onClick={() => setImporting((v) => !v)}>
+                <Glyph name="file-import" /> {t("import.open")}
+              </button>
+            </div>
+          </div>
+          {importing && <ImportInstances onImported={l.refresh} onClose={() => setImporting(false)} />}
+          {creating && (
+            <NewInstance
+              onDone={(inst) => {
+                setCreating(false);
+                if (inst) {
+                  l.refresh();
+                  l.setSelected(inst.id);
+                }
+              }}
+            />
+          )}
+          {instances.length === 0 && !creating && <Empty bee="empty-builds">{t("home.empty")}</Empty>}
+          <ul className="tiles">
+            {library.items.map((inst) => {
+              const exit = l.exits[inst.id];
+              return (
+                <li key={inst.id}>
+                  <button className="tile" data-selected={inst.id === current?.id} onClick={() => l.setSelected(inst.id)}>
+                    <InstanceIcon inst={inst} size={56} />
+                    <span className="tile-name">{inst.name}</span>
+                    <small>{describe(inst, t("instance.vanilla"))}</small>
+                    {exit !== undefined && exit !== 0 && (
+                      <span className="error-inline small">{t("game.crashed", { code: String(exit) })}</span>
+                    )}
+                  </button>
+                  <button
+                    className={confirmDelete === inst.id ? "tile-delete confirm" : "tile-delete"}
+                    onClick={() => remove(inst.id)}
+                    onBlur={() => setConfirmDelete(null)}
+                    aria-label={t("instance.delete")}
+                  >
+                    {confirmDelete === inst.id ? t("instance.deleteConfirm") : "✕"}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          {library.pager}
+        </section>
+
+        {current && l.crashes[current.id] && !run && <CrashHelp key={current.id} inst={current} crash={l.crashes[current.id]} />}
+        {current && l.logs[current.id] && (
+          <section>
+            <button className="btn btn-ghost" onClick={() => setShowConsole((s) => !s)}>
+              <Glyph name="terminal-2" /> {showConsole ? t("console.hide") : t("console.show")}
+            </button>
+            {showConsole && <Console lines={l.logs[current.id]} />}
+          </section>
+        )}
+      </div>
+
+      <aside className="home-side">
+        <section className="side-block player">
+          <span className="side-label">{t("home.playingAs")}</span>
+          <SkinArt skin={skin?.dataUrl ?? null} slim={skin?.slim ?? false} back="cape" />
+          <strong className="player-name">{name}</strong>
+          {l.accounts.length > 0 && (
+            <select
+              className="input"
+              value={l.account?.id ?? ""}
+              onChange={(e) => invoke("account_select", { id: e.currentTarget.value || null }).then(l.refreshAccounts)}
+            >
+              {l.accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+              <option value="">{t("home.offline")}</option>
+            </select>
+          )}
+          {!l.account && (
+            <input
+              className="input"
+              placeholder={t("home.nickname")}
+              aria-label={t("home.nickname")}
+              value={l.nick}
+              maxLength={16}
+              onChange={(e) => l.setNick(e.currentTarget.value)}
+            />
+          )}
+        </section>
+
+        <section className="side-block">
+          <span className="side-label">{t("rooms.title")}</span>
+          {l.hosting ? (
+            roomCode ? (
+              <code className="side-code">{roomCode}</code>
+            ) : (
+              <p className="room-wait small">{t("rooms.waiting")}</p>
+            )
+          ) : (
+            <p className="muted small">{t("rooms.hint")}</p>
+          )}
+          <button className="btn btn-ghost" onClick={() => onNavigate("rooms")}>
+            <Glyph name="users-group" /> {t("rooms.open")}
+          </button>
+        </section>
+
+        <section className="side-block">
+          <span className="side-label">{t("news.title")}</span>
+          <ul className="news">
+            {NEWS.map((n) => (
+              <li key={n.title}>
+                <strong>{n.title}</strong>
+                <span className="muted">{n.text}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </aside>
+    </div>
+  );
+}
