@@ -1,0 +1,23 @@
+com.mojang.renderpearl.api.buffers -> com.mojang.blaze3d.buffers
+com.mojang.renderpearl.api.pipeline -> com.mojang.blaze3d.pipeline
+com.mojang.renderpearl.backend.vulkan -> com.mojang.blaze3d.vulkan
+InputConstants.isKeyDown(key) -> InputConstants.isKeyDown(mc().getWindow(), key)
+InputConstants.releaseMouse(minecraft.getWindow(), xpos, ypos) -> InputConstants.grabOrReleaseMouse(minecraft.getWindow(), InputConstants.CURSOR_NORMAL, xpos, ypos)
+OverlayTexture.NO_OVERLAY, null, color), light, state) -> OverlayTexture.NO_OVERLAY, null, color, null), light, state)
+server.publishServer(net.minecraft.server.MinecraftServer.MultiplayerScope.LAN, false, -> server.publishServer(null, false,
+new OptionsScreen(this, minecraft.options) -> new OptionsScreen(this, minecraft.options, false)
+Lcom/mojang/renderpearl/api/buffers/ -> Lcom/mojang/blaze3d/buffers/
+Lcom/mojang/renderpearl/api/pipeline/ -> Lcom/mojang/blaze3d/pipeline/
+Lcom/mojang/renderpearl/backend/vulkan/ -> Lcom/mojang/blaze3d/vulkan/
+mc().gui.screen() -> mc().screen
+mc.gui.screen() -> mc.screen
+mc().gui.setScreen( -> mc().setScreen(
+gui.hud.getChat() -> gui.getChat()
+gui.hud.getGuiTicks() -> gui.getGuiTicks()
+mc().gui.hud.isHidden() -> mc().options.hideGui
+mc.gui.toastManager() -> mc.getToastManager()
+EntityTypes -> EntityType
+import net.minecraft.client.gui.Hud; -> import net.minecraft.client.gui.Gui;
+@Mixin(Hud.class) -> @Mixin(Gui.class)
+Lnet/minecraft/client/gui/Hud; -> Lnet/minecraft/client/gui/Gui;
+Items.DYE.red() -> Items.RED_DYE

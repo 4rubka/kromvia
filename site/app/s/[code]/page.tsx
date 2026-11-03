@@ -2,29 +2,54 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { share } from "@/lib/api";
+import { getLang } from "@/lib/i18n";
 import s from "./share.module.css";
 
-export const metadata: Metadata = { title: "Shared from Kromvia" };
+const T = {
+  en: {
+    title: "Shared from Kromvia", shot: "Shared screenshot", from: (c: string) => `Shared from Kromvia · code ${c}`, log: "Shared log",
+    mods: (n: number) => `${n} mods`, packs: (n: number) => `${n} packs and shaders`,
+    by: "From", install: (c: string) => <>. To install it, open any build in Kromvia, find &quot;Install from a share code&quot; and enter <b>{c}</b>.</>,
+    buildDesc: (n: string, mc: string, mods: number) => `Kromvia build "${n}" for Minecraft ${mc}, ${mods} mods.`,
+  },
+  uk: {
+    title: "Поширено з Kromvia", shot: "Скріншот", from: (c: string) => `Поширено з Kromvia · код ${c}`, log: "Лог",
+    mods: (n: number) => `модів: ${n}`, packs: (n: number) => `паків і шейдерів: ${n}`,
+    by: "Від", install: (c: string) => <>. Щоб поставити, відкрий будь-яку збірку в Kromvia, знайди «Встановити з коду» і введи <b>{c}</b>.</>,
+    buildDesc: (n: string, mc: string, mods: number) => `Збірка Kromvia «${n}» для Minecraft ${mc}, модів: ${mods}.`,
+  },
+};
+
+export async function generateMetadata({ params }: PageProps<"/s/[code]">): Promise<Metadata> {
+  const [sh, lang] = await Promise.all([share((await params).code), getLang()]);
+  const t = T[lang];
+  if (sh?.kind === "build") {
+    const mods = sh.data.files.filter((f) => f.path.startsWith("mods/")).length;
+    return { title: sh.data.name, description: t.buildDesc(sh.data.name, sh.data.dependencies.minecraft, mods) };
+  }
+  return { title: sh?.kind === "log" ? t.log : t.title };
+}
 
 const LOADER_KEYS: Record<string, string> = { "fabric-loader": "Fabric", "quilt-loader": "Quilt", forge: "Forge", neoforge: "NeoForge" };
 
 export default async function Shared({ params }: PageProps<"/s/[code]">) {
   const { code } = await params;
-  const sh = await share(code);
+  const [sh, lang] = await Promise.all([share(code), getLang()]);
   if (!sh) notFound();
+  const t = T[lang];
 
   if (sh.kind === "screenshot")
     return (
       <div className={`wrap ${s.page}`}>
-        <img src={sh.url} alt="Shared screenshot" className={s.shot} />
-        <p className="dim">Shared from Kromvia · code {code.toUpperCase()}</p>
+        <img src={sh.url} alt={t.shot} className={s.shot} />
+        <p className="dim">{t.from(code.toUpperCase())}</p>
       </div>
     );
 
   if (sh.kind === "log")
     return (
       <div className={`wrap ${s.page}`}>
-        <h1 className={s.title}>Shared log</h1>
+        <h1 className={s.title}>{t.log}</h1>
         <pre className={`block ${s.log}`}>{sh.text}</pre>
       </div>
     );
@@ -39,11 +64,12 @@ export default async function Shared({ params }: PageProps<"/s/[code]">) {
       <div className={s.chips}>
         <span className="chip on">Minecraft {data.dependencies.minecraft}</span>
         {loader && <span className="chip">{LOADER_KEYS[loader[0]] ?? loader[0]} {loader[1]}</span>}
-        <span className="chip">{mods.length} mods</span>
-        {other > 0 && <span className="chip">{other} packs and shaders</span>}
+        <span className="chip">{t.mods(mods.length)}</span>
+        {other > 0 && <span className="chip">{t.packs(other)}</span>}
       </div>
       <p className="muted">
-        From <Link href={`/u/${from.name}`}>{from.name}</Link>. To install it, open any build in Kromvia, find "Install from a share code" and enter <b>{code.toUpperCase()}</b>.
+        {t.by} <Link href={`/u/${from.name}`}>{from.name}</Link>
+        {t.install(code.toUpperCase())}
       </p>
       <ul className={`block ${s.files}`}>
         {data.files.map((f) => (

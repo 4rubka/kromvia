@@ -82,6 +82,9 @@ pub fn write_index(instance_id: &str, entries: &[ContentEntry]) -> Result<(), St
     std::fs::write(index_path(instance_id)?, json).map_err(|e| e.to_string())
 }
 
+/// Where the launcher puts the Kromvia client in Forge and NeoForge instances; not user content.
+pub const BUILT_IN_CLIENT: &str = "kromvia-client.jar";
+
 pub fn list(instance_id: &str) -> Result<Vec<InstalledFile>, String> {
     let game = instances::game_dir(instance_id)?;
     let index = read_index(instance_id);
@@ -90,6 +93,9 @@ pub fn list(instance_id: &str) -> Result<Vec<InstalledFile>, String> {
         let Ok(entries) = std::fs::read_dir(game.join(folder)) else { continue };
         for entry in entries.flatten().filter(|e| e.path().is_file()) {
             let name = entry.file_name().to_string_lossy().into_owned();
+            if folder == "mods" && name == BUILT_IN_CLIENT {
+                continue;
+            }
             let (file, enabled) = match name.strip_suffix(DISABLED) {
                 Some(base) => (base.to_string(), false),
                 None => (name, true),

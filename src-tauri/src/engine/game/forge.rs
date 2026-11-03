@@ -111,12 +111,19 @@ async fn run_installer(installer: &Path, mc: &str, java: &Path, job: &Arc<Job>) 
         serde_json::from_slice(&read_entry(&mut zip, &json_name)?).map_err(|e| format!("bad {json_name}: {e}"))?;
 
     let mut tasks = Vec::new();
+    let mut from_processors = Vec::new();
     for lib in profile.libraries.iter().chain(&version.libraries) {
         let Some(art) = lib.artifact() else { continue };
         let path = art.path.ok_or_else(|| format!("library {} has no path", lib.name))?;
         let dest = safe_join(&paths::libraries(), &path)?;
         if art.url.is_empty() {
-            extract_entry(&mut zip, &format!("maven/{path}"), &dest)?;
+            let entry = format!("maven/{path}");
+            if zip.by_name(&entry).is_ok() {
+                extract_entry(&mut zip, &entry, &dest)?;
+            } else {
+                // Since 1.20.6 the patched client jar is not shipped; the processors build it.
+                from_processors.push(dest);
+            }
         } else {
             tasks.push(FileTask { url: art.url, dest, hash: art.sha1.map(Hash::Sha1), size: art.size });
         }
@@ -128,8 +135,9 @@ async fn run_installer(installer: &Path, mc: &str, java: &Path, job: &Arc<Job>) 
         .iter()
         .filter(|p| p.sides.as_ref().is_none_or(|s| s.iter().any(|x| x == "client")))
         .collect();
+    let missing = |list: &[PathBuf]| list.iter().find(|p| !p.is_file()).map(|p| format!("installer did not produce {}", p.display()));
     if processors.is_empty() {
-        return Ok(version);
+        return missing(&from_processors).map_or(Ok(version), Err);
     }
 
     let work = paths::temp().join(format!("forge-{}", version.id));
@@ -169,7 +177,7 @@ async fn run_installer(installer: &Path, mc: &str, java: &Path, job: &Arc<Job>) 
     }
     job.progress("patch", total, Some(total));
     let _ = std::fs::remove_dir_all(&work);
-    Ok(version)
+    missing(&from_processors).map_or(Ok(version), Err)
 }
 
 fn resolve_arg(arg: &str, vars: &HashMap<String, String>) -> Result<String, String> {

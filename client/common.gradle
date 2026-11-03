@@ -1,3 +1,8 @@
+buildscript {
+	repositories { mavenCentral() }
+	dependencies { classpath 'org.ow2.asm:asm-commons:9.8' }
+}
+
 def shared = rootProject.file('src/main/java')
 def own = file('src/main/java')
 def parents = []
@@ -83,5 +88,111 @@ def bundledName = "kromvia-client-${project.minecraft_version}.jar"
 tasks.register('bundle', Copy) {
 	from(tasks.findByName('remapJar') ?: tasks.jar)
 	into rootProject.file('../src-tauri/resources/client')
-	rename { bundledName }
+	rename { it.endsWith('forge.jar') ? it : bundledName }
+}
+
+// Forge and NeoForge run Minecraft with Mojang names since 1.20.6, so the unremapped jar works there
+// once Fabric Loader's API is swapped for the shim in forge/ and FML gets its mods.toml.
+def forgeVersions = ['1.21', '1.21.1', '1.21.2', '1.21.3', '1.21.4', '1.21.5', '1.21.6', '1.21.7', '1.21.8', '1.21.9', '1.21.10']
+if (project.minecraft_version in forgeVersions) {
+	def shim = rootProject.file('forge')
+
+	def shimClasses = layout.buildDirectory.dir('forge-shim')
+	def compileShim = tasks.register('compileForgeShim', JavaCompile) {
+		source = fileTree(new File(shim, 'src/main/java')) + fileTree(new File(shim, 'stubs'))
+		classpath = sourceSets.main.output + sourceSets.main.compileClasspath
+		destinationDirectory = shimClasses
+		options.release = project.java_version as int
+	}
+	// Forge ships no MixinExtras, so its jar carries one through JarJar. NeoForge has its own, and a
+	// second copy there would clash, hence two jars.
+	def mixinExtras = '0.5.5'
+	configurations.create('forgeJarJar') { transitive = false }
+	dependencies.add('forgeJarJar', "io.github.llamalad7:mixinextras-forge:$mixinExtras")
+	def jarJarFiles = configurations.forgeJarJar
+	def flavors = ['forge', 'neoforge']
+	flavors.each { flavor ->
+	def forgeJar = layout.buildDirectory.file("forge/kromvia-client-${project.minecraft_version}-${flavor}.jar")
+	tasks.register("${flavor}Jar") {
+		def devJar = tasks.named('jar').flatMap { it.archiveFile }
+		def modVersion = rootProject.version.toString()
+		def nest = flavor == 'forge' ? jarJarFiles : files()
+		dependsOn compileShim
+		inputs.file devJar
+		inputs.files(shimClasses, fileTree(new File(shim, 'src/main/resources')), nest)
+		outputs.file forgeJar
+		doLast {
+			def relocate = [
+				'net/fabricmc/loader/api/FabricLoader': 'com/kromvia/client/platform/FabricLoader',
+				'net/fabricmc/api/ClientModInitializer': 'com/kromvia/client/platform/ClientModInitializer',
+			]
+			def remapper = new org.objectweb.asm.commons.SimpleRemapper(relocate)
+			// Fabric's Mixin 0.17 made `at` an array on these; the Mixin in Forge and NeoForge wants one @At.
+			def singleAt = ['Redirect', 'ModifyArg', 'ModifyArgs', 'ModifyVariable'].collect { "Lorg/spongepowered/asm/mixin/injection/${it};".toString() }
+			def unwrapAt = { org.objectweb.asm.tree.ClassNode node ->
+				node.methods.each { m ->
+					((m.visibleAnnotations ?: []) + (m.invisibleAnnotations ?: [])).findAll { it.desc in singleAt }.each { a ->
+						int i = a.values.indexOf('at')
+						if (i < 0 || !(a.values[i + 1] instanceof List)) return
+						def ats = a.values[i + 1]
+						if (ats.size() != 1) throw new GradleException("${node.name}.${m.name}: Forge needs exactly one @At")
+						a.values[i + 1] = ats[0]
+					}
+				}
+			}
+			def mixins = []
+			def out = new java.util.zip.ZipOutputStream(new FileOutputStream(forgeJar.get().asFile))
+			def put = { String name, byte[] bytes ->
+				out.putNextEntry(new java.util.zip.ZipEntry(name))
+				out.write(bytes)
+				out.closeEntry()
+			}
+			def zip = new java.util.zip.ZipFile(devJar.get().asFile)
+			zip.entries().each { e ->
+				if (e.directory || e.name == 'fabric.mod.json' || e.name == 'META-INF/MANIFEST.MF') return
+				byte[] bytes = zip.getInputStream(e).bytes
+				if (e.name.endsWith('.class')) {
+					def node = new org.objectweb.asm.tree.ClassNode()
+					new org.objectweb.asm.ClassReader(bytes).accept(new org.objectweb.asm.commons.ClassRemapper(node, remapper), 0)
+					unwrapAt(node)
+					def writer = new org.objectweb.asm.ClassWriter(0)
+					node.accept(writer)
+					bytes = writer.toByteArray()
+				}
+				if (e.name ==~ /kromvia(\.\w+)?\.mixins\.json/) {
+					mixins << e.name
+					def json = new String(bytes, 'UTF-8')
+					if (!json.contains('"minVersion"')) bytes = json.replaceFirst(/\{/, '{\n\t"minVersion": "0.8",').getBytes('UTF-8')
+				}
+				put(e.name, bytes)
+			}
+			zip.close()
+			def classes = shimClasses.get().asFile
+			classes.eachFileRecurse(groovy.io.FileType.FILES) { f ->
+				def name = classes.toPath().relativize(f.toPath()).toString().replace('\\', '/')
+				if (!name.startsWith('net/')) put(name, f.bytes)
+			}
+			def toml = { String file, String extra ->
+				new File(shim, "src/main/resources/META-INF/$file").text.replace('${version}', modVersion).replace('${mixins}', extra)
+			}
+			if (flavor == 'neoforge') {
+				put('META-INF/neoforge.mods.toml', toml('neoforge.mods.toml', mixins.collect { "[[mixins]]\nconfig = \"$it\"" }.join('\n')).bytes)
+			} else {
+				put('META-INF/mods.toml', toml('mods.toml', '').bytes)
+				def nested = nest.files.collect { f ->
+					def path = "META-INF/jarjar/${f.name}"
+					put(path, f.bytes)
+					"""{"identifier":{"group":"io.github.llamalad7","artifact":"mixinextras-forge"},"version":{"range":"[$mixinExtras,)","artifactVersion":"$mixinExtras"},"path":"$path","isObfuscated":false}"""
+				}
+				put('META-INF/jarjar/metadata.json', """{"jars":[${nested.join(',')}]}""".bytes)
+			}
+			put('META-INF/MANIFEST.MF', "Manifest-Version: 1.0\nMixinConfigs: ${mixins.join(',')}\n\n".bytes)
+			out.close()
+		}
+	}
+	tasks.named('bundle') {
+		dependsOn "${flavor}Jar"
+		from(forgeJar)
+	}
+	}
 }

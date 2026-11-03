@@ -396,3 +396,26 @@ test("deleting the account removes everything it owns and frees the name", async
   expect((await call(b, "GET", "/v1/party")).json.party).toMatchObject({ leader: b.id, members: [expect.objectContaining({ name: "Bravo" })] });
   expect((await call(a, "POST", "/v1/accounts", { name: "Alpha" })).status).toBe(201);
 });
+
+test("crash reports need no account and are capped per network", async () => {
+  const send = (body: unknown) => app.request("/crashes", { method: "POST", body: JSON.stringify(body), headers: { "cf-connecting-ip": ip } }, env);
+  const report = { launcher: "0.1.1", os: "linux", arch: "x86_64", mc: "1.21.1", loader: { kind: "fabric", version: "0.19.5" }, cause: "brokenMod", mods: ["a.jar"], log: "x\njava.lang.IllegalStateException: boom 42\n", report: "" };
+  expect((await send({ cause: "x" })).status).toBe(400);
+  expect((await send(report)).status).toBe(201);
+  const row = await env.DB.prepare("SELECT * FROM crashes").first<any>();
+  expect(row.sig).toBe("brokenMod|java.lang.IllegalStateException: boom #");
+  expect(row.loader).toBe("fabric 0.19.5");
+  expect(row.net).not.toContain("203");
+  for (let i = 1; i < 30; i++) await send(report);
+  expect((await send(report)).status).toBe(429);
+});
+
+test("the bot lists linked Discord accounts with badges", async () => {
+  const a = await signup("Linked");
+  await env.DB.prepare("INSERT INTO links (account, provider, ext_id, name, created) VALUES (?, 'discord', '42', 'x', 0)").bind(a.id).run();
+  const get = (auth?: string) => app.request("/bot/links", { headers: { "cf-connecting-ip": ip, ...(auth && { authorization: auth }) } }, { ...env, BOT_API_KEY: "k" });
+  expect((await get()).status).toBe(403);
+  expect((await get("Bearer nope")).status).toBe(403);
+  const list = await (await get("Bearer k")).json();
+  expect(list).toEqual([{ discord: "42", name: "Linked", badges: Date.now() < Date.UTC(2027, 0, 1) ? ["early"] : [] }]);
+});

@@ -14,6 +14,7 @@ use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
 use tokio::sync::oneshot;
 
 use super::crash::{self, Crash};
+use super::report::{self, Reports};
 use super::install::{self, launch_jar, legacy_assets_dir, log_config_path};
 use super::loaders::{self, LoaderKind};
 use super::logs::{LogLine, LogParser};
@@ -125,6 +126,31 @@ impl Games {
 fn client_flag(inst: &Instance, jar: Option<PathBuf>) -> Option<String> {
     let fabric = inst.loader.as_ref().is_some_and(|l| l.kind == LoaderKind::Fabric);
     fabric.then_some(jar?).map(|j| format!("-Dfabric.addMods={}", j.display()))
+}
+
+/// Forge and NeoForge have no way to add a mod from outside the mods folder, so the client goes
+/// there under a fixed name, and is taken out again when the instance moves to another loader.
+fn sync_forge_client(inst: &Instance, game_dir: &Path) -> Result<(), String> {
+    use crate::engine::core::http::sha1_file;
+    let dest = game_dir.join("mods").join(crate::engine::content::BUILT_IN_CLIENT);
+    let flavor = match inst.loader.as_ref().map(|l| l.kind) {
+        Some(LoaderKind::Forge) => Some("forge"),
+        Some(LoaderKind::NeoForge) => Some("neoforge"),
+        _ => None,
+    };
+    let Some(jar) = flavor.and_then(|f| paths::forge_client_jar(&inst.mc_version, f)) else {
+        if dest.is_file() {
+            std::fs::remove_file(&dest).map_err(|e| e.to_string())?;
+        }
+        return Ok(());
+    };
+    if dest.is_file() && sha1_file(&dest)? == sha1_file(&jar)? {
+        return Ok(());
+    }
+    std::fs::create_dir_all(game_dir.join("mods")).map_err(|e| e.to_string())?;
+    let tmp = dest.with_extension("jar.tmp");
+    std::fs::copy(&jar, &tmp).map_err(|e| e.to_string())?;
+    std::fs::rename(&tmp, &dest).map_err(|e| e.to_string())
 }
 
 fn pinned_client(jar: &Path) -> Result<PathBuf, String> {
@@ -473,6 +499,7 @@ fn prepare_from(inst: &Instance, session: &Session, version: VersionJson, java_b
         jvm_extra.push(log.argument.replace("${path}", &path.to_string_lossy()));
     }
     jvm_extra.extend(client_flag(inst, paths::client_jar(&inst.mc_version).map(|j| pinned_client(&j)).transpose()?));
+    sync_forge_client(inst, &game_dir)?;
     jvm_extra.extend(inst.jvm_args.iter().flat_map(|a| a.split_whitespace().map(String::from)));
     for flag in tuning::drop_unknown_flags(&java_bin, &mut jvm_extra) {
         crate::engine::core::crashlog::write("launch", &format!("dropped JVM option {flag}: not supported by {}", java_bin.display()));
@@ -632,6 +659,8 @@ fn spawn<R: Runtime>(
     #[cfg(windows)]
     cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
     let mut child = cmd.spawn().map_err(|e| format!("failed to start Java: {e}"))?;
+    let player = who.name.clone();
+    let player_uuid = who.id.clone().unwrap_or_else(|| offline_uuid(&who.name));
 
     static NEXT_RUN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
     let run_id = NEXT_RUN.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -701,7 +730,19 @@ fn spawn<R: Runtime>(
             let log = tail.lock().unwrap().iter().cloned().collect::<Vec<String>>().join("\n");
             let report_path = crash::report_path(&log);
             let report = report_path.as_ref().and_then(|p| std::fs::read_to_string(p).ok()).unwrap_or_default();
-            crash::analyze(&log, report_path, &report)
+            let mut crash = crash::analyze(&log, report_path, &report);
+            let payload = report::build(&instance_id, &crash, &log, &report, &player, Some(&player_uuid));
+            crash.auto = report::enabled();
+            if crash.auto {
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) = report::send(&payload).await {
+                        crate::engine::core::crashlog::write("crash-report", &e);
+                    }
+                });
+            } else {
+                app.state::<Reports>().keep(&instance_id, payload);
+            }
+            crash
         });
         let _ = app.emit("game-exit", ExitEvent { run_id, instance_id, code, crash });
         let switch = app.state::<Games>().switching.lock().unwrap().remove(&run_id);
@@ -830,6 +871,18 @@ fn playing<R: Runtime>(app: &AppHandle<R>, run_id: u64, text: &str) {
     let _ = app.emit("game-server", serde_json::json!({ "runId": run_id, "host": at.map(|a| a.0) }));
 }
 
+fn scene_of(text: &str) -> Option<&'static str> {
+    if text.starts_with("Starting integrated minecraft server") {
+        Some("singleplayer")
+    } else if text.starts_with("Domain assigned: ") {
+        Some("room")
+    } else if text == "Stopping server" {
+        Some("menu")
+    } else {
+        None
+    }
+}
+
 async fn pump<R: Runtime>(app: AppHandle<R>, run_id: u64, stream: impl AsyncRead + Unpin, tail: Arc<Mutex<VecDeque<String>>>) {
     let mut lines = BufReader::new(stream).lines();
     let mut parser = LogParser::default();
@@ -844,6 +897,8 @@ async fn pump<R: Runtime>(app: AppHandle<R>, run_id: u64, stream: impl AsyncRead
             }
             if line.logger == PRESENCE_LOGGER {
                 playing(&app, run_id, &line.text);
+            } else if let Some(scene) = scene_of(&line.text) {
+                let _ = app.emit("game-scene", serde_json::json!({ "runId": run_id, "scene": scene }));
             }
             let _ = app.emit("game-log", LogEvent { run_id, line: &line });
         }
@@ -1062,14 +1117,25 @@ mod window_tests {
         paths::init(root.clone());
         paths::init_resources(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources"));
         let mc = std::env::var("KROMVIA_TEST_MC").unwrap_or_else(|_| "1.21.11".into());
-        assert!(paths::client_jar(&mc).is_some(), "build the client jar first");
+        let kind = match std::env::var("KROMVIA_TEST_LOADER").as_deref() {
+            Ok("forge") => LoaderKind::Forge,
+            Ok("neoforge") => LoaderKind::NeoForge,
+            _ => LoaderKind::Fabric,
+        };
+        let jar = match kind {
+            LoaderKind::Forge => paths::forge_client_jar(&mc, "forge"),
+            LoaderKind::NeoForge => paths::forge_client_jar(&mc, "neoforge"),
+            _ => paths::client_jar(&mc),
+        };
+        assert!(jar.is_some(), "build the client jar first");
         let app = tauri::test::mock_builder()
             .manage(Jobs::default())
             .build(tauri::test::mock_context(tauri::test::noop_assets()))
             .unwrap();
 
-        let loader = loaders::versions(LoaderKind::Fabric, &mc).await.unwrap().into_iter().find(|l| l.stable).unwrap();
-        let loader = Some(Loader { kind: LoaderKind::Fabric, version: loader.version });
+        let all = loaders::versions(kind, &mc).await.unwrap();
+        let loader = all.iter().find(|l| l.stable).or(all.first()).unwrap().clone();
+        let loader = Some(Loader { kind, version: loader.version });
         let inst = instances::list()
             .into_iter()
             .find(|i| i.mc_version == mc && i.loader == loader && i.name == "client window")

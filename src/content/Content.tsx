@@ -17,7 +17,26 @@ const SOURCES: [Source, string][] = [
   ["curseforge", "CurseForge"],
 ];
 type Tab = Kind | "installed";
-type Hit = { project_id: string; slug: string; title: string; description: string; icon_url: string | null; downloads: number; author: string };
+type Hit = {
+  project_id: string;
+  slug: string;
+  title: string;
+  description: string;
+  icon_url: string | null;
+  downloads: number;
+  author: string;
+  follows: number;
+  date_modified: string;
+};
+type Category = { id: string; name: string };
+type Sort = "relevance" | "downloads" | "follows" | "newest" | "updated";
+const SORTS: Sort[] = ["relevance", "downloads", "follows", "newest", "updated"];
+const LOADERS: [string, string][] = [
+  ["fabric", "Fabric"],
+  ["forge", "Forge"],
+  ["neoforge", "NeoForge"],
+  ["quilt", "Quilt"],
+];
 export type Installed = { folder: string; file: string; enabled: boolean; title: string; projectId: string | null };
 
 const TABS: Tab[] = ["mod", "modpack", "resourcepack", "shader", "datapack", "installed"];
@@ -66,6 +85,13 @@ export function Content({ initialTab = "mod" }: { initialTab?: Tab }) {
   const [installed, setInstalled] = useState<Installed[]>([]);
   const [open, setOpen] = useState<Hit | null>(null);
   const [asking, setAsking] = useState<{ hit: Hit; versionId: string | null } | null>(null);
+  const [sort, setSort] = useState<Sort>("relevance");
+  const [cats, setCats] = useState<string[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [gameVersion, setGameVersion] = useState("");
+  const [loader, setLoader] = useState("");
+  const [mcVersions, setMcVersions] = useState<string[]>([]);
+  const [popular, setPopular] = useState<Hit[]>([]);
   const curseforgeAllowed = tab !== "datapack";
   const from: Source = curseforgeAllowed ? source : "modrinth";
 
@@ -93,17 +119,27 @@ export function Content({ initialTab = "mod" }: { initialTab?: Tab }) {
     if (inst) refreshInstalled(inst.id);
   }, [inst?.id]);
 
+  const filters = (sortBy: Sort) => ({
+    sort: sortBy,
+    categories: cats,
+    game_version: tab === "modpack" && gameVersion ? gameVersion : null,
+    loader: tab === "modpack" && loader ? loader : null,
+  });
+  const request = (offset: number, sortBy: Sort, q: string) =>
+    invoke<{ hits: Hit[]; total_hits: number }>("content_search", {
+      query: q,
+      kind: tab,
+      instanceId: tab === "modpack" ? null : inst?.id ?? null,
+      offset,
+      source: from,
+      filters: filters(sortBy),
+    });
+
   const search = (page: number) => {
     if (tab === "installed" || needsLoader) return;
     setLoading(true);
     setPage(page);
-    invoke<{ hits: Hit[]; total_hits: number }>("content_search", {
-      query,
-      kind: tab,
-      instanceId: tab === "modpack" ? null : inst?.id ?? null,
-      offset: page * SEARCH_PAGE,
-      source: from,
-    }).then(
+    request(page * SEARCH_PAGE, sort, query).then(
       (r) => {
         setHits(r.hits);
         setTotal(r.total_hits);
@@ -116,9 +152,32 @@ export function Content({ initialTab = "mod" }: { initialTab?: Tab }) {
   useEffect(() => {
     const timer = setTimeout(() => search(0), 300);
     return () => clearTimeout(timer);
-  }, [query, tab, inst?.id, source]);
+  }, [query, tab, inst?.id, source, sort, cats, gameVersion, loader]);
 
-  useEffect(() => setOpen(null), [tab, source]);
+  useEffect(() => {
+    setPopular([]);
+    if (tab === "installed" || needsLoader) return;
+    let live = true;
+    request(0, "downloads", "").then((r) => live && setPopular(r.hits.slice(0, 7)), () => {});
+    return () => {
+      live = false;
+    };
+  }, [tab, inst?.id, source, cats, gameVersion, loader]);
+
+  useEffect(() => {
+    setOpen(null);
+    setCats([]);
+    setCategories([]);
+    if (tab === "installed") return;
+    invoke<Category[]>("content_categories", { kind: tab, source: from }).then(setCategories, () => {});
+  }, [tab, source]);
+
+  useEffect(() => {
+    if (tab !== "modpack" || mcVersions.length) return;
+    invoke<{ id: string; type: string }[]>("mc_versions").then((v) => setMcVersions(v.filter((x) => x.type === "release").map((x) => x.id)), () => {});
+  }, [tab]);
+
+  const toggleCat = (id: string) => setCats((c) => (c.includes(id) ? c.filter((x) => x !== id) : c.length < 10 ? [...c, id] : c));
 
   const pickTarget = (id: string) => {
     setTarget(id);
@@ -154,10 +213,49 @@ export function Content({ initialTab = "mod" }: { initialTab?: Tab }) {
 
   const installedIds = new Set(installed.map((f) => f.projectId).filter(Boolean));
 
+  const keyOf = (hit: Hit) => (tab === "modpack" ? `modpack-${hit.project_id}` : `content-${inst?.id}-${hit.project_id}`);
+  const action = (hit: Hit, compact: boolean) => {
+    const key = keyOf(hit);
+    const job = (tab === "modpack" ? modpacks : content).jobs[key];
+    const have = tab !== "modpack" && installedIds.has(hit.project_id);
+    const label = tab === "datapack" ? t("content.pickWorld") : t("content.install");
+    if (job)
+      return (
+        <div className="job">
+          <Progress job={job} />
+        </div>
+      );
+    if (have || done.has(key))
+      return (
+        <span className="muted got">
+          <Glyph name="check" size={14} /> {compact ? "" : tab === "modpack" ? t("content.packCreated") : t("content.installed")}
+        </span>
+      );
+    return (
+      <button
+        className="btn btn-get"
+        title={compact ? label : undefined}
+        aria-label={compact ? label : undefined}
+        onClick={() => (tab === "datapack" ? setOpen(hit) : askInstall(hit))}
+      >
+        <Glyph name="download" /> {!compact && label}
+      </button>
+    );
+  };
+
   return (
     <>
       <div className="page-head">
         <h1 className="page-title">{t("nav.content")}</h1>
+        {tab !== "installed" && !open && (
+          <div className="segmented source-pick">
+            {SOURCES.filter(([s]) => curseforgeAllowed || s === "modrinth").map(([s, name]) => (
+              <button key={s} aria-pressed={from === s} onClick={() => setSource(s)}>
+                {name}
+              </button>
+            ))}
+          </div>
+        )}
         {instances.length > 0 && (
           <label className="nick">
             <span className="muted">{t("content.target")}</span>
@@ -172,12 +270,26 @@ export function Content({ initialTab = "mod" }: { initialTab?: Tab }) {
         )}
       </div>
 
-      <div className="segmented tabs">
-        {TABS.map((k) => (
-          <button key={k} aria-pressed={tab === k} onClick={() => setTab(k)}>
-            {t(`content.tab.${k}` as MessageKey)}
-          </button>
-        ))}
+      <div className="content-bar">
+        <div className="segmented tabs content-tabs">
+          {TABS.map((k) => (
+            <button key={k} aria-pressed={tab === k} onClick={() => setTab(k)}>
+              {t(`content.tab.${k}` as MessageKey)}
+            </button>
+          ))}
+        </div>
+        {tab !== "installed" && !open && !needsLoader && (inst || tab === "modpack") && (
+          <label className="search-box">
+            <Glyph name="search" size={14} />
+            <input
+              className="input search"
+              data-search
+              value={query}
+              placeholder={t(from === "curseforge" ? "content.searchCurseforge" : "content.search")}
+              onChange={(e) => setQuery(e.currentTarget.value)}
+            />
+          </label>
+        )}
       </div>
 
       {!inst && tab !== "modpack" ? (
@@ -205,67 +317,150 @@ export function Content({ initialTab = "mod" }: { initialTab?: Tab }) {
           );
         })()
       ) : (
-        <>
-          <div className="segmented">
-            {SOURCES.filter(([s]) => curseforgeAllowed || s === "modrinth").map(([s, name]) => (
-              <button key={s} aria-pressed={from === s} onClick={() => setSource(s)}>
-                {name}
-              </button>
-            ))}
-          </div>
-          <input
-            className="input search"
-            value={query}
-            placeholder={t(from === "curseforge" ? "content.searchCurseforge" : "content.search")}
-            onChange={(e) => setQuery(e.currentTarget.value)}
-          />
-          {errors.search && <Empty bee="offline">{errors.search}</Empty>}
-          {!loading && !errors.search && query.trim() && hits.length === 0 && <Empty bee="not-found">{t("content.noResults")}</Empty>}
-          <ul className="hits">
-            {hits.map((hit) => {
-              const key = tab === "modpack" ? `modpack-${hit.project_id}` : `content-${inst?.id}-${hit.project_id}`;
-              const job = (tab === "modpack" ? modpacks : content).jobs[key];
-              const have = tab !== "modpack" && installedIds.has(hit.project_id);
-              return (
-                <li key={hit.project_id} className="row plain hit">
-                  {hit.icon_url ? <img className="hit-icon" src={hit.icon_url} alt="" loading="lazy" /> : <div className="hit-icon" />}
-                  <div className="list-main">
-                    <span>
-                      {from === "modrinth" ? (
-                        <button className="link instance-name" onClick={() => setOpen(hit)}>
-                          {hit.title}
-                        </button>
-                      ) : (
-                        <span className="instance-name">{hit.title}</span>
-                      )}{" "}
-                      <span className="muted">· {hit.author}</span>
-                    </span>
-                    <span className="muted hit-desc">{hit.description}</span>
-                    {errors[key] && <span className="error">{errors[key]}</span>}
+        <div className="browse">
+          <aside className="filters">
+            <h2>{t("content.filters")}</h2>
+            <section>
+              <h3>{t("content.filter.version")}</h3>
+              {tab === "modpack" ? (
+                <select className="input" value={gameVersion} onChange={(e) => setGameVersion(e.currentTarget.value)}>
+                  <option value="">{t("content.filter.any")}</option>
+                  {mcVersions.map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span className="filter-lock" title={t("content.filter.fromBuild", { name: inst!.name })}>
+                  {inst!.mcVersion}
+                </span>
+              )}
+            </section>
+            {(tab === "modpack" || tab === "mod") && (
+              <section>
+                <h3>{t("content.filter.loader")}</h3>
+                {tab === "modpack" ? (
+                  <div className="filter-list">
+                    {[["", t("content.filter.any")], ...LOADERS].map(([id, name]) => (
+                      <label key={id} className="check">
+                        <input type="radio" name="loader" checked={loader === id} onChange={() => setLoader(id)} />
+                        {name}
+                      </label>
+                    ))}
                   </div>
-                  <span className="muted downloads">{formatCount(hit.downloads)}</span>
-                  {job ? (
-                    <div className="job">
-                      <Progress job={job} />
-                    </div>
-                  ) : have || done.has(key) ? (
-                    <span className="muted">{tab === "modpack" ? t("content.packCreated") : t("content.installed")}</span>
-                  ) : tab === "datapack" ? (
-                    <button className="btn" onClick={() => setOpen(hit)}>
-                      <Glyph name="download" /> {t("content.pickWorld")}
-                    </button>
-                  ) : (
-                    <button className="btn" onClick={() => askInstall(hit)}>
-                      <Glyph name="download" /> {t("content.install")}
+                ) : (
+                  <span className="filter-lock" title={t("content.filter.fromBuild", { name: inst!.name })}>
+                    {inst!.loader ? describe(inst!, t("instance.vanilla")) : t("instance.vanilla")}
+                  </span>
+                )}
+              </section>
+            )}
+            {categories.length > 0 && (
+              <section>
+                <h3>
+                  {t("content.filter.categories")}
+                  {cats.length > 0 && (
+                    <button className="link filter-clear" onClick={() => setCats([])}>
+                      {t("content.filter.clear")}
                     </button>
                   )}
-                </li>
-              );
-            })}
-          </ul>
-          {loading && <p className="muted">{t("common.loading")}</p>}
-          <Pager page={page} pages={Math.ceil(total / SEARCH_PAGE)} onPage={search} />
-        </>
+                </h3>
+                <div className="filter-list scroll">
+                  {categories.map((c) => (
+                    <label key={c.id} className="check">
+                      <input type="checkbox" checked={cats.includes(c.id)} onChange={() => toggleCat(c.id)} />
+                      {c.name}
+                    </label>
+                  ))}
+                </div>
+              </section>
+            )}
+          </aside>
+
+          <div className="browse-main">
+            <div className="browse-tools">
+              <select className="input" value={sort} onChange={(e) => setSort(e.currentTarget.value as Sort)}>
+                {SORTS.map((s) => (
+                  <option key={s} value={s}>
+                    {t(`content.sort.${s}` as MessageKey)}
+                  </option>
+                ))}
+              </select>
+              <span className="muted results">{t("content.results", { count: total.toLocaleString() })}</span>
+              <Pager page={page} pages={Math.ceil(total / SEARCH_PAGE)} onPage={search} />
+            </div>
+
+            {!query.trim() && page === 0 && popular.length > 0 && (
+              <section className="popular">
+                <h3>{t("content.popular")}</h3>
+                <ol>
+                  {popular.map((hit, i) => (
+                    <li key={hit.project_id} className="pop-card">
+                      {hit.icon_url && <img className="pop-glow" src={hit.icon_url} alt="" aria-hidden />}
+                      <span className="pop-rank">#{i + 1}</span>
+                      {hit.icon_url ? <img className="hit-icon" src={hit.icon_url} alt="" loading="lazy" /> : <div className="hit-icon" />}
+                      <button className="link pop-title" disabled={from !== "modrinth"} onClick={() => setOpen(hit)}>
+                        {hit.title}
+                      </button>
+                      <span className="muted pop-stat">
+                        <Glyph name="download" size={12} /> {formatCount(hit.downloads)}
+                      </span>
+                      {action(hit, true)}
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            )}
+
+            {errors.search && <Empty bee="offline">{errors.search}</Empty>}
+            {!loading && !errors.search && query.trim() && hits.length === 0 && <Empty bee="not-found">{t("content.noResults")}</Empty>}
+            <ul className="hits">
+              {hits.map((hit) => {
+                const key = keyOf(hit);
+                return (
+                  <li key={hit.project_id} className="row plain hit">
+                    {hit.icon_url ? <img className="hit-icon" src={hit.icon_url} alt="" loading="lazy" /> : <div className="hit-icon" />}
+                    <div className="list-main">
+                      <span className="hit-head">
+                        {from === "modrinth" ? (
+                          <button className="link hit-title" onClick={() => setOpen(hit)}>
+                            {hit.title}
+                          </button>
+                        ) : (
+                          <span className="hit-title">{hit.title}</span>
+                        )}
+                        <span className="muted hit-author">{t("content.by", { author: hit.author })}</span>
+                      </span>
+                      <span className="muted hit-desc">{hit.description}</span>
+                      {errors[key] && <span className="error">{errors[key]}</span>}
+                    </div>
+                    <div className="hit-side">
+                      {action(hit, false)}
+                      <span className="muted hit-stats">
+                        <span>
+                          <Glyph name="download" size={12} /> {formatCount(hit.downloads)}
+                        </span>
+                        {hit.follows > 0 && (
+                          <span>
+                            <Glyph name="heart" size={12} /> {formatCount(hit.follows)}
+                          </span>
+                        )}
+                        {hit.date_modified && (
+                          <span>
+                            <Glyph name="refresh" size={12} /> {formatDate(hit.date_modified)}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+            {loading && <p className="muted">{t("common.loading")}</p>}
+            <Pager page={page} pages={Math.ceil(total / SEARCH_PAGE)} onPage={search} />
+          </div>
+        </div>
       )}
 
       {asking && (
@@ -357,6 +552,11 @@ function ContentIcon({ instanceId, folder, file }: { instanceId: string; folder:
 
 const PAGE = 20;
 const SEARCH_PAGE = 20;
+
+function formatDate(iso: string) {
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? "" : d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
 
 function formatCount(n: number) {
   if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;

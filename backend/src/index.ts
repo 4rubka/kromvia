@@ -17,6 +17,7 @@ export type Env = {
   TELEGRAM_WEBHOOK_SECRET?: string;
   CURSEFORGE_API_KEY?: string;
   GITHUB_TOKEN?: string;
+  BOT_API_KEY?: string;
 };
 
 type Account = { id: string; pubkey: string; name: string; mc_uuid: string | null; cosmetics: string; created: number; seen: number };
@@ -123,6 +124,7 @@ app.get("/download/:platform", async (c) => {
 
 const CF_ROUTES: [string, RegExp][] = [
   ["GET", /^\/v1\/mods\/search$/],
+  ["GET", /^\/v1\/categories$/],
   ["GET", /^\/v1\/mods\/\d+$/],
   ["GET", /^\/v1\/mods\/\d+\/files$/],
   ["POST", /^\/v1\/mods$/],
@@ -208,6 +210,28 @@ app.post("/link/telegram/webhook", async (c) => {
   return c.json({ ok: true });
 });
 
+export const EARLY_BEFORE = Date.UTC(2027, 0, 1);
+
+app.get("/bot/links", async (c) => {
+  const key = c.env.BOT_API_KEY;
+  if (!key || c.req.header("authorization") !== `Bearer ${key}`) return fail(403, "forbidden");
+  const { results } = await c.env.DB.prepare(
+    "SELECT l.ext_id, a.name, a.created, a.mc_uuid, (SELECT COUNT(*) FROM likes WHERE to_id = a.id) AS likes FROM links l JOIN accounts a ON a.id = l.account WHERE l.provider = 'discord'",
+  ).all<{ ext_id: string; name: string; created: number; mc_uuid: string | null; likes: number }>();
+  return c.json(
+    results.map((r) => ({
+      discord: r.ext_id,
+      name: r.name,
+      badges: [
+        r.created < EARLY_BEFORE && "early",
+        r.mc_uuid !== null && "verified",
+        r.likes >= 10 && "liked",
+        r.likes >= 100 && "famous",
+      ].filter(Boolean),
+    })),
+  );
+});
+
 app.get("/v1/top", async (c) => {
   const { results } = await c.env.DB.prepare(
     "SELECT a.id, a.name, a.mc_uuid, COUNT(*) AS likes FROM likes l JOIN accounts a ON a.id = l.to_id GROUP BY l.to_id ORDER BY likes DESC, a.name_lower LIMIT 50",
@@ -237,6 +261,53 @@ app.get("/share/:code", async (c) => {
   }
   if (row.kind === "log") return new Response(JSON.parse(row.data), { headers: { "content-type": "text/plain; charset=utf-8" } });
   return c.json({ kind: row.kind, data: JSON.parse(row.data), created: row.created, from: publicAccount(row) });
+});
+
+const MAX_CRASH = 256 * 1024;
+const CRASHES_PER_DAY = 30;
+const CRASH_DAYS = 60;
+const str = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : null);
+
+export function crashSig(cause: string, log: string, report: string): string {
+  const exc = /^\s*(?:Caused by: )?([\w$]+\.)+[\w$]*(?:Exception|Error)\b.*$/m;
+  const line = report.match(exc)?.[0] ?? log.split("\n").reverse().find((l) => exc.test(l)) ?? "";
+  return `${cause}|${line.trim().replace(/\d+/g, "#").slice(0, 200)}`;
+}
+
+app.post("/crashes", async (c) => {
+  const bytes = await readCapped(c.req.raw, MAX_CRASH);
+  if (!bytes) return fail(413, "body too large");
+  let body: Record<string, unknown>;
+  try {
+    body = JSON.parse(new TextDecoder().decode(bytes));
+  } catch {
+    return fail(400, "body is not JSON");
+  }
+  const cause = str(body.cause, 32);
+  const launcher = str(body.launcher, 32);
+  const os = str(body.os, 16);
+  const log = str(body.log, MAX_CRASH) ?? "";
+  const report = str(body.report, MAX_CRASH) ?? "";
+  if (!cause || !launcher || !os) return fail(400, "bad report");
+  const net = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(clientNet(c.req.raw)))).slice(0, 8), (b) =>
+    b.toString(16).padStart(2, "0"),
+  ).join("");
+  const now = Date.now();
+  await c.env.DB.prepare("DELETE FROM crashes WHERE created < ?").bind(now - CRASH_DAYS * DAY_MS).run();
+  const n = await c.env.DB.prepare("SELECT COUNT(*) AS n FROM crashes WHERE net = ? AND created > ?").bind(net, now - DAY_MS).first<number>("n");
+  if ((n ?? 0) >= CRASHES_PER_DAY) return fail(429, "too many crash reports today");
+  const loader = body.loader && typeof body.loader === "object" ? body.loader as Record<string, unknown> : null;
+  const mods = Array.isArray(body.mods) ? body.mods.filter((m) => typeof m === "string").slice(0, 400).map((m) => (m as string).slice(0, 200)) : [];
+  await c.env.DB.prepare(
+    "INSERT INTO crashes (created, net, launcher, os, mc, loader, cause, sig, detail, mods, log, report) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  )
+    .bind(
+      now, net, launcher, `${os}/${str(body.arch, 16) ?? "?"}`, str(body.mc, 32),
+      loader ? `${str(loader.kind, 16) ?? "?"} ${str(loader.version, 64) ?? ""}`.trim() : null,
+      cause, crashSig(cause, log, report), str(body.detail, 300), JSON.stringify(mods), log, report,
+    )
+    .run();
+  return c.json({ ok: true }, 201);
 });
 
 app.use("/v1/*", async (c, next) => {

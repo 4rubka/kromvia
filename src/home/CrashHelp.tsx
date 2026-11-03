@@ -13,6 +13,8 @@ export function CrashHelp({ inst, crash }: { inst: Instance; crash: Crash }) {
   const l = useLauncher();
   const [error, setError] = useState<string | null>(null);
   const [fixed, setFixed] = useState(false);
+  const [sent, setSent] = useState(crash.auto);
+  const send = () => invoke("crash_report_send", { instanceId: inst.id }).then(() => setSent(true), (e) => setError(String(e)));
   const fix = (p: Promise<unknown>) =>
     p.then(
       () => (setFixed(true), l.refresh()),
@@ -48,6 +50,11 @@ export function CrashHelp({ inst, crash }: { inst: Instance; crash: Crash }) {
           </button>
         )}
         {fixed && <Glyph name="check" />}
+        {!sent && (
+          <button className="btn btn-ghost" title={t("crash.sendHint")} onClick={send}>
+            <Glyph name="upload" /> {t("crash.send")}
+          </button>
+        )}
         {crash.report && (
           <button
             className="btn btn-ghost"
@@ -57,6 +64,7 @@ export function CrashHelp({ inst, crash }: { inst: Instance; crash: Crash }) {
           </button>
         )}
       </div>
+      {sent && <p className="muted small">{t("crash.sent")}</p>}
     </Empty>
   );
 }

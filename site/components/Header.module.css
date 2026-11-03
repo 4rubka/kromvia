@@ -171,6 +171,18 @@
   padding: 8px 16px 11px;
 }
 
+.lang {
+  margin-left: 8px;
+  padding: 7px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
 .menu {
   display: none;
   margin-left: auto;
@@ -250,5 +262,9 @@
 
   .download {
     margin: 12px 0 0;
+  }
+
+  .lang {
+    margin: 10px 0 0;
   }
 }

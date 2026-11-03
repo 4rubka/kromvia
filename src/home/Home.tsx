@@ -16,7 +16,7 @@ import { ImportInstances } from "./ImportInstances";
 import { Flowers, Vines } from "./Decor";
 import { MinimapOffer } from "./MinimapOffer";
 
-export type Nav = "builds" | "content" | "skins" | "rooms";
+export type Nav = "builds" | "content" | "skins" | "rooms" | "accounts";
 type LibrarySkin = { id: string; slim: boolean; dataUrl: string };
 
 const SERVERS = [
@@ -49,6 +49,17 @@ const NEWS = [
   { title: "New Right Shift menu", text: "Blur, smooth scrolling and cards that react to you." },
   { title: "18 new modules", text: "Target HUD, TPS, Hit Colour, No Fog, Totem Pops and more." },
 ];
+
+let newRequested = false;
+export function requestNewInstance() {
+  newRequested = true;
+  window.dispatchEvent(new Event("kromvia:new-instance"));
+}
+function takeNewRequest() {
+  const r = newRequested;
+  newRequested = false;
+  return r;
+}
 
 export function Home({ onNavigate }: { onNavigate: (page: Nav) => void }) {
   const { t } = useI18n();
@@ -127,14 +138,31 @@ export function Home({ onNavigate }: { onNavigate: (page: Nav) => void }) {
   const shown = instances.filter((i) => i.name.toLowerCase().includes(query.trim().toLowerCase()));
   const library = usePaged(shown, 12);
   const roomCode = l.hosting ? l.rooms[l.hosting] : undefined;
+  const forgeLike = current?.loader?.kind === "forge" || current?.loader?.kind === "neoforge";
   const clientNote =
     !current || clientVersions.length === 0
       ? null
-      : current.loader?.kind !== "fabric"
-        ? t("home.clientFabricOnly")
-        : !clientVersions.includes(current.mcVersion)
-          ? t("home.clientMissing", { mc: current.mcVersion, versions: clientVersions.join(", ") })
-          : null;
+      : forgeLike
+        ? clientVersions.includes(`${current.mcVersion}-${current.loader?.kind}`)
+          ? null
+          : t("home.clientForgeMissing")
+        : current.loader?.kind !== "fabric"
+          ? t("home.clientFabricOnly")
+          : !clientVersions.includes(current.mcVersion)
+            ? t("home.clientMissing", { mc: current.mcVersion, versions: clientVersions.filter((v) => !v.endsWith("forge")).join(", ") })
+            : null;
+
+  useEffect(() => {
+    const onNew = () => (takeNewRequest(), setCreating(true));
+    window.addEventListener("kromvia:new-instance", onNew);
+    if (takeNewRequest()) setCreating(true);
+    return () => window.removeEventListener("kromvia:new-instance", onNew);
+  }, []);
+
+  const open = (inst: Instance) => {
+    l.setSelected(inst.id);
+    onNavigate("builds");
+  };
 
   const remove = (id: string) => {
     if (confirmDelete !== id) return setConfirmDelete(id);
@@ -267,6 +295,11 @@ export function Home({ onNavigate }: { onNavigate: (page: Nav) => void }) {
                   </button>
                 </span>
               )}
+              {!job && (
+                <button className="btn btn-ghost" onClick={() => open(current)}>
+                  <Glyph name="tool" /> {t("home.openBuild")}
+                </button>
+              )}
               {instances.length > 1 && (
                 <select
                   className="launch-pick input"
@@ -300,7 +333,7 @@ export function Home({ onNavigate }: { onNavigate: (page: Nav) => void }) {
             <h2 className="section-title">{t("home.jumpIn")}</h2>
             <ul className="rows">
               {recent.map((inst) => (
-                <li key={inst.id} className="row" data-selected={inst.id === current?.id} onClick={() => l.setSelected(inst.id)}>
+                <li key={inst.id} className="row clickable" data-selected={inst.id === current?.id} title={t("home.openBuild")} onClick={() => open(inst)}>
                   <InstanceIcon inst={inst} size={44} />
                   <div className="row-main">
                     <span className="row-name">
@@ -336,6 +369,7 @@ export function Home({ onNavigate }: { onNavigate: (page: Nav) => void }) {
             <div className="library-tools">
               <input
                 className="input"
+                data-search
                 placeholder={t("home.search")}
                 aria-label={t("home.search")}
                 value={query}
@@ -343,6 +377,9 @@ export function Home({ onNavigate }: { onNavigate: (page: Nav) => void }) {
               />
               <button className="btn btn-ghost" onClick={() => setImporting((v) => !v)}>
                 <Glyph name="file-import" /> {t("import.open")}
+              </button>
+              <button className="btn" title="Ctrl+N" onClick={() => setCreating(true)}>
+                <Glyph name="plus" /> {t("instance.new")}
               </button>
             </div>
           </div>
@@ -364,7 +401,7 @@ export function Home({ onNavigate }: { onNavigate: (page: Nav) => void }) {
               const exit = l.exits[inst.id];
               return (
                 <li key={inst.id}>
-                  <button className="tile" data-selected={inst.id === current?.id} onClick={() => l.setSelected(inst.id)}>
+                  <button className="tile" data-selected={inst.id === current?.id} title={t("home.openBuild")} onClick={() => open(inst)}>
                     <InstanceIcon inst={inst} size={56} />
                     <span className="tile-name">{inst.name}</span>
                     <small>{describe(inst, t("instance.vanilla"))}</small>
@@ -372,6 +409,11 @@ export function Home({ onNavigate }: { onNavigate: (page: Nav) => void }) {
                       <span className="error-inline small">{t("game.crashed", { code: String(exit) })}</span>
                     )}
                   </button>
+                  {!l.runOf(inst.id) && !l.jobOf(inst.id) && (
+                    <button className="tile-play" aria-label={t("game.play")} title={t("game.play")} onClick={() => l.play(inst)}>
+                      <Glyph name="player-play" />
+                    </button>
+                  )}
                   <button
                     className={confirmDelete === inst.id ? "tile-delete confirm" : "tile-delete"}
                     onClick={() => remove(inst.id)}
@@ -402,22 +444,35 @@ export function Home({ onNavigate }: { onNavigate: (page: Nav) => void }) {
         <section className="side-block player">
           <span className="side-label">{t("home.playingAs")}</span>
           <SkinArt skin={skin?.dataUrl ?? null} slim={skin?.slim ?? false} back="cape" />
-          <strong className="player-name">{name}</strong>
-          {l.accounts.length > 0 && (
+          <button className="player-name linkish" title={t("nav.accounts")} onClick={() => onNavigate("accounts")}>
+            {name}
+          </button>
+          {(l.accounts.length > 0 || l.offline.length > 0) && (
             <select
               className="input"
-              value={l.account?.id ?? ""}
-              onChange={(e) => invoke("account_select", { id: e.currentTarget.value || null }).then(l.refreshAccounts)}
+              aria-label={t("home.playingAs")}
+              value={l.account ? `acc:${l.account.id}` : l.offline.includes(l.nick.trim()) ? `off:${l.nick.trim()}` : ""}
+              onChange={(e) => {
+                const [kind, id] = [e.currentTarget.value.slice(0, 4), e.currentTarget.value.slice(4)];
+                if (kind === "acc:") l.pickAccount(id);
+                else if (kind === "off:") l.pickOffline(id);
+                else (l.setNick(""), l.pickAccount(null));
+              }}
             >
               {l.accounts.map((a) => (
-                <option key={a.id} value={a.id}>
+                <option key={a.id} value={`acc:${a.id}`}>
                   {a.name}
                 </option>
               ))}
-              <option value="">{t("home.offline")}</option>
+              {l.offline.map((n) => (
+                <option key={n} value={`off:${n}`}>
+                  {n} · {t("home.offline")}
+                </option>
+              ))}
+              <option value="">{t("home.newNick")}</option>
             </select>
           )}
-          {!l.account && (
+          {!l.account && !l.offline.includes(l.nick.trim()) && (
             <input
               className="input"
               placeholder={t("home.nickname")}
@@ -425,6 +480,8 @@ export function Home({ onNavigate }: { onNavigate: (page: Nav) => void }) {
               value={l.nick}
               maxLength={16}
               onChange={(e) => l.setNick(e.currentTarget.value)}
+              onBlur={() => l.rememberNick()}
+              onKeyDown={(e) => e.key === "Enter" && l.rememberNick()}
             />
           )}
         </section>
@@ -433,7 +490,9 @@ export function Home({ onNavigate }: { onNavigate: (page: Nav) => void }) {
           <span className="side-label">{t("rooms.title")}</span>
           {l.hosting ? (
             roomCode ? (
-              <code className="side-code">{roomCode}</code>
+              <button className="side-code linkish" title={t("rooms.copy")} onClick={() => navigator.clipboard.writeText(roomCode)}>
+                {roomCode}
+              </button>
             ) : (
               <p className="room-wait small">{t("rooms.waiting")}</p>
             )

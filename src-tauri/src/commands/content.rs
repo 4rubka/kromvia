@@ -11,12 +11,22 @@ pub async fn content_search(
     instance_id: Option<String>,
     offset: u32,
     source: Option<String>,
+    filters: Option<modrinth::SearchFilters>,
 ) -> Result<modrinth::SearchResult, String> {
     let inst = instance_id.map(|id| instances::get(&id)).transpose()?;
+    let filters = filters.unwrap_or_default();
     if is_curseforge(&source) {
-        return curseforge::search(&query, kind, inst.as_ref(), offset).await;
+        return curseforge::search(&query, kind, inst.as_ref(), offset, &filters).await;
     }
-    modrinth::search(&query, kind, inst.as_ref(), offset).await
+    modrinth::search(&query, kind, inst.as_ref(), offset, &filters).await
+}
+
+#[tauri::command]
+pub async fn content_categories(kind: ContentKind, source: Option<String>) -> Result<Vec<modrinth::Category>, String> {
+    if is_curseforge(&source) {
+        return curseforge::categories(kind).await;
+    }
+    modrinth::categories(kind).await
 }
 
 fn is_curseforge(source: &Option<String>) -> bool {

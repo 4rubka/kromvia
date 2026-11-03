@@ -59,6 +59,7 @@ export function AppearanceExtras() {
   const [active, setActive] = useState(savedTheme() ?? "");
   const [hasBackground, setHasBackground] = useState(false);
   const [autostart, setAutostart] = useState(false);
+  const [crashReports, setCrashReports] = useState(false);
   const [status, setStatus] = useState<{ error: boolean; text: string } | null>(null);
   const fail = (e: unknown) => setStatus({ error: true, text: String(e) });
 
@@ -69,6 +70,7 @@ export function AppearanceExtras() {
   useEffect(() => {
     load();
     invoke<boolean>("autostart_get").then(setAutostart, () => {});
+    invoke<boolean>("crash_reports_get").then(setCrashReports, () => {});
   }, []);
 
   const pick = (id: string) => {
@@ -93,6 +95,7 @@ export function AppearanceExtras() {
     invoke("background_set", { image }).then(() => (setHasBackground(!!image), changed()), fail);
 
   const toggleAutostart = (on: boolean) => invoke("autostart_set", { on }).then(() => setAutostart(on), fail);
+  const toggleCrashReports = (on: boolean) => invoke("crash_reports_set", { on }).then(() => setCrashReports(on), fail);
 
   return (
     <>
@@ -143,6 +146,9 @@ export function AppearanceExtras() {
       </div>
       <label className="muted">
         <input type="checkbox" checked={autostart} onChange={(e) => toggleAutostart(e.currentTarget.checked)} /> {t("settings.autostart")}
+      </label>
+      <label className="muted">
+        <input type="checkbox" checked={crashReports} onChange={(e) => toggleCrashReports(e.currentTarget.checked)} /> {t("settings.crashReports")}
       </label>
       {status && <p className={status.error ? "error" : "muted"}>{status.text}</p>}
     </>

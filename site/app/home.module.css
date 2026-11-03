@@ -7,17 +7,6 @@
   isolation: isolate;
 }
 
-.sky {
-  position: absolute;
-  inset: 0;
-  z-index: -2;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0.55;
-  mask-image: linear-gradient(#000 60%, transparent);
-}
-
 .hero::before {
   content: "";
   position: absolute;

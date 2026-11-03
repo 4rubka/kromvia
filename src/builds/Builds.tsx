@@ -42,13 +42,13 @@ const TAB_LABELS: Record<Tab, MessageKey> = {
 export function Builds({ onAddContent }: { onAddContent: (kind: Kind) => void }) {
   const { t } = useI18n();
   const [instances, setInstances] = useState<Instance[]>([]);
-  const [selected, setSelected] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("content");
 
   const launcher = useLauncher();
+  const { selected, setSelected } = launcher;
   const refresh = () => {
     launcher.refresh();
     return invoke<Instance[]>("instance_list").then(setInstances);
@@ -200,6 +200,7 @@ export function Builds({ onAddContent }: { onAddContent: (kind: Kind) => void })
                   </span>
                 </div>
                 <div className="actions">
+                  <PlayButton inst={inst} />
                   <button className="btn btn-ghost" onClick={() => shortcut(inst)}>
                     <Glyph name="external-link" /> {t("builds.shortcut")}
                   </button>
@@ -223,6 +224,7 @@ export function Builds({ onAddContent }: { onAddContent: (kind: Kind) => void })
                   </button>
                 </div>
               </header>
+              {launcher.errors[inst.id] && <p className="error">{launcher.errors[inst.id]}</p>}
               <div className="segmented tabs">
                 {TABS.map((k) => (
                   <button key={k} aria-pressed={tab === k} onClick={() => setTab(k)}>
@@ -287,6 +289,25 @@ export function Builds({ onAddContent }: { onAddContent: (kind: Kind) => void })
         </div>
       )}
     </>
+  );
+}
+
+function PlayButton({ inst }: { inst: Instance }) {
+  const { t } = useI18n();
+  const l = useLauncher();
+  const job = l.jobOf(inst.id);
+  const run = l.runOf(inst.id);
+  if (job) return <Progress job={job} />;
+  if (run)
+    return (
+      <button className="btn btn-danger" onClick={() => invoke("game_stop", { runId: run.runId })}>
+        <Glyph name="player-stop" /> {t("game.stop")}
+      </button>
+    );
+  return (
+    <button className="btn" onClick={() => l.play(inst)}>
+      <Glyph name="player-play" /> {t("game.play")}
+    </button>
   );
 }
 

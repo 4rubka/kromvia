@@ -97,3 +97,11 @@
     align-items: flex-start;
   }
 }
+
+.card[data-yours] {
+  --b-rim: color-mix(in srgb, var(--accent) 70%, var(--border));
+}
+
+.yours {
+  margin-bottom: 4px;
+}

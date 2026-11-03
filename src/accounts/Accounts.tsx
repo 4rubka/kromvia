@@ -4,22 +4,10 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { useI18n } from "../i18n";
 import { useJobs } from "../lib/jobs";
 import { Glyph } from "../ui/Glyph";
-import { useLauncher } from "../lib/launcher";
+import { NICK, useLauncher } from "../lib/launcher";
 
 export type Account = { id: string; name: string; active: boolean; provider: "microsoft" | "elyby" };
 
-// Offline (no licence) accounts are just remembered names: playing as one means no Microsoft
-const OFFLINE_KEY = "kromvia.offlineAccounts";
-const NICK = /^[A-Za-z0-9_]{3,16}$/;
-
-function savedOffline(): string[] {
-  try {
-    const list = JSON.parse(localStorage.getItem(OFFLINE_KEY) ?? "[]");
-    return Array.isArray(list) ? list.filter((n) => typeof n === "string") : [];
-  } catch {
-    return [];
-  }
-}
 type LoginStart = { code: { userCode: string; verificationUri: string; expiresIn: number }; jobId: number };
 
 export function useAccounts() {
@@ -64,22 +52,12 @@ export function Accounts() {
   const act = (p: Promise<unknown>) => p.then(() => (refresh(), l.refreshAccounts()), (e) => setError(String(e)));
 
   const l = useLauncher();
-  const [offline, setOffline] = useState(savedOffline);
+  const { offline, setOffline: keepOffline } = l;
   const [newName, setNewName] = useState<string | null>(null);
-  const keepOffline = (list: string[]) => {
-    setOffline(list);
-    try {
-      localStorage.setItem(OFFLINE_KEY, JSON.stringify(list));
-    } catch {}
-  };
-  const pickOffline = (name: string) => {
-    l.setNick(name);
-    act(invoke("account_select", { id: null }));
-  };
+  const pickOffline = (name: string) => act(l.pickOffline(name));
   const addOffline = () => {
     const name = newName?.trim() ?? "";
     if (!NICK.test(name)) return;
-    if (!offline.includes(name)) keepOffline([...offline, name]);
     setNewName(null);
     pickOffline(name);
   };

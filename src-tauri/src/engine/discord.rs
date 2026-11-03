@@ -30,7 +30,7 @@ pub fn start<R: Runtime>(app: &AppHandle<R>) {
     app.listen_any("game-started", move |e| {
         let run: Value = serde_json::from_str(e.payload()).unwrap_or_default();
         if let Some(inst) = run["instanceId"].as_str().and_then(|id| instances::get(id).ok()) {
-            let _ = started.send(activity(&inst, None));
+            let _ = started.send(activity(&inst, &Scene::Menu));
         }
     });
     let handle = app.clone();
@@ -38,14 +38,36 @@ pub fn start<R: Runtime>(app: &AppHandle<R>) {
     app.listen_any("game-server", move |e| {
         let v: Value = serde_json::from_str(e.payload()).unwrap_or_default();
         let run = handle.state::<Games>().list().into_iter().find(|r| Some(r.run_id) == v["runId"].as_u64());
-        if let Some(inst) = run.and_then(|r| instances::get(&r.instance_id).ok()) {
-            let _ = server.send(activity(&inst, v["host"].as_str()));
-        }
+        let Some(inst) = run.and_then(|r| instances::get(&r.instance_id).ok()) else { return };
+        let Some(host) = v["host"].as_str().map(String::from) else {
+            let _ = server.send(activity(&inst, &Scene::Menu));
+            return;
+        };
+        let _ = server.send(activity(&inst, &Scene::Server(host.clone(), None)));
+        let server = server.clone();
+        tauri::async_runtime::spawn(async move {
+            if let Ok(st) = crate::engine::servers::status(&host).await {
+                let _ = server.send(activity(&inst, &Scene::Server(host, Some((st.online, st.max)))));
+            }
+        });
+    });
+    let handle = app.clone();
+    let scene = tx.clone();
+    app.listen_any("game-scene", move |e| {
+        let v: Value = serde_json::from_str(e.payload()).unwrap_or_default();
+        let run = handle.state::<Games>().list().into_iter().find(|r| Some(r.run_id) == v["runId"].as_u64());
+        let Some(inst) = run.and_then(|r| instances::get(&r.instance_id).ok()) else { return };
+        let next = match v["scene"].as_str() {
+            Some("singleplayer") => Scene::Singleplayer,
+            Some("room") => Scene::Room,
+            _ => Scene::Menu,
+        };
+        let _ = scene.send(activity(&inst, &next));
     });
     let handle = app.clone();
     app.listen_any("game-exit", move |_| {
         let next = handle.state::<Games>().list().into_iter().find_map(|r| instances::get(&r.instance_id).ok());
-        let _ = tx.send(next.map_or_else(|| idle.clone(), |i| activity(&i, None)));
+        let _ = tx.send(next.map_or_else(|| idle.clone(), |i| activity(&i, &Scene::Menu)));
     });
 }
 
@@ -60,6 +82,8 @@ fn loader_name(kind: LoaderKind) -> &'static str {
     }
 }
 
+const SITE: &str = "https://kromvia.com";
+
 fn now() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
 }
@@ -67,26 +91,56 @@ fn now() -> u64 {
 fn idle_activity() -> Value {
     json!({
         "details": "In the launcher",
+        "details_url": SITE,
         "timestamps": { "start": now() },
-        "assets": { "large_image": "logo", "large_text": "Kromvia" },
+        "assets": { "large_image": "logo", "large_text": "Kromvia", "large_url": SITE },
+        "buttons": [{ "label": "Kromvia", "url": SITE }],
     })
 }
 
-fn activity(inst: &Instance, host: Option<&str>) -> Value {
-    let state = match &inst.loader {
+pub enum Scene {
+    Menu,
+    Singleplayer,
+    Room,
+    Server(String, Option<(u32, u32)>),
+}
+
+fn activity(inst: &Instance, scene: &Scene) -> Value {
+    let version = match &inst.loader {
         Some(l) => format!("Minecraft {} · {}", inst.mc_version, loader_name(l.kind)),
         None => format!("Minecraft {}", inst.mc_version),
     };
+    let (details, state) = match scene {
+        Scene::Menu => (format!("In the menu · {}", inst.name), version.clone()),
+        Scene::Singleplayer => ("Playing singleplayer".to_string(), format!("{} · {version}", inst.name)),
+        Scene::Room => ("Hosting a room for friends".to_string(), format!("{} · {version}", inst.name)),
+        Scene::Server(host, _) => (format!("Playing on {host}"), format!("{} · {version}", inst.name)),
+    };
     let mut a = json!({
-        "details": inst.name,
+        "details": details,
+        "details_url": SITE,
         "state": state,
         "timestamps": { "start": now() },
-        "assets": { "large_image": "logo", "large_text": "Kromvia" },
+        "assets": { "large_image": "logo", "large_text": format!("Kromvia · {version}"), "large_url": SITE },
     });
-    let secret = host.map(|h| json!({ "host": h, "mc": inst.mc_version }).to_string());
-    if let (Some(h), Some(secret)) = (host, secret.filter(|s| s.len() <= 128)) {
-        a["party"] = json!({ "id": format!("kromvia:{h}") });
+    let Scene::Server(host, players) = scene else {
+        a["buttons"] = json!([{ "label": "Kromvia", "url": SITE }]);
+        return a;
+    };
+    a["assets"]["small_image"] = json!(format!("https://api.mcstatus.io/v2/icon/{host}"));
+    a["assets"]["small_text"] = json!(match players {
+        Some((online, max)) => format!("{host} · {online}/{max} online"),
+        None => host.clone(),
+    });
+    a["party"] = json!({ "id": format!("kromvia:{host}") });
+    if let Some(&(online, max)) = players.as_ref().filter(|(o, m)| *m > 0 && o <= m) {
+        a["party"]["size"] = json!([online.max(1), max]);
+    }
+    let secret = json!({ "host": host, "mc": inst.mc_version }).to_string();
+    if secret.len() <= 128 {
         a["secrets"] = json!({ "join": secret });
+    } else {
+        a["buttons"] = json!([{ "label": "Kromvia", "url": SITE }]);
     }
     a
 }

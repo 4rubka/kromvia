@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use serde::Deserialize;
 
-use super::modrinth::{SearchHit, SearchResult};
+use super::modrinth::{Category, SearchFilters, SearchHit, SearchResult};
 use super::{read_index, write_index, ContentEntry, ContentKind};
 use crate::engine::core::http::{self, Download, Hash};
 use crate::engine::core::jobs::Job;
@@ -52,6 +52,19 @@ struct Mod {
     #[serde(default)]
     authors: Vec<Author>,
     class_id: Option<u32>,
+    #[serde(default)]
+    thumbs_up_count: u64,
+    #[serde(default)]
+    date_modified: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CfCategory {
+    id: u64,
+    name: String,
+    #[serde(default)]
+    is_class: bool,
 }
 
 #[derive(Deserialize, Clone)]
@@ -159,18 +172,42 @@ fn filters(kind: ContentKind, inst: Option<&Instance>) -> Result<Vec<(&'static s
     Ok(q)
 }
 
-pub async fn search(query: &str, kind: ContentKind, inst: Option<&Instance>, offset: u32) -> Result<SearchResult, String> {
+pub async fn search(query: &str, kind: ContentKind, inst: Option<&Instance>, offset: u32, f: &SearchFilters) -> Result<SearchResult, String> {
     let offset = offset.min(9_980).to_string();
+    let sort = match f.sort.as_deref() {
+        Some("downloads") => "6",
+        Some("follows") => "12",
+        Some("newest") => "11",
+        Some("updated") => "3",
+        _ => "2",
+    };
     let mut q: Vec<(&str, String)> = vec![
         ("gameId", MINECRAFT.into()),
         ("classId", class_id(kind)?.into()),
         ("searchFilter", query.into()),
-        ("sortField", "2".into()),
+        ("sortField", sort.into()),
         ("sortOrder", "desc".into()),
         ("pageSize", "20".into()),
         ("index", offset),
     ];
     q.extend(filters(kind, inst)?);
+    if inst.is_none() || kind == ContentKind::Modpack {
+        if let Some(v) = &f.game_version {
+            q.push(("gameVersion", v.clone()));
+        }
+        let loader = match f.loader.as_deref() {
+            Some("forge") => Some("1"),
+            Some("fabric" | "quilt") => Some("4"),
+            Some("neoforge") => Some("6"),
+            _ => None,
+        };
+        if let Some(l) = loader {
+            q.push(("modLoaderType", l.into()));
+        }
+    }
+    if !f.categories.is_empty() {
+        q.push(("categoryIds", format!("[{}]", f.categories.join(","))));
+    }
     let q: Vec<(&str, &str)> = q.iter().map(|(k, v)| (*k, v.as_str())).collect();
     let page: Paged<Vec<Mod>> = get("/mods/search", &q).await?;
     Ok(SearchResult {
@@ -186,9 +223,20 @@ pub async fn search(query: &str, kind: ContentKind, inst: Option<&Instance>, off
                 icon_url: m.logo.map(|l| l.thumbnail_url),
                 downloads: m.download_count as u64,
                 author: m.authors.into_iter().next().map(|a| a.name).unwrap_or_default(),
+                follows: m.thumbs_up_count,
+                date_modified: m.date_modified,
             })
             .collect(),
     })
+}
+
+pub async fn categories(kind: ContentKind) -> Result<Vec<Category>, String> {
+    let class = class_id(kind)?;
+    let list: Data<Vec<CfCategory>> = get("/categories", &[("gameId", MINECRAFT), ("classId", class)]).await?;
+    let mut out: Vec<Category> =
+        list.data.into_iter().filter(|c| !c.is_class).map(|c| Category { id: c.id.to_string(), name: c.name }).collect();
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(out)
 }
 
 fn mod_id(id: &str) -> Result<u64, String> {

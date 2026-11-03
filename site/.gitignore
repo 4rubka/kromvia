@@ -46,8 +46,6 @@ next-env.d.ts
 /public/models
 /public/logo.svg
 /public/logo-mark.svg
-/public/hero.webm
-/public/hero.mp4
 /public/banner.png
 
 # cloudflare

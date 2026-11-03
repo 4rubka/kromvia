@@ -25,9 +25,7 @@
 }
 
 .rail-btn .unread {
-  position: absolute;
-  top: 6px;
-  right: 6px;
+  margin-left: auto;
 }
 
 .chat-log {

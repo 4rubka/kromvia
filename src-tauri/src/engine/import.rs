@@ -301,7 +301,7 @@ fn vanilla_version(root: &Path, id: &str) -> Option<(String, Option<Loader>)> {
         .ok()
         .and_then(|b| serde_json::from_slice(&b).ok())
         .unwrap_or_default();
-    let mc = json["inheritsFrom"].as_str().unwrap_or(id).to_string();
+    let mc = json["inheritsFrom"].as_str().or_else(|| json["jar"].as_str()).map(str::to_string).or_else(|| lib_mc(&json)).unwrap_or_else(|| id.to_string());
     let loader = if let Some(rest) = id.strip_prefix("fabric-loader-").filter(|r| r.contains("-ornithe-gen")) {
         rest.split_once(&format!("-{mc}-ornithe-gen")).map(|(v, _)| Loader { kind: LoaderKind::Ornithe, version: v.into() })
     } else if let Some(rest) = id.strip_prefix("fabric-loader-") {
@@ -312,11 +312,41 @@ fn vanilla_version(root: &Path, id: &str) -> Option<(String, Option<Loader>)> {
         Some(Loader { kind: LoaderKind::NeoForge, version: v.into() })
     } else {
         id.strip_prefix(&format!("{mc}-forge-")).map(|v| Loader { kind: LoaderKind::Forge, version: format!("{mc}-{v}") })
-    };
+    }
+    .or_else(|| lib_loader(&json, &mc));
     if json.is_null() && (loader.is_some() || id.contains(['-', ' '])) {
         return None;
     }
     Some((mc, loader))
+}
+
+fn libs(json: &serde_json::Value) -> impl Iterator<Item = (&str, &str)> {
+    json["libraries"].as_array().into_iter().flatten().filter_map(|l| {
+        let mut parts = l["name"].as_str()?.split(':');
+        let (group, name, version) = (parts.next()?, parts.next()?, parts.next()?);
+        Some((&l["name"].as_str()?[..group.len() + 1 + name.len()], version))
+    })
+}
+
+fn lib_mc(json: &serde_json::Value) -> Option<String> {
+    libs(json).find_map(|(lib, v)| match lib {
+        "net.fabricmc:intermediary" | "org.quiltmc:hashed" => Some(v.to_string()),
+        "net.minecraftforge:forge" | "net.minecraftforge:fmlloader" => v.split_once('-').map(|(mc, _)| mc.to_string()),
+        _ => None,
+    })
+}
+
+fn lib_loader(json: &serde_json::Value, mc: &str) -> Option<Loader> {
+    libs(json).find_map(|(lib, v)| {
+        let kind = match lib {
+            "org.quiltmc:quilt-loader" => LoaderKind::Quilt,
+            "net.fabricmc:fabric-loader" => LoaderKind::Fabric,
+            "net.neoforged:neoforge" => LoaderKind::NeoForge,
+            "net.minecraftforge:forge" | "net.minecraftforge:fmlloader" => LoaderKind::Forge,
+            _ => return None,
+        };
+        Some(Loader { kind, version: prefixed(kind, mc, v) })
+    })
 }
 
 fn latest(root: &Path, kind: &str) -> Option<String> {
@@ -326,17 +356,72 @@ fn latest(root: &Path, kind: &str) -> Option<String> {
 
 fn list_vanilla() -> Vec<Found> {
     let root = vanilla_root();
+    let mut out = list_profiles(&root);
+    let used: Vec<_> = out.iter().map(|f| (f.mc_version.clone(), f.loader.clone())).collect();
+    let (source, all) = match third_party(&root) {
+        Some(s) => (s, true),
+        None => ("minecraft", false),
+    };
+    out.extend(list_versions(&root, source).into_iter().filter(|f| (all || f.loader.is_some()) && !used.contains(&(f.mc_version.clone(), f.loader.clone()))));
+    if let Some(dir) = tlauncher_gamedir().filter(|d| *d != root) {
+        out.extend(list_versions(&dir, "tlauncher"));
+    }
+    out
+}
+
+fn tlauncher_home() -> Option<PathBuf> {
+    let base = std::env::var_os("APPDATA").map(PathBuf::from).unwrap_or_else(home);
+    [base.join(".tlauncher"), home().join(".tlauncher")].into_iter().find(|p| p.is_dir())
+}
+
+fn tlauncher_gamedir() -> Option<PathBuf> {
+    let props = std::fs::read_to_string(tlauncher_home()?.join("tlauncher-2.0.properties")).ok()?;
+    let dir = props.lines().find_map(|l| l.strip_prefix("minecraft.gamedir="))?.trim().replace("\\:", ":").replace("\\\\", "\\");
+    Some(PathBuf::from(dir)).filter(|d| d.is_dir())
+}
+
+fn third_party(root: &Path) -> Option<&'static str> {
+    if tlauncher_home().is_some() || root.join("TlauncherProfiles.json").is_file() {
+        return Some("tlauncher");
+    }
+    let base = std::env::var_os("APPDATA").map(PathBuf::from).unwrap_or_else(home);
+    [base.join("sklauncher"), home().join("sklauncher"), root.join("sklauncher")].iter().any(|p| p.is_dir()).then_some("sklauncher")
+}
+
+fn list_versions(root: &Path, source: &'static str) -> Vec<Found> {
+    let Ok(rd) = std::fs::read_dir(root.join("versions")) else { return vec![] };
+    rd.flatten()
+        .filter_map(|e| {
+            let id = e.file_name().to_string_lossy().into_owned();
+            if !e.path().join(format!("{id}.json")).is_file() {
+                return None;
+            }
+            let (mc_version, loader) = vanilla_version(root, &id)?;
+            Some(Found {
+                source,
+                path: e.path().to_string_lossy().into_owned(),
+                name: id,
+                mc_version,
+                loader,
+                game: Some(root.to_path_buf()),
+                only: Some(VANILLA_ONLY),
+            })
+        })
+        .collect()
+}
+
+fn list_profiles(root: &Path) -> Vec<Found> {
     let file = root.join("launcher_profiles.json");
     let Some(lp) = std::fs::read(&file).ok().and_then(|b| serde_json::from_slice::<LauncherProfiles>(&b).ok()) else { return vec![] };
     let mut out = vec![];
     for (key, p) in lp.profiles {
         let id = match p.r#type.as_str() {
-            "latest-release" => latest(&root, "release"),
-            "latest-snapshot" => latest(&root, "snapshot"),
+            "latest-release" => latest(root, "release"),
+            "latest-snapshot" => latest(root, "snapshot"),
             _ => Some(p.last_version_id.clone()).filter(|v| !v.is_empty()),
         };
-        let Some((mc_version, loader)) = id.and_then(|id| vanilla_version(&root, &id)) else { continue };
-        let custom = p.game_dir.filter(|d| d.is_absolute() && d.is_dir() && *d != root);
+        let Some((mc_version, loader)) = id.and_then(|id| vanilla_version(root, &id)) else { continue };
+        let custom = p.game_dir.filter(|d| d.is_absolute() && d.is_dir() && d != root);
         let name = if p.name.is_empty() { format!("Minecraft {mc_version}") } else { p.name };
         out.push(Found {
             source: "vanilla",
@@ -345,7 +430,7 @@ fn list_vanilla() -> Vec<Found> {
             mc_version,
             loader,
             only: if custom.is_some() { None } else { Some(VANILLA_ONLY) },
-            game: Some(custom.unwrap_or_else(|| root.clone())),
+            game: Some(custom.unwrap_or_else(|| root.to_path_buf())),
         });
     }
     out
@@ -419,6 +504,33 @@ fn list_modrinth() -> Vec<Found> {
     out
 }
 
+static SEEN: std::sync::Mutex<Vec<Found>> = std::sync::Mutex::new(Vec::new());
+
+fn remember(found: &[Found]) {
+    let mut seen = SEEN.lock().unwrap();
+    seen.retain(|s| !found.iter().any(|f| f.path == s.path));
+    seen.extend(found.iter().cloned());
+}
+
+pub fn scan(dir: &Path) -> Vec<Found> {
+    let readers: [fn(&Path) -> Option<Found>; 4] = [read_instance, read_curseforge, read_atlauncher, read_gdlauncher];
+    let mut out: Vec<Found> = readers.iter().find_map(|r| r(dir)).into_iter().collect();
+    if out.is_empty() {
+        for sub in [dir.to_path_buf(), dir.join("instances"), instance_dir(dir)] {
+            let Ok(rd) = std::fs::read_dir(&sub) else { continue };
+            out.extend(rd.flatten().filter_map(|e| readers.iter().find_map(|r| r(&e.path()))));
+        }
+        out.extend(list_profiles(dir));
+        let used: Vec<_> = out.iter().map(|f| (f.mc_version.clone(), f.loader.clone())).collect();
+        out.extend(list_versions(dir, "folder").into_iter().filter(|f| !used.contains(&(f.mc_version.clone(), f.loader.clone()))));
+    }
+    out.sort_by(|a, b| a.path.cmp(&b.path));
+    out.dedup_by(|a, b| a.path == b.path);
+    out.sort_by_key(|a| a.name.to_lowercase());
+    remember(&out);
+    out
+}
+
 pub fn list_all() -> Vec<Found> {
     let mut out = list_prism();
     out.extend(list_modrinth());
@@ -428,6 +540,7 @@ pub fn list_all() -> Vec<Found> {
     out.extend(list_in(gdlauncher_roots(), read_gdlauncher));
     out.dedup_by(|a, b| a.path == b.path);
     out.sort_by_key(|a| a.name.to_lowercase());
+    remember(&out);
     out
 }
 
@@ -453,7 +566,8 @@ fn files(dir: &Path, only: Option<&[&str]>) -> Vec<PathBuf> {
 }
 
 pub async fn import(path: &str, job: &Arc<Job>) -> Result<Instance, String> {
-    let found = list_all().into_iter().find(|f| f.path == path).ok_or("not an instance we can import")?;
+    let seen = SEEN.lock().unwrap().iter().find(|f| f.path == path).cloned();
+    let found = seen.or_else(|| list_all().into_iter().find(|f| f.path == path)).ok_or("not an instance we can import")?;
     let inst = instances::create(&found.name, &found.mc_version, found.loader.clone())?;
     let Some(src) = found.game.clone() else { return Ok(inst) };
     let dest = instances::game_dir(&inst.id)?;
@@ -561,6 +675,25 @@ mod tests {
         std::fs::create_dir_all(dir.join("libraries/x")).unwrap();
         std::fs::write(dir.join("libraries/x/y.jar"), b"x").unwrap();
         assert_eq!(files(&dir, Some(VANILLA_ONLY)), vec![PathBuf::from("mods/a.jar")]);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn reads_full_version_jsons() {
+        let dir = std::env::temp_dir().join(format!("kromvia-tl-{}", std::process::id()));
+        let put = |id: &str, json: &str| {
+            std::fs::create_dir_all(dir.join("versions").join(id)).unwrap();
+            std::fs::write(dir.join("versions").join(id).join(format!("{id}.json")), json).unwrap();
+        };
+        put("Fabric 1.20.1", r#"{"libraries":[{"name":"net.fabricmc:intermediary:1.20.1"},{"name":"net.fabricmc:fabric-loader:0.15.11"}]}"#);
+        put("ForgeOptiFine 1.20.1", r#"{"libraries":[{"name":"net.minecraftforge:fmlloader:1.20.1-47.3.0"}]}"#);
+        put("NeoForge 1.21.1", r#"{"inheritsFrom":"1.21.1","libraries":[{"name":"net.neoforged:neoforge:21.1.80:universal"}]}"#);
+        assert_eq!(vanilla_version(&dir, "Fabric 1.20.1"), Some(("1.20.1".into(), Some(Loader { kind: LoaderKind::Fabric, version: "0.15.11".into() }))));
+        assert_eq!(vanilla_version(&dir, "ForgeOptiFine 1.20.1"), Some(("1.20.1".into(), Some(Loader { kind: LoaderKind::Forge, version: "1.20.1-47.3.0".into() }))));
+        assert_eq!(vanilla_version(&dir, "NeoForge 1.21.1").unwrap().1.unwrap().version, "21.1.80");
+        let found = scan(&dir);
+        assert_eq!(found.len(), 3);
+        assert!(found.iter().all(|f| f.source == "folder"));
         std::fs::remove_dir_all(dir).unwrap();
     }
 

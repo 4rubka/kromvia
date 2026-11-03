@@ -2,22 +2,39 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Glyph } from "@/components/Glyph";
 import { top } from "@/lib/api";
+import { getLang } from "@/lib/i18n";
 import s from "./top.module.css";
 
-export const metadata: Metadata = { title: "Top players", description: "The most liked players on Kromvia." };
+const T = {
+  en: {
+    meta: { title: "Top players", description: "The most liked players on Kromvia." },
+    head: "Top players", lede: "The most liked Kromvia players. To like someone, open Profile → Top in the launcher.",
+    offline: "Can't reach Kromvia servers right now. Try again in a minute.", empty: "Nobody has any likes yet. Be the first.",
+  },
+  uk: {
+    meta: { title: "Топ гравців", description: "Гравці Kromvia з найбільшою кількістю лайків." },
+    head: "Топ гравців", lede: "Гравці Kromvia з найбільшою кількістю лайків. Лайкнути когось: Профіль → Топ у лаунчері.",
+    offline: "Сервери Kromvia зараз недоступні. Спробуй за хвилину.", empty: "Лайків ще ні в кого нема. Будь першим.",
+  },
+};
+
+export async function generateMetadata(): Promise<Metadata> {
+  return T[await getLang()].meta;
+}
 
 export default async function Top() {
-  const list = await top();
+  const [list, lang] = await Promise.all([top(), getLang()]);
+  const t = T[lang];
   return (
     <div className="wrap">
       <header className="page-head">
-        <h1>Top players</h1>
-        <p>The most liked Kromvia players. To like someone, open Profile → Top in the launcher.</p>
+        <h1>{t.head}</h1>
+        <p>{t.lede}</p>
       </header>
       {list === null ? (
-        <Empty bee="offline" text="Can't reach Kromvia servers right now. Try again in a minute." />
+        <Empty bee="offline" text={t.offline} />
       ) : list.length === 0 ? (
-        <Empty bee="friends-alone" text="Nobody has any likes yet. Be the first." />
+        <Empty bee="friends-alone" text={t.empty} />
       ) : (
         <ol className={s.list}>
           {list.map((p, i) => (

@@ -73,7 +73,7 @@ export function Onboarding({
             <p className="muted">{t("onboarding.accountText")}</p>
             <div className="field">
               <span>{t("onboarding.nick")}</span>
-              <input className="input" value={l.nick} maxLength={16} placeholder="Steve" onChange={(e) => l.setNick(e.currentTarget.value)} />
+              <input className="input" value={l.nick} maxLength={16} placeholder="Steve" onChange={(e) => l.setNick(e.currentTarget.value)} onBlur={() => l.rememberNick()} />
             </div>
             <button className="btn btn-ghost" onClick={() => done("accounts")}>
               <Glyph name="login-2" /> {t("onboarding.microsoft")}
@@ -118,6 +118,10 @@ export function Onboarding({
 export const HOTKEYS: [string, MessageKey][] = [
   ["Ctrl+1…9", "keys.pages"],
   ["Ctrl+,", "keys.settings"],
+  ["Ctrl+Enter", "keys.play"],
+  ["Ctrl+N", "keys.new"],
+  ["Ctrl+B", "keys.build"],
+  ["Ctrl+F", "keys.search"],
   ["?", "keys.help"],
   ["Esc", "keys.close"],
 ];

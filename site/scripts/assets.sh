@@ -2,7 +2,7 @@
 set -e
 cd "$(dirname "$0")/.."
 mkdir -p public
-cp -r ../public/bee ../public/models ../public/logo.svg ../public/hero.webm ../public/hero.mp4 public/
+cp -r ../public/bee ../public/models ../public/logo.svg public/
 cp art/bee/*.webp public/bee/
 cp ../design/logo-mark.svg public/logo-mark.svg
 mkdir -p launcher/art launcher/ui

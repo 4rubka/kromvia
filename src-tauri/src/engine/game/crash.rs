@@ -20,6 +20,7 @@ pub struct Crash {
     pub cause: Cause,
     pub detail: Option<String>,
     pub report: Option<String>,
+    pub auto: bool,
 }
 
 const REPORT_MARK: &str = "Crash report saved to: #@!@# ";
@@ -48,7 +49,7 @@ pub fn analyze(log: &str, report_path: Option<String>, report: &str) -> Crash {
     } else {
         (Cause::Unknown, None)
     };
-    Crash { cause, detail, report: report_path }
+    Crash { cause, detail, report: report_path, auto: false }
 }
 
 fn mixin_mod(text: &str) -> Option<String> {

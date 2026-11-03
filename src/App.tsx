@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { LANGUAGES, language, setLanguage, useI18n } from "./i18n";
 import { Select } from "./ui/Select";
 import type { MessageKey } from "./i18n/en";
@@ -9,10 +10,10 @@ import { Builds } from "./builds/Builds";
 import { Content, type Kind } from "./content/Content";
 import { Friends } from "./friends/Friends";
 import { SocialProvider, useSocial } from "./friends/social";
-import { Home } from "./home/Home";
+import { Home, requestNewInstance } from "./home/Home";
 import { Profile } from "./profile/Profile";
 import { Rooms } from "./rooms/Rooms";
-import { LauncherProvider } from "./lib/launcher";
+import { LauncherProvider, useLauncher } from "./lib/launcher";
 import { JavaSettings } from "./settings/JavaSettings";
 import { Storage } from "./settings/Storage";
 import { Updates, useUpdate } from "./settings/Updates";
@@ -92,14 +93,7 @@ function App() {
   return (
     <LauncherProvider>
       <SocialProvider>
-        {background ? (
-          <img className="app-bg" src={background} alt="" aria-hidden />
-        ) : (
-          <video className="app-bg" autoPlay loop muted playsInline aria-hidden>
-            <source src="/hero.webm" type="video/webm" />
-            <source src="/hero.mp4" type="video/mp4" />
-          </video>
-        )}
+        {background && <img className="app-bg" src={background} alt="" aria-hidden />}
         <div className="shell">
           <nav className="rail" aria-label="Kromvia">
             <img className="rail-logo" src="/logo.svg" alt="Kromvia" width="34" height="34" />
@@ -110,11 +104,10 @@ function App() {
                   key={p}
                   className="rail-btn"
                   aria-current={page === p ? "page" : undefined}
-                  aria-label={t(`nav.${p}` as MessageKey)}
-                  data-tip={t(`nav.${p}` as MessageKey)}
                   onClick={() => setPage(p)}
                 >
                   <Icon name={ICONS[p]} size={18} />
+                  <span className="rail-label">{t(`nav.${p}` as MessageKey)}</span>
                   {p === "friends" && <UnreadBadge />}
                   {p === "settings" && <UpdateBadge />}
                 </button>
@@ -155,9 +148,46 @@ function App() {
           />
         )}
         {keysHelp && <HotkeyHelp onClose={() => setKeysHelp(false)} />}
+        <LaunchKeys onPage={setPage} />
       </SocialProvider>
     </LauncherProvider>
   );
+}
+
+function LaunchKeys({ onPage }: { onPage: (p: Page) => void }) {
+  const l = useLauncher();
+  const ref = useRef(l);
+  ref.current = l;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      const { current, runOf, jobOf, play } = ref.current;
+      const key = e.key.toLowerCase();
+      if (e.key === "Enter" && current) {
+        e.preventDefault();
+        const run = runOf(current.id);
+        if (run) invoke("game_stop", { runId: run.runId });
+        else if (!jobOf(current.id)) play(current);
+      } else if (key === "n" && !e.shiftKey) {
+        e.preventDefault();
+        onPage("home");
+        requestNewInstance();
+      } else if (key === "b" && current) {
+        e.preventDefault();
+        onPage("builds");
+      } else if (key === "f") {
+        const search = document.querySelector<HTMLInputElement>(".page [data-search]");
+        if (search) {
+          e.preventDefault();
+          search.focus();
+          search.select();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+  return null;
 }
 
 function UnreadBadge() {
@@ -186,6 +216,9 @@ function MiniPlayerToggle() {
     </label>
   );
 }
+
+const DISCORD_INVITE = "https://discord.gg/vTh3e8YpgF";
+const SUPPORT_JAR = "https://send.monobank.ua/jar/7k6Bs5BVdY";
 
 function Settings({ theme, setTheme }: { theme: ThemePref; setTheme: (t: ThemePref) => void }) {
   const { t } = useI18n();
@@ -227,9 +260,17 @@ function Settings({ theme, setTheme }: { theme: ThemePref; setTheme: (t: ThemePr
       <JavaSettings />
       <Storage />
       <SettingsBackup />
-      <button className="btn btn-ghost" onClick={() => invoke("launcher_log_open")}>
-        <Glyph name="folder" /> {t("settings.launcherLog")}
-      </button>
+      <div className="actions">
+        <button className="btn btn-ghost" onClick={() => invoke("launcher_log_open")}>
+          <Glyph name="folder" /> {t("settings.launcherLog")}
+        </button>
+        <button className="btn btn-ghost" onClick={() => openUrl(DISCORD_INVITE)}>
+          <Glyph name="brand-discord" /> {t("settings.discord")}
+        </button>
+        <button className="btn btn-ghost" onClick={() => openUrl(SUPPORT_JAR)}>
+          <Glyph name="heart" /> {t("settings.support")}
+        </button>
+      </div>
       {version && <p className="version muted">{t("settings.version", { version })}</p>}
       <Legal />
     </>

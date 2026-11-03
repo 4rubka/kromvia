@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import { useI18n } from "../i18n";
 import { useJobs } from "../lib/jobs";
 import { LOADER_NAMES, type Instance } from "../lib/launcher";
@@ -8,13 +9,25 @@ import { Glyph } from "../ui/Glyph";
 
 type Found = { source: keyof typeof SOURCES; path: string; name: string; mcVersion: string; loader: Instance["loader"] };
 
-const SOURCES = { prism: "Prism", modrinth: "Modrinth", curseforge: "CurseForge", vanilla: "Minecraft Launcher", atlauncher: "ATLauncher", gdlauncher: "GDLauncher" };
+const SOURCES = {
+  prism: "Prism",
+  modrinth: "Modrinth",
+  curseforge: "CurseForge",
+  vanilla: "Minecraft Launcher",
+  atlauncher: "ATLauncher",
+  gdlauncher: "GDLauncher",
+  tlauncher: "TLauncher",
+  sklauncher: "SKLauncher",
+  minecraft: ".minecraft",
+  folder: "Folder",
+};
 
 export function ImportInstances({ onImported, onClose }: { onImported: () => void; onClose: () => void }) {
   const { t } = useI18n();
   const [found, setFound] = useState<Found[] | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [done, setDone] = useState<Record<string, boolean>>({});
+  const [pickEmpty, setPickEmpty] = useState(false);
   const { jobs, started } = useJobs("import-", (key, error) => {
     const path = key.slice("import-".length);
     if (error) setErrors((e) => ({ ...e, [path]: error }));
@@ -28,6 +41,14 @@ export function ImportInstances({ onImported, onClose }: { onImported: () => voi
     invoke<Found[]>("import_list").then(setFound, () => setFound([]));
   }, []);
 
+  const pick = async () => {
+    const dir = await open({ directory: true });
+    if (typeof dir !== "string") return;
+    const more = await invoke<Found[]>("import_scan", { path: dir }).catch(() => []);
+    setPickEmpty(more.length === 0);
+    setFound((cur) => [...more, ...(cur ?? []).filter((f) => !more.some((m) => m.path === f.path))]);
+  };
+
   const start = (f: Found) => {
     setErrors(({ [f.path]: _, ...rest }) => rest);
     invoke<number>("import_instance", { path: f.path }).then(
@@ -40,10 +61,14 @@ export function ImportInstances({ onImported, onClose }: { onImported: () => voi
     <section className="card import">
       <div className="library-head">
         <h2 className="section-title">{t("import.title")}</h2>
+        <button className="btn btn-ghost" onClick={pick}>
+          <Glyph name="folder" /> {t("import.pick")}
+        </button>
         <button className="btn btn-ghost" onClick={onClose}>
           <Glyph name="x" /> {t("common.close")}
         </button>
       </div>
+      {pickEmpty && <p className="error">{t("import.pickEmpty")}</p>}
       {found === null ? (
         <p className="muted">{t("import.searching")}</p>
       ) : found.length === 0 ? (

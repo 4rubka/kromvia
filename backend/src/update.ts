@@ -41,10 +41,10 @@ const INSTALLERS: [string, RegExp][] = [
 export async function downloads(token: string) {
   const res = await github(token, "/releases/latest");
   if (!res.ok) return null;
-  const release = (await res.json()) as { tag_name: string; published_at: string; assets: Asset[] };
+  const release = (await res.json()) as { tag_name: string; published_at: string; body: string | null; assets: Asset[] };
   const files = INSTALLERS.flatMap(([platform, re]) => {
     const a = release.assets.find((x) => re.test(x.name));
     return a ? [{ platform, id: a.id, name: a.name, size: a.size ?? 0 }] : [];
   });
-  return { version: release.tag_name.replace(/^v/, ""), published: release.published_at, files };
+  return { version: release.tag_name.replace(/^v/, ""), published: release.published_at, notes: release.body ?? "", files };
 }

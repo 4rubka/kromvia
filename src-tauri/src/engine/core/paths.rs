@@ -44,6 +44,11 @@ pub fn client_jar(mc: &str) -> Option<PathBuf> {
     RESOURCES.get().map(|d| d.join("client").join(format!("kromvia-client-{mc}.jar"))).filter(|p| p.is_file())
 }
 
+/// The client build for Forge or NeoForge (`flavor`), made for Minecraft 1.21 to 1.21.10.
+pub fn forge_client_jar(mc: &str, flavor: &str) -> Option<PathBuf> {
+    client_jar(&format!("{mc}-{flavor}"))
+}
+
 pub fn client_versions() -> Vec<String> {
     let Some(dir) = RESOURCES.get().map(|d| d.join("client")) else { return Vec::new() };
     let mut list: Vec<String> = std::fs::read_dir(dir)

@@ -7,6 +7,9 @@ const {
   TextInputBuilder, TextInputStyle, SlashCommandBuilder,
 } = require('discord.js');
 const cfg = require('./config');
+const kromvia = require('./kromvia');
+
+const BADGE_ROLES = ['player', 'early', 'verified', 'liked', 'famous'];
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
@@ -117,10 +120,22 @@ async function upsertPanel(channel, type) {
   return channel.send(msg);
 }
 
+async function upsertEmoji(guild, log) {
+  const dir = path.join(ASSETS, 'server-emoji');
+  const existing = await guild.emojis.fetch();
+  for (const file of fs.readdirSync(dir)) {
+    const name = path.parse(file).name;
+    if (existing.some(e => e.name === name)) continue;
+    await guild.emojis.create({ attachment: path.join(dir, file), name })
+      .catch(e => log.push(`⚠️ emoji ${name}: ${e.message}`));
+  }
+}
+
 async function setup(guild) {
   const log = [];
   const R = {};
   for (const [key, r] of Object.entries(cfg.roles)) R[key] = await upsertRole(guild, r, log);
+  await upsertEmoji(guild, log);
 
   for (const cat of cfg.categories) {
     const ow = overwrites(guild, R, cat.access);
@@ -248,9 +263,28 @@ const commands = [
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addStringOption(o => o.setName('type').setDescription('Panel type').setRequired(true)
       .addChoices(...Object.keys(cfg.panels).map(k => ({ name: k, value: k })))),
+  new SlashCommandBuilder()
+    .setName('crash')
+    .setDescription('Find out why Minecraft crashed')
+    .addAttachmentOption(o => o.setName('log').setDescription('latest.log or the crash report'))
+    .addStringOption(o => o.setName('code').setDescription('Share code of a log from the launcher')),
 ];
 
 const commandHandlers = {
+  crash: async i => {
+    const file = i.options.getAttachment('log');
+    const code = i.options.getString('code');
+    if (!file && !code) return i.reply(ephemeral('Attach a log or enter a share code.'));
+    await i.deferReply();
+    const log = await kromvia.fetchLog({ file, code: code?.trim() });
+    if (!log) throw new Error('Could not read that log.');
+    const r = kromvia.analyze(log);
+    const body = r
+      ? [`## ${EMOJI.check} Found it`, r.fix, r.detail && `\`\`\`\n${r.detail.replace(/`/g, "'")}\n\`\`\``].filter(Boolean).join('\n')
+      : `## ${EMOJI.cross} No known cause\nThe bot doesn't recognise this crash. Open a ticket in the support channel and attach the same log.`;
+    await i.editReply({ content: body, allowedMentions: { parse: [] } });
+  },
+
   panel: async i => {
     await i.channel.send(panelMessage(i.guild, i.options.getString('type')));
     await i.reply(ephemeral(`${EMOJI.check} Panel posted.`));
@@ -273,8 +307,33 @@ client.on(Events.InteractionCreate, async i => {
 
 client.on(Events.GuildCreate, g => g.commands.set(commands));
 
+async function syncAll() {
+  for (const g of client.guilds.cache.values()) {
+    await kromvia.syncRoles(g, k => role(g, k), BADGE_ROLES).catch(e => console.error(`role sync ${g.name}:`, e.message));
+  }
+}
+
+async function announce(rel) {
+  for (const g of client.guilds.cache.values()) {
+    const ch = g.channels.cache.find(c => same(c.name, cfg.announcementsChannel));
+    if (!ch) continue;
+    const notes = (rel.notes || '').trim().slice(0, 3000);
+    const msg = await ch.send(card(g, 'rules', [
+      text(`# ${EMOJI.kromvia} Kromvia ${rel.version} is out`),
+      ...(notes ? [text(notes)] : []),
+      text('The launcher updates itself on the next start. New here? [Download Kromvia](https://kromvia.com/download) · [Changelog](https://kromvia.com/changelog)'),
+    ]));
+    if (ch.type === ChannelType.GuildAnnouncement) await msg.crosspost().catch(() => {});
+  }
+}
+
 client.once(Events.ClientReady, async c => {
   await loadEmoji();
+  syncAll();
+  setInterval(syncAll, cfg.syncMinutes * 60_000);
+  const release = () => kromvia.checkRelease(announce).catch(e => console.error('release check:', e.message));
+  release();
+  setInterval(release, cfg.releaseMinutes * 60_000);
   for (const g of c.guilds.cache.values()) await g.commands.set(commands);
   console.log(`Logged in as ${c.user.tag}`);
   if (process.argv.includes('--setup')) {

@@ -3,42 +3,44 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { DISCORD_INVITE, type Lang } from "@/lib/i18n-shared";
 import { Glyph } from "./Glyph";
+import { LangSwitch } from "./LangSwitch";
 import s from "./Header.module.css";
 
-const NAV = [
-  {
-    label: "Launcher",
-    bee: "menu-launcher",
-    title: "Launcher",
-    links: [
-      { href: "/download", label: "Download" },
-      { href: "/features", label: "Features" },
-      { href: "/changelog", label: "Changelog" },
-      { href: "/faq", label: "FAQ" },
+const T = {
+  en: {
+    nav: [
+      { label: "Launcher", bee: "menu-launcher", title: "Launcher", links: [
+        { href: "/download", label: "Download" }, { href: "/features", label: "Features" }, { href: "/changelog", label: "Changelog" }, { href: "/faq", label: "FAQ" },
+      ] },
+      { label: "Client", bee: "menu-client", title: "Built-in client", links: [
+        { href: "/features#client", label: "Modules" }, { href: "/cosmetics", label: "Cosmetics" },
+      ] },
+      { label: "Community", bee: "menu-community", title: "Community", links: [
+        { href: "/top", label: "Top players" }, { href: "/rooms", label: "Rooms" }, { href: DISCORD_INVITE, label: "Discord" },
+      ] },
     ],
+    download: "Download", home: "Kromvia home", open: "Open menu", close: "Close menu",
   },
-  {
-    label: "Client",
-    bee: "menu-client",
-    title: "Built-in client",
-    links: [
-      { href: "/features#client", label: "Modules" },
-      { href: "/cosmetics", label: "Cosmetics" },
+  uk: {
+    nav: [
+      { label: "Лаунчер", bee: "menu-launcher", title: "Лаунчер", links: [
+        { href: "/download", label: "Завантажити" }, { href: "/features", label: "Можливості" }, { href: "/changelog", label: "Зміни" }, { href: "/faq", label: "FAQ" },
+      ] },
+      { label: "Клієнт", bee: "menu-client", title: "Вбудований клієнт", links: [
+        { href: "/features#client", label: "Модулі" }, { href: "/cosmetics", label: "Косметика" },
+      ] },
+      { label: "Спільнота", bee: "menu-community", title: "Спільнота", links: [
+        { href: "/top", label: "Топ гравців" }, { href: "/rooms", label: "Кімнати" }, { href: DISCORD_INVITE, label: "Discord" },
+      ] },
     ],
+    download: "Завантажити", home: "Kromvia, головна", open: "Відкрити меню", close: "Закрити меню",
   },
-  {
-    label: "Community",
-    bee: "menu-community",
-    title: "Community",
-    links: [
-      { href: "/top", label: "Top players" },
-      { href: "/rooms", label: "Rooms" },
-    ],
-  },
-];
+};
 
-export function Header() {
+export function Header({ lang }: { lang: Lang }) {
+  const t = T[lang];
   const path = usePathname();
   const [menu, setMenu] = useState(false);
   const [drop, setDrop] = useState<number | null>(null);
@@ -74,12 +76,12 @@ export function Header() {
       <div className={s.veil} data-on={drop !== null} aria-hidden="true" onClick={() => setDrop(null)} />
       <header className={s.header} data-scrolled={scrolled || menu}>
         <div className={`wrap ${s.row}`}>
-          <Link href="/" className={s.brand} aria-label="Kromvia home" onClick={() => path === "/" && window.scrollTo({ top: 0, behavior: "smooth" })}>
+          <Link href="/" className={s.brand} aria-label={t.home} onClick={() => path === "/" && window.scrollTo({ top: 0, behavior: "smooth" })}>
             <img src="/logo-mark.svg" alt="" width={30} height={30} />
             <span>Kromvia</span>
           </Link>
           <nav className={s.nav} data-open={menu}>
-            {NAV.map((g, i) => (
+            {t.nav.map((g, i) => (
               <div key={g.label} className={s.group} onPointerEnter={(e) => e.pointerType === "mouse" && enter(i)} onPointerLeave={(e) => e.pointerType === "mouse" && leave()}>
                 <button className={s.trigger} aria-expanded={drop === i} onClick={() => setDrop(drop === i ? null : i)}>
                   {g.label}
@@ -103,10 +105,11 @@ export function Header() {
               </div>
             ))}
             <Link href="/download" className={`btn ${s.download}`}>
-              <Glyph name="download" size={16} /> Download
+              <Glyph name="download" size={16} /> {t.download}
             </Link>
+            <LangSwitch lang={lang} className={s.lang} />
           </nav>
-          <button className={s.menu} aria-label={menu ? "Close menu" : "Open menu"} aria-expanded={menu} onClick={() => setMenu(!menu)}>
+          <button className={s.menu} aria-label={menu ? t.close : t.open} aria-expanded={menu} onClick={() => setMenu(!menu)}>
             <Glyph name={menu ? "x" : "menu"} size={22} />
           </button>
         </div>

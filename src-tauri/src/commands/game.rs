@@ -150,6 +150,27 @@ pub fn import_list() -> Vec<import::Found> {
 }
 
 #[tauri::command]
+pub fn import_scan(path: String) -> Vec<import::Found> {
+    import::scan(std::path::Path::new(&path))
+}
+
+#[tauri::command]
 pub fn import_instance(app: AppHandle, jobs: State<'_, Jobs>, path: String) -> Result<u64, String> {
     jobs.spawn(&app, format!("import-{path}"), move |job| async move { import::import(&path, &job).await.map(|_| ()) })
+}
+
+#[tauri::command]
+pub fn crash_reports_get() -> bool {
+    crate::engine::game::report::enabled()
+}
+
+#[tauri::command]
+pub fn crash_reports_set(on: bool) -> Result<(), String> {
+    crate::engine::game::report::set_enabled(on)
+}
+
+#[tauri::command]
+pub async fn crash_report_send(reports: State<'_, crate::engine::game::report::Reports>, instance_id: String) -> Result<(), String> {
+    let report = reports.take(&instance_id).ok_or("this crash report is gone, restart the game to get a new one")?;
+    crate::engine::game::report::send(&report).await
 }

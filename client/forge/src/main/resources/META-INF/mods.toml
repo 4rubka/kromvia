@@ -1,0 +1,12 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "All-Rights-Reserved"
+
+[[mods]]
+modId = "kromvia"
+version = "${version}"
+displayName = "Kromvia Client"
+description = "Built-in client of the Kromvia launcher: module menu and HUD."
+authors = "Kromvia"
+
+

@@ -5,6 +5,7 @@ pub mod loaders;
 pub mod crash;
 pub mod logs;
 pub mod presets;
+pub mod report;
 pub mod renderer;
 pub mod tuning;
 pub mod version;

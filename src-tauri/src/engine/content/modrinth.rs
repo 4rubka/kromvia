@@ -22,6 +22,28 @@ pub struct SearchHit {
     pub icon_url: Option<String>,
     pub downloads: u64,
     pub author: String,
+    #[serde(default)]
+    pub follows: u64,
+    #[serde(default)]
+    pub date_modified: String,
+}
+
+#[derive(Deserialize, Default)]
+pub struct SearchFilters {
+    #[serde(default)]
+    pub sort: Option<String>,
+    #[serde(default)]
+    pub categories: Vec<String>,
+    #[serde(default)]
+    pub game_version: Option<String>,
+    #[serde(default)]
+    pub loader: Option<String>,
+}
+
+#[derive(Serialize, Clone, Debug)]
+pub struct Category {
+    pub id: String,
+    pub name: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -88,14 +110,18 @@ pub fn loaders_for(kind: ContentKind, inst: Option<&Instance>) -> Vec<&'static s
     }
 }
 
-pub async fn search(query: &str, kind: ContentKind, inst: Option<&Instance>, offset: u32) -> Result<SearchResult, String> {
-    let project_type = match kind {
+fn project_type(kind: ContentKind) -> &'static str {
+    match kind {
         ContentKind::Mod => "mod",
         ContentKind::Modpack => "modpack",
         ContentKind::ResourcePack => "resourcepack",
         ContentKind::Shader => "shader",
         ContentKind::Datapack => "datapack",
-    };
+    }
+}
+
+pub async fn search(query: &str, kind: ContentKind, inst: Option<&Instance>, offset: u32, f: &SearchFilters) -> Result<SearchResult, String> {
+    let project_type = project_type(kind);
     let mut facets = vec![vec![format!("project_type:{project_type}")]];
     let loaders = loaders_for(kind, inst);
     if !matches!(kind, ContentKind::ResourcePack | ContentKind::Datapack) && !loaders.is_empty() {
@@ -104,13 +130,57 @@ pub async fn search(query: &str, kind: ContentKind, inst: Option<&Instance>, off
     if let (Some(inst), true) = (inst, kind != ContentKind::Modpack) {
         facets.push(vec![format!("versions:{}", inst.mc_version)]);
     }
+    if inst.is_none() || kind == ContentKind::Modpack {
+        if let Some(v) = &f.game_version {
+            facets.push(vec![format!("versions:{v}")]);
+        }
+        if let Some(l) = &f.loader {
+            facets.push(vec![format!("categories:{l}")]);
+        }
+    }
+    if !f.categories.is_empty() {
+        facets.push(f.categories.iter().map(|c| format!("categories:{c}")).collect());
+    }
     let facets = serde_json::to_string(&facets).map_err(|e| e.to_string())?;
     let offset = offset.to_string();
+    let index = match f.sort.as_deref() {
+        Some(s @ ("downloads" | "follows" | "newest" | "updated")) => s,
+        _ => "relevance",
+    };
     http::get_json_query(
         &format!("{API}/search"),
-        &[("query", query), ("facets", &facets), ("limit", "20"), ("offset", &offset)],
+        &[("query", query), ("facets", &facets), ("index", index), ("limit", "20"), ("offset", &offset)],
     )
     .await
+}
+
+#[derive(Deserialize)]
+struct Tag {
+    name: String,
+    project_type: String,
+    header: String,
+}
+
+pub async fn categories(kind: ContentKind) -> Result<Vec<Category>, String> {
+    let tags: Vec<Tag> = http::get_json_query(&format!("{API}/tag/category"), &[]).await?;
+    let wanted = match kind {
+        ContentKind::Datapack => "mod",
+        k => project_type(k),
+    };
+    let mut out: Vec<Category> = tags
+        .into_iter()
+        .filter(|t| t.project_type == wanted && t.header == "categories")
+        .map(|t| Category { name: titled(&t.name), id: t.name })
+        .collect();
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    out.dedup_by(|a, b| a.id == b.id);
+    Ok(out)
+}
+
+fn titled(s: &str) -> String {
+    let s = s.replace('-', " ");
+    let mut c = s.chars();
+    c.next().map(|f| f.to_uppercase().chain(c).collect()).unwrap_or_default()
 }
 
 pub async fn compatible_versions(project_id: &str, kind: ContentKind, inst: Option<&Instance>) -> Result<Vec<Version>, String> {

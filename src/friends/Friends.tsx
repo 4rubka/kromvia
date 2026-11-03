@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useI18n } from "../i18n";
-import { useLauncher } from "../lib/launcher";
+import { NICK, useLauncher } from "../lib/launcher";
 import { Glyph } from "../ui/Glyph";
 import { Empty } from "../ui/Empty";
 import { useSocial } from "./social";
@@ -11,7 +11,6 @@ type Player = { id: string; name: string; verified: boolean };
 type Me = Player & { cosmetics: Record<string, unknown> };
 type FriendList = { friends: (Player & { seen: number })[]; incoming: Player[]; outgoing: Player[] };
 
-const NICK = /^[A-Za-z0-9_]{3,16}$/;
 
 export function Friends() {
   const { t } = useI18n();
@@ -25,6 +24,7 @@ export function Friends() {
   const social = useSocial();
   const [chat, setChat] = useState<string | null>(null);
 
+  const tried = useRef(false);
   const load = () =>
     invoke<Me | null>("social_me").then((m) => {
       setMe(m);
@@ -34,7 +34,13 @@ export function Friends() {
     load();
   }, []);
   useEffect(() => {
-    if (me === null) setName(l.account?.name ?? l.nick.trim());
+    if (me === null) {
+      setName(l.name);
+      if (!tried.current && NICK.test(l.name)) {
+        tried.current = true;
+        act(invoke("social_sign_up", { name: l.name }));
+      }
+    }
     if (me && social.myId !== me.id) social.connect(me.id);
   }, [me]);
   useEffect(() => {

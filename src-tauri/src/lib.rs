@@ -24,6 +24,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(Jobs::default())
         .manage(Games::default())
+        .manage(engine::game::report::Reports::default())
         .manage(watchdog::UiReady::default())
         .manage(engine::social::Live::default())
         .manage(PendingLaunch(std::sync::Mutex::new(shortcut::requested(std::env::args()))))
@@ -109,6 +110,7 @@ pub fn run() {
             commands::game::game_toast,
             commands::game::game_social,
             commands::game::import_list,
+            commands::game::import_scan,
             commands::game::import_instance,
             commands::servers::server_status,
             commands::worlds::world_list,
@@ -126,10 +128,14 @@ pub fn run() {
             commands::worlds::screenshot_discord,
             commands::worlds::instance_open_folder,
             commands::worlds::crash_report_open,
+            commands::game::crash_reports_get,
+            commands::game::crash_reports_set,
+            commands::game::crash_report_send,
             commands::worlds::instance_info,
             commands::worlds::instance_clean,
             commands::worlds::instance_repair,
             commands::content::content_search,
+            commands::content::content_categories,
             commands::content::content_install,
             commands::content::content_project,
             commands::content::content_versions,

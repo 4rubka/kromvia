@@ -1,51 +1,73 @@
 import type { Metadata } from "next";
 import { Glyph } from "@/components/Glyph";
 import { release } from "@/lib/api";
+import { getLang, getOs, type Os } from "@/lib/i18n";
+import { DISCORD_INVITE } from "@/lib/i18n-shared";
 import s from "./download.module.css";
 
-export const metadata: Metadata = { title: "Download", description: "Download the Kromvia launcher for Windows, macOS and Linux." };
-
-const PLATFORMS = [
-  { name: "Windows", note: "Windows 10 and 11, 64-bit", bee: "os-windows", files: [{ id: "windows", label: "Download" }] },
-  { name: "macOS", note: "Apple Silicon", bee: "os-macos", files: [{ id: "macos", label: "Download" }] },
-  {
-    name: "Linux",
-    note: "AppImage for any distro, or a .deb for Debian and Ubuntu",
-    bee: "os-linux",
-    files: [
-      { id: "linux-appimage", label: "AppImage" },
-      { id: "linux-deb", label: ".deb" },
-    ],
+const T = {
+  en: {
+    meta: { title: "Download", description: "Download the Kromvia launcher for Windows, macOS and Linux." },
+    head: "Get Kromvia",
+    released: (v: string, d: string) => `Version ${v}, released ${d}. It updates itself after that.`,
+    soon: "The first release is on its way. Check back soon.",
+    notes: { windows: "Windows 10 and 11, 64-bit", macos: "Apple Silicon", linux: "AppImage for any distro, or a .deb for Debian and Ubuntu" },
+    download: "Download", comingSoon: "Coming soon", yours: "Your system",
+    after: "After installing",
+    steps: ["Sign in with Microsoft, or play offline with a nickname.", "Create an instance: pick a version and a loader.", "Press Play. In game, Right Shift opens the Kromvia menu."],
+    help: "Stuck? Ask in our Discord.",
   },
+  uk: {
+    meta: { title: "Завантажити", description: "Завантаж лаунчер Kromvia для Windows, macOS і Linux." },
+    head: "Отримати Kromvia",
+    released: (v: string, d: string) => `Версія ${v}, вийшла ${d}. Далі оновлюється сама.`,
+    soon: "Перший реліз уже на підході. Заглядай незабаром.",
+    notes: { windows: "Windows 10 і 11, 64-біт", macos: "Apple Silicon", linux: "AppImage для будь-якого дистрибутива або .deb для Debian і Ubuntu" },
+    download: "Завантажити", comingSoon: "Скоро", yours: "Твоя система",
+    after: "Після встановлення",
+    steps: ["Увійди через Microsoft або грай офлайн з ніком.", "Створи збірку: вибери версію й лоадер.", "Натисни Грати. У грі Right Shift відкриває меню Kromvia."],
+    help: "Щось не виходить? Питай у нашому Discord.",
+  },
+};
+
+export async function generateMetadata(): Promise<Metadata> {
+  return T[await getLang()].meta;
+}
+
+const PLATFORMS: { os: Os; name: string; bee: string; files: { id: string; label?: string }[] }[] = [
+  { os: "windows", name: "Windows", bee: "os-windows", files: [{ id: "windows" }] },
+  { os: "macos", name: "macOS", bee: "os-macos", files: [{ id: "macos" }] },
+  { os: "linux", name: "Linux", bee: "os-linux", files: [{ id: "linux-appimage", label: "AppImage" }, { id: "linux-deb", label: ".deb" }] },
 ];
 
 const mb = (n: number) => `${(n / 1024 / 1024).toFixed(0)} MB`;
 
 export default async function Download() {
-  const rel = await release();
+  const [rel, lang, os] = await Promise.all([release(), getLang(), getOs()]);
+  const t = T[lang];
+  const platforms = [...PLATFORMS].sort((a, b) => Number(b.os === os) - Number(a.os === os));
   return (
     <div className="wrap">
       <header className={`page-head ${s.head}`}>
-        <h1>Get Kromvia</h1>
-        {rel ? (
-          <p>
-            Version {rel.version}, released {new Date(rel.published).toLocaleDateString("en", { day: "numeric", month: "long", year: "numeric" })}. It updates itself after that.
-          </p>
-        ) : (
-          <p>The first release is on its way. Check back soon.</p>
-        )}
+        <h1>{t.head}</h1>
+        <p>
+          {rel
+            ? t.released(rel.version, new Date(rel.published).toLocaleDateString(lang, { day: "numeric", month: "long", year: "numeric" }))
+            : t.soon}
+        </p>
       </header>
       <div className={s.grid}>
-        {PLATFORMS.map((p) => {
+        {platforms.map((p) => {
           const files = p.files.flatMap((f) => {
             const file = rel?.files.find((r) => r.platform === f.id);
-            return file ? [{ ...file, label: f.label }] : [];
+            return file ? [{ ...file, label: f.label ?? t.download }] : [];
           });
           return (
-            <div key={p.name} className={`block ${s.card}`}>
+            <div key={p.os} className={`block ${s.card}`} data-yours={p.os === os || undefined}>
               <img src={`/bee/${p.bee}.webp`} alt="" className={s.bee} />
+              {p.os === os && <span className={`chip on ${s.yours}`}>{t.yours}</span>}
               <h2>{p.name}</h2>
-              <p className={`dim ${s.note}`}>{p.note}</p>
+              <p className={`dim ${s.note}`}>{t.notes[p.os]}</p>
               <div className={s.buttons}>
                 {files.length ? (
                   files.map((f) => (
@@ -55,7 +77,7 @@ export default async function Download() {
                   ))
                 ) : (
                   <span className="btn ghost" aria-disabled="true">
-                    Coming soon
+                    {t.comingSoon}
                   </span>
                 )}
               </div>
@@ -66,12 +88,17 @@ export default async function Download() {
       <div className={s.after}>
         <img src={rel ? "/bee/success.webp" : "/bee/loading.webp"} alt="" />
         <div>
-          <h3>After installing</h3>
+          <h3>{t.after}</h3>
           <ol>
-            <li>Sign in with Microsoft, or play offline with a nickname.</li>
-            <li>Create an instance: pick a version and a loader.</li>
-            <li>Press Play. In game, Right Shift opens the Kromvia menu.</li>
+            {t.steps.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
           </ol>
+          <p>
+            <a href={DISCORD_INVITE} target="_blank" rel="noopener">
+              {t.help}
+            </a>
+          </p>
         </div>
       </div>
     </div>

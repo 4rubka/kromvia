@@ -33,11 +33,13 @@ export const LOADER_NAMES: Record<LoaderKind, string> = {
 
 type RunInfo = { runId: number; instanceId: string };
 export type CrashCause = "outOfMemory" | "tooMuchMemory" | "wrongJava" | "missingMod" | "duplicateMod" | "brokenMod" | "driver" | "unknown";
-export type Crash = { cause: CrashCause; detail: string | null; report: string | null };
+export type Crash = { cause: CrashCause; detail: string | null; report: string | null; auto: boolean };
 type ExitEvent = RunInfo & { code: number | null; crash: Crash | null };
 export type LaunchExtra = { join?: string; world?: string; room?: boolean };
 
 const NICK_KEY = "kromvia.nickname";
+const OFFLINE_KEY = "kromvia.offlineAccounts";
+export const NICK = /^[A-Za-z0-9_]{3,16}$/;
 const MAX_LINES = 5000;
 const ROOM_LINE = /Domain assigned: (\S+)/;
 
@@ -49,9 +51,19 @@ function savedNick() {
   }
 }
 
+function savedOffline(): string[] {
+  try {
+    const list = JSON.parse(localStorage.getItem(OFFLINE_KEY) ?? "[]");
+    return Array.isArray(list) ? list.filter((n) => typeof n === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
 function useLauncherState() {
   const [instances, setInstances] = useState<Instance[]>([]);
   const [nick, setNickState] = useState(savedNick);
+  const [offline, setOfflineState] = useState(savedOffline);
   const [running, setRunning] = useState<RunInfo[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [exits, setExits] = useState<Record<string, number | null>>({});
@@ -133,6 +145,22 @@ function useLauncherState() {
       localStorage.setItem(NICK_KEY, value);
     } catch {}
   };
+  const setOffline = (list: string[]) => {
+    setOfflineState(list);
+    try {
+      localStorage.setItem(OFFLINE_KEY, JSON.stringify(list));
+    } catch {}
+  };
+  const rememberNick = (value = nick) => {
+    const name = value.trim();
+    if (NICK.test(name) && !offline.includes(name)) setOffline([...offline, name]);
+  };
+  const pickOffline = (name: string) => {
+    setNick(name);
+    rememberNick(name);
+    return invoke("account_select", { id: null }).then(refreshAccounts);
+  };
+  const pickAccount = (id: string | null) => invoke("account_select", { id }).then(refreshAccounts);
 
   const launch = (inst: Instance, extra: LaunchExtra, accountId: string | null, username: string) => {
     setError(inst.id, null);
@@ -154,7 +182,11 @@ function useLauncherState() {
     );
   };
 
-  const play = (inst: Instance, extra: LaunchExtra = {}) => launch(inst, extra, account?.id ?? null, nick.trim());
+  const play = (inst: Instance, extra: LaunchExtra = {}) => {
+    if (!account) rememberNick();
+    launch(inst, extra, account?.id ?? null, nick.trim());
+  };
+  const name = account?.name ?? nick.trim();
 
   const current = instances.find((i) => i.id === selected) ?? instances[0];
   const jobOf = (id: string): JobProgress | undefined => jobs[`launch-${id}`];
@@ -164,9 +196,16 @@ function useLauncherState() {
     instances,
     refresh,
     current,
+    selected,
     setSelected,
     nick,
     setNick,
+    name,
+    offline,
+    setOffline,
+    rememberNick,
+    pickOffline,
+    pickAccount,
     accounts,
     account,
     refreshAccounts,
