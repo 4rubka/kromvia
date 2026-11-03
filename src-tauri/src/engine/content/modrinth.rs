@@ -143,10 +143,7 @@ pub async fn search(query: &str, kind: ContentKind, inst: Option<&Instance>, off
     }
     let facets = serde_json::to_string(&facets).map_err(|e| e.to_string())?;
     let offset = offset.to_string();
-    let index = match f.sort.as_deref() {
-        Some(s @ ("downloads" | "follows" | "newest" | "updated")) => s,
-        _ => "relevance",
-    };
+    let index = f.sort.as_deref().filter(|s| ["downloads", "follows", "newest", "updated"].contains(s)).unwrap_or("relevance");
     http::get_json_query(
         &format!("{API}/search"),
         &[("query", query), ("facets", &facets), ("index", index), ("limit", "20"), ("offset", &offset)],

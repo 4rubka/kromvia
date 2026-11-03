@@ -283,7 +283,7 @@ fn rgba(path: &std::path::Path) -> Result<(usize, usize, Vec<u8>), String> {
     buf.truncate(info.buffer_size());
     let pixels = match info.color_type {
         png::ColorType::Rgba => buf,
-        png::ColorType::GrayscaleAlpha => buf.chunks_exact(2).flat_map(|p| [p[0], p[0], p[0], p[1]]).collect(),
+        png::ColorType::GrayscaleAlpha => buf.as_chunks::<2>().0.iter().flat_map(|&[g, a]| [g, g, g, a]).collect(),
         other => return Err(format!("unexpected colour type {other:?}")),
     };
     Ok((info.width as usize, info.height as usize, pixels))
