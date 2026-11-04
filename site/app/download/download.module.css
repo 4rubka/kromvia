@@ -1,6 +1,6 @@
 .grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
 }
 
@@ -10,7 +10,7 @@
   gap: 6px;
   justify-items: start;
   min-height: 220px;
-  padding: 26px 0 30px 28px;
+  padding: 26px 0 120px 28px;
   overflow: hidden;
 }
 
@@ -18,8 +18,8 @@
   position: absolute;
   right: -6px;
   bottom: -14px;
-  width: 42%;
-  max-height: 210px;
+  width: 34%;
+  max-height: 170px;
   object-fit: contain;
   object-position: bottom right;
   filter: drop-shadow(0 12px 20px rgb(0 0 0 / 0.35));
@@ -35,17 +35,13 @@
   font-size: 22px;
 }
 
-.card:last-child:nth-child(odd) {
-  grid-column: 1 / -1;
-  justify-self: center;
-  width: calc(50% - 8px);
-}
-
 .note {
-  max-width: 58%;
+  max-width: 64%;
 }
 
 .buttons {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -64,11 +60,6 @@
   margin: 64px 0 80px;
 }
 
-.after img {
-  width: 160px;
-  flex-shrink: 0;
-}
-
 .after h3 {
   font-size: 20px;
   margin-bottom: 8px;
@@ -81,13 +72,15 @@
   line-height: 1.9;
 }
 
+@media (max-width: 960px) {
+  .card {
+    min-height: 200px;
+  }
+}
+
 @media (max-width: 760px) {
   .grid {
     grid-template-columns: 1fr;
-  }
-
-  .card:last-child:nth-child(odd) {
-    width: 100%;
   }
 }
 

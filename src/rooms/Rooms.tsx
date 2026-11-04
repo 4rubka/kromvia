@@ -3,6 +3,7 @@ import { useI18n } from "../i18n";
 import { describe, useLauncher } from "../lib/launcher";
 import { Progress } from "../ui/Progress";
 import { Glyph } from "../ui/Glyph";
+import { Select } from "../ui/Select";
 
 export function Rooms() {
   const { t } = useI18n();
@@ -31,13 +32,12 @@ export function Rooms() {
           <h1>{t("rooms.title")}</h1>
           <p>{t("rooms.hint")}</p>
           {instances.length > 0 && current && (
-            <select className="input" value={current.id} aria-label={t("home.pick")} onChange={(e) => l.setSelected(e.currentTarget.value)}>
-              {instances.map((i) => (
-                <option key={i.id} value={i.id}>
-                  {i.name} ({describe(i, t("instance.vanilla"))})
-                </option>
-              ))}
-            </select>
+            <Select
+              value={current.id}
+              label={t("home.pick")}
+              options={instances.map((i) => ({ value: i.id, label: `${i.name} (${describe(i, t("instance.vanilla"))})` }))}
+              onChange={l.setSelected}
+            />
           )}
         </div>
         <div className="feature-art">

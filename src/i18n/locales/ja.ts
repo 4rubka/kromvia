@@ -654,4 +654,7 @@ export default {
   "metrics.peak": "ピーク {v}",
   "metrics.chart": "実行ごとのメモリ",
   "metrics.empty": "数回プレイすると、チャートがここに表示されます。",
+  "recover.failed": "Kromvia で問題が発生しました。",
+  "recover.reload": "リロード",
+  "recover.openLog": "ログを開く",
 } satisfies Dict;

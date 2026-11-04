@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { useI18n } from "../i18n";
 import { Glyph } from "../ui/Glyph";
+import { Select } from "../ui/Select";
 
 type Theme = { id: string; name: string };
 const THEME_KEY = "kromvia.customTheme";
@@ -102,14 +103,11 @@ export function AppearanceExtras() {
       <div className="field">
         <span>{t("settings.customTheme")}</span>
         <div className="actions">
-          <select className="input" value={active} onChange={(e) => pick(e.currentTarget.value)}>
-            <option value="">{t("settings.noCustomTheme")}</option>
-            {themes.map((th) => (
-              <option key={th.id} value={th.id}>
-                {th.name}
-              </option>
-            ))}
-          </select>
+          <Select
+            value={active}
+            options={[{ value: "", label: t("settings.noCustomTheme") }, ...themes.map((th) => ({ value: th.id, label: th.name }))]}
+            onChange={pick}
+          />
           <button className="btn btn-ghost" onClick={importTheme}>
             <Glyph name="file-import" /> {t("settings.importTheme")}
           </button>

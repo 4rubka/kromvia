@@ -11,6 +11,7 @@ const PICKS = ["crown", "halo", "wizard_hat", "headphones", "sunglasses", "drago
 export function Showcase() {
   const [worn, setWorn] = useState<Record<string, string>>({ head: "crown", back: "dragon_wings" });
   const [touched, setTouched] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     if (touched) return;
@@ -38,7 +39,8 @@ export function Showcase() {
     <div className={s.showcase}>
       <div className={s.stage}>
         <div className={s.glow} />
-        <Player3D className={s.player} cosmetics={{ items: Object.values(worn) }} zoom={0.78} turn={0.7} />
+        <img src="/showcase-poster.webp" alt="" className={s.poster} data-hidden={ready || undefined} />
+        <Player3D className={s.player} cosmetics={{ items: Object.values(worn) }} zoom={0.78} turn={0.7} onReady={() => setReady(true)} />
         <svg className={s.pedestal} viewBox="0 0 280 110" aria-hidden="true">
           <path d="M140 0L280 40L140 80L0 40Z" fill="#c9b5ff" />
           <path d="M0 40L140 80V110L0 70Z" fill="#8b5cf6" />

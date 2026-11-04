@@ -6,6 +6,7 @@ import { VersionPicker, versionReady, type VersionChoice } from "./VersionPicker
 import { Glyph } from "../ui/Glyph";
 import { Progress } from "../ui/Progress";
 import { useJobs } from "../lib/jobs";
+import { Select } from "../ui/Select";
 
 type Template = { id: string; name: string; instance: Instance; created: number };
 
@@ -103,15 +104,17 @@ export function NewInstance({ onDone, initialCode }: { onDone: (inst: Instance |
         <div className="field">
           <span>{t("instance.template")}</span>
           <div className="actions">
-            <select className="input" value={template} onChange={(e) => setTemplate(e.currentTarget.value)}>
-              <option value="">{t("instance.noTemplate")}</option>
-              {templates.map((x) => (
-                <option key={x.id} value={x.id}>
-                  {x.name} · {x.instance.mcVersion}
-                  {x.instance.loader ? ` · ${LOADER_NAMES[x.instance.loader.kind]}` : ""}
-                </option>
-              ))}
-            </select>
+            <Select
+              value={template}
+              options={[
+                { value: "", label: t("instance.noTemplate") },
+                ...templates.map((x) => ({
+                  value: x.id,
+                  label: `${x.name} · ${x.instance.mcVersion}${x.instance.loader ? ` · ${LOADER_NAMES[x.instance.loader.kind]}` : ""}`,
+                })),
+              ]}
+              onChange={setTemplate}
+            />
             {chosen && (
               <button className="btn btn-ghost" onClick={removeTemplate}>
                 <Glyph name="trash" /> {t("instance.deleteTemplate")}

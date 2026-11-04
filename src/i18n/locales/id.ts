@@ -654,4 +654,7 @@ export default {
   "metrics.peak": "puncak {v}",
   "metrics.chart": "Memori per proses",
   "metrics.empty": "Mainkan beberapa kali dan grafik muncul di sini.",
+  "recover.failed": "Ada yang tidak beres di Kromvia.",
+  "recover.reload": "Muat ulang",
+  "recover.openLog": "Buka log",
 } satisfies Dict;

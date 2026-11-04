@@ -28,6 +28,7 @@ import { Wardrobe } from "./skins/Wardrobe";
 import { useTheme, type ThemePref } from "./theme";
 import { Icon, type IconName } from "./ui/Icon";
 import { Glyph } from "./ui/Glyph";
+import { Recover } from "./ui/Recover";
 import { MiniPlayer, miniPlayerOn, setMiniPlayerOn } from "./ui/MiniPlayer";
 
 type Page = "home" | "profile" | "rooms" | "friends" | "builds" | "content" | "skins" | "accounts" | "settings";
@@ -139,22 +140,24 @@ function App() {
           </nav>
           <main className="main" ref={main}>
             <div className="page" key={page} data-page={page}>
-              {page === "home" && <Home onNavigate={setPage} />}
-              {page === "profile" && <Profile onFriends={() => setPage("friends")} />}
-              {page === "rooms" && <Rooms />}
-              {page === "friends" && <Friends />}
-              {page === "builds" && (
-                <Builds
-                  onAddContent={(kind) => {
-                    setContentTab(kind);
-                    setPage("content");
-                  }}
-                />
-              )}
-              {page === "content" && <Content initialTab={contentTab} />}
-              {page === "skins" && <Wardrobe />}
-              {page === "accounts" && <Accounts />}
-              {page === "settings" && <Settings theme={theme} setTheme={setTheme} />}
+              <Recover page>
+                {page === "home" && <Home onNavigate={setPage} />}
+                {page === "profile" && <Profile onFriends={() => setPage("friends")} />}
+                {page === "rooms" && <Rooms />}
+                {page === "friends" && <Friends />}
+                {page === "builds" && (
+                  <Builds
+                    onAddContent={(kind) => {
+                      setContentTab(kind);
+                      setPage("content");
+                    }}
+                  />
+                )}
+                {page === "content" && <Content initialTab={contentTab} />}
+                {page === "skins" && <Wardrobe />}
+                {page === "accounts" && <Accounts />}
+                {page === "settings" && <Settings theme={theme} setTheme={setTheme} />}
+              </Recover>
             </div>
           </main>
         </div>

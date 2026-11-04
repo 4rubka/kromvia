@@ -10,6 +10,7 @@ import { Glyph } from "../ui/Glyph";
 import { Pager, usePaged } from "../ui/Pager";
 import { Empty } from "../ui/Empty";
 import { ProjectPage } from "./ProjectPage";
+import { Select } from "../ui/Select";
 
 export type Kind = "mod" | "modpack" | "resourcepack" | "shader" | "datapack";
 type Source = "modrinth" | "curseforge";
@@ -260,13 +261,7 @@ export function Content({ initialTab = "mod" }: { initialTab?: Tab }) {
         {instances.length > 0 && (
           <label className="nick">
             <span className="muted">{t("content.target")}</span>
-            <select className="input" value={inst?.id} onChange={(e) => pickTarget(e.currentTarget.value)}>
-              {instances.map((i) => (
-                <option key={i.id} value={i.id}>
-                  {i.name}
-                </option>
-              ))}
-            </select>
+            <Select value={inst?.id ?? ""} options={instances.map((i) => ({ value: i.id, label: i.name }))} onChange={pickTarget} />
           </label>
         )}
       </div>
@@ -324,14 +319,11 @@ export function Content({ initialTab = "mod" }: { initialTab?: Tab }) {
             <section>
               <h3>{t("content.filter.version")}</h3>
               {tab === "modpack" ? (
-                <select className="input" value={gameVersion} onChange={(e) => setGameVersion(e.currentTarget.value)}>
-                  <option value="">{t("content.filter.any")}</option>
-                  {mcVersions.map((v) => (
-                    <option key={v} value={v}>
-                      {v}
-                    </option>
-                  ))}
-                </select>
+                <Select
+                  value={gameVersion}
+                  options={[{ value: "", label: t("content.filter.any") }, ...mcVersions.map((v) => ({ value: v, label: v }))]}
+                  onChange={setGameVersion}
+                />
               ) : (
                 <span className="filter-lock" title={t("content.filter.fromBuild", { name: inst!.name })}>
                   {inst!.mcVersion}
@@ -381,13 +373,7 @@ export function Content({ initialTab = "mod" }: { initialTab?: Tab }) {
 
           <div className="browse-main">
             <div className="browse-tools">
-              <select className="input" value={sort} onChange={(e) => setSort(e.currentTarget.value as Sort)}>
-                {SORTS.map((s) => (
-                  <option key={s} value={s}>
-                    {t(`content.sort.${s}` as MessageKey)}
-                  </option>
-                ))}
-              </select>
+              <Select value={sort} options={SORTS.map((s) => ({ value: s, label: t(`content.sort.${s}` as MessageKey) }))} onChange={(v) => setSort(v as Sort)} />
               <span className="muted results">{t("content.results", { count: total.toLocaleString() })}</span>
               <Pager page={page} pages={Math.ceil(total / SEARCH_PAGE)} onPage={search} />
             </div>

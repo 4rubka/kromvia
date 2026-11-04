@@ -21,12 +21,6 @@ export function Footer({ lang }: { lang: Lang }) {
   const t = T[lang];
   return (
     <footer className={s.footer}>
-      <div className={s.lineup} aria-hidden="true">
-        <img src="/bee/welcome.webp" alt="" className={s.b1} />
-        <img src="/bee/friends-online.webp" alt="" className={s.b2} />
-        <img src="/bee/empty-home.webp" alt="" className={s.b3} />
-        <img src="/bee/success.webp" alt="" className={s.b4} />
-      </div>
       <div className={s.base}>
       <div className={`wrap ${s.grid}`}>
         <Link href="/" className={s.brand} aria-label={t.home}>

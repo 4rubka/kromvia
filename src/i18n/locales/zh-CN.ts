@@ -654,4 +654,7 @@ export default {
   "metrics.peak": "峰值{v}",
   "metrics.chart": "每次运行的内存",
   "metrics.empty": "玩几次，图表就会显示在这里。",
+  "recover.failed": "Kromvia 中出了点问题。",
+  "recover.reload": "重新加载",
+  "recover.openLog": "打开日志",
 } satisfies Dict;

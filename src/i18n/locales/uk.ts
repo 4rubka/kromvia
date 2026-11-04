@@ -654,4 +654,7 @@ export default {
   "metrics.peak": "пік {v}",
   "metrics.chart": "Пам’ять за запусками",
   "metrics.empty": "Зіграйте кілька разів, і тут з’явиться діаграма.",
+  "recover.failed": "У Kromvia щось пішло не так.",
+  "recover.reload": "Перезавантажити",
+  "recover.openLog": "Відкрити лог",
 } satisfies Dict;

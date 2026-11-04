@@ -654,4 +654,7 @@ export default {
   "metrics.peak": "pico {v}",
   "metrics.chart": "Memoria por ejecución",
   "metrics.empty": "Juegue un par de veces y el gráfico aparecerá aquí.",
+  "recover.failed": "Algo salió mal en Kromvia.",
+  "recover.reload": "Recargar",
+  "recover.openLog": "Abrir registro",
 } satisfies Dict;

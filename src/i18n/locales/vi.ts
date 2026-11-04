@@ -654,4 +654,7 @@ export default {
   "metrics.peak": "đỉnh cao {v}",
   "metrics.chart": "Bộ nhớ mỗi lần chạy",
   "metrics.empty": "Chơi một vài lần và biểu đồ hiển thị ở đây.",
+  "recover.failed": "Đã xảy ra lỗi trong Kromvia.",
+  "recover.reload": "Tải lại",
+  "recover.openLog": "Mở nhật ký",
 } satisfies Dict;

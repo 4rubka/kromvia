@@ -654,4 +654,7 @@ export default {
   "metrics.peak": "Spitze {v}",
   "metrics.chart": "Speicher pro Lauf",
   "metrics.empty": "Spielen Sie ein paar Mal und die Tabelle wird hier angezeigt.",
+  "recover.failed": "In Kromvia ist ein Fehler aufgetreten.",
+  "recover.reload": "Neu laden",
+  "recover.openLog": "Protokoll öffnen",
 } satisfies Dict;

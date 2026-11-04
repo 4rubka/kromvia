@@ -11,6 +11,7 @@ import { Glyph } from "../ui/Glyph";
 import { usePaged } from "../ui/Pager";
 import { Empty } from "../ui/Empty";
 import { useLauncher } from "../lib/launcher";
+import { Select } from "../ui/Select";
 
 const KROMVIA_CAPE = "kromvia";
 const OPTIFINE_CAPE = "optifine";
@@ -62,6 +63,16 @@ export function Wardrobe() {
   useEffect(() => {
     refresh().then((list) => list[0] && setShown((s) => s ?? { kind: "library", skin: list[0] }));
   }, []);
+
+  const [fallback, setFallback] = useState<Found | null>(null);
+  const who = account?.name ?? offlineNick;
+  useEffect(() => {
+    if (shown) return;
+    const look = (name: string) => invoke<Found>("skin_lookup", { nick: name });
+    look(who || "MHF_Steve")
+      .catch(() => look("MHF_Steve"))
+      .then(setFallback, () => {});
+  }, [shown, who]);
 
   useEffect(() => {
     setProfile(null);
@@ -155,21 +166,17 @@ export function Wardrobe() {
   const capeField = (
       <div className="field">
         <span>{t("account.cape")}</span>
-        <select
-          className="input"
+        <Select
           disabled={busy}
           value={optifineShown ? OPTIFINE_CAPE : kromviaCape ? KROMVIA_CAPE : cape?.id ?? ""}
-          onChange={(e) => setCape(e.currentTarget.value || null)}
-        >
-          <option value="">{t("account.noCape")}</option>
-          <option value={KROMVIA_CAPE}>Kromvia</option>
-          {optifineCape && <option value={OPTIFINE_CAPE}>{t("account.optifineCape")}</option>}
-          {profile?.capes.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.alias || c.id}
-            </option>
-          ))}
-        </select>
+          options={[
+            { value: "", label: t("account.noCape") },
+            { value: KROMVIA_CAPE, label: "Kromvia" },
+            ...(optifineCape ? [{ value: OPTIFINE_CAPE, label: t("account.optifineCape") }] : []),
+            ...(profile?.capes.map((c) => ({ value: c.id, label: c.alias || c.id })) ?? []),
+          ]}
+          onChange={(v) => setCape(v || null)}
+        />
       </div>
   );
 
@@ -228,7 +235,7 @@ export function Wardrobe() {
           {!account && <p className="muted">{t(elyActive ? "wardrobe.elyAccount" : "wardrobe.needAccount")}</p>}
           <div className="wardrobe">
             <section className="card wardrobe-stage">
-              <SkinViewer3D skin={s?.dataUrl ?? null} slim={s?.slim ?? false} cape={optifineShown ? optifineCape : null} />
+              <SkinViewer3D skin={(s ?? fallback)?.dataUrl ?? null} slim={(s ?? fallback)?.slim ?? false} cape={optifineShown ? optifineCape : null} />
               {shown?.kind === "library" && (
                 <input
                   key={shown.skin.id}

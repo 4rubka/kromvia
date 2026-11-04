@@ -649,6 +649,9 @@ export const en = {
   "metrics.peak": "peak {v}",
   "metrics.chart": "Memory per run",
   "metrics.empty": "Play a couple of times and the chart shows up here.",
+  "recover.failed": "Something went wrong in Kromvia.",
+  "recover.reload": "Reload",
+  "recover.openLog": "Open log",
 };
 
 export type MessageKey = keyof typeof en;

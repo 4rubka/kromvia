@@ -15,18 +15,18 @@
 }
 
 .card[data-tone="violet"] {
-  --b-face: linear-gradient(135deg, #6d3fe0, #4f2fb8);
+  --b-face: #6a40e0;
   --b-rim: #a78bfa;
 }
 
 .card[data-tone="blue"] {
-  --b-face: linear-gradient(135deg, #2f5fe0, #1f3fa8);
-  --b-rim: #7fa4ff;
+  --b-face: #4f30b8;
+  --b-rim: #8f74f0;
 }
 
 .card[data-tone="indigo"] {
-  --b-face: linear-gradient(135deg, #4b3fd0, #2c2580);
-  --b-rim: #9a8cff;
+  --b-face: #3a2590;
+  --b-rim: #7a5fe0;
 }
 
 .card.card::before {

@@ -654,4 +654,7 @@ export default {
   "metrics.peak": "piek {v}",
   "metrics.chart": "Geheugen per run",
   "metrics.empty": "Speel een paar keer en het diagram verschijnt hier.",
+  "recover.failed": "Er is iets misgegaan in Kromvia.",
+  "recover.reload": "Herladen",
+  "recover.openLog": "Logboek openen",
 } satisfies Dict;

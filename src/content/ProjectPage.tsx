@@ -8,6 +8,7 @@ import { Progress } from "../ui/Progress";
 import type { JobProgress } from "../lib/jobs";
 import { Markdown } from "./Markdown";
 import type { Kind } from "./Content";
+import { Select } from "../ui/Select";
 
 type Project = {
   id: string;
@@ -120,13 +121,14 @@ export function ProjectPage({
               <>
                 <label className="field">
                   <span>{t("content.version")}</span>
-                  <select className="input" value={version} onChange={(e) => setVersion(e.currentTarget.value)}>
-                    {versions.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.name || v.version_number} · {v.version_type} · {v.game_versions.slice(-3).join(", ")} · {v.date_published.slice(0, 10)}
-                      </option>
-                    ))}
-                  </select>
+                  <Select
+                    value={version}
+                    options={versions.map((v) => ({
+                      value: v.id,
+                      label: `${v.name || v.version_number} · ${v.version_type} · ${v.game_versions.slice(-3).join(", ")} · ${v.date_published.slice(0, 10)}`,
+                    }))}
+                    onChange={setVersion}
+                  />
                 </label>
                 {kind === "datapack" && (
                   <label className="field">
@@ -134,13 +136,7 @@ export function ProjectPage({
                     {worlds.length === 0 ? (
                       <span className="muted">{t("content.noWorlds")}</span>
                     ) : (
-                      <select className="input" value={world} onChange={(e) => setWorld(e.currentTarget.value)}>
-                        {worlds.map((w) => (
-                          <option key={w.folder} value={w.folder}>
-                            {w.name}
-                          </option>
-                        ))}
-                      </select>
+                      <Select value={world} options={worlds.map((w) => ({ value: w.folder, label: w.name }))} onChange={setWorld} />
                     )}
                   </label>
                 )}

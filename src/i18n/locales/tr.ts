@@ -654,4 +654,7 @@ export default {
   "metrics.peak": "zirve {v}",
   "metrics.chart": "Çalıştırma başına bellek",
   "metrics.empty": "Birkaç kez oynattığınızda grafik burada görünür.",
+  "recover.failed": "Kromvia'da bir şeyler ters gitti.",
+  "recover.reload": "Yeniden yükle",
+  "recover.openLog": "Günlüğü aç",
 } satisfies Dict;

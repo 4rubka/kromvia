@@ -86,7 +86,6 @@ export default async function Download() {
         })}
       </div>
       <div className={s.after}>
-        <img src={rel ? "/bee/success.webp" : "/bee/loading.webp"} alt="" />
         <div>
           <h3>{t.after}</h3>
           <ol>

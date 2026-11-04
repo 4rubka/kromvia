@@ -17,6 +17,7 @@ export function Player3D({
   turn = 0.5,
   drag = true,
   className,
+  onReady,
 }: {
   skin?: string | null;
   cosmetics: Cosmetics;
@@ -24,6 +25,7 @@ export function Player3D({
   turn?: number;
   drag?: boolean;
   className?: string;
+  onReady?: () => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -60,8 +62,8 @@ export function Player3D({
 
   useEffect(() => {
     if (!viewer) return;
-    if (skin) viewer.loadSkin(skin, { model: "auto-detect" }).catch(() => viewer.loadSkin(mascotSkin()));
-    else viewer.loadSkin(mascotSkin());
+    const loaded = skin ? viewer.loadSkin(skin, { model: "auto-detect" }).catch(() => viewer.loadSkin(mascotSkin())) : viewer.loadSkin(mascotSkin());
+    Promise.resolve(loaded).then(() => onReady?.());
   }, [viewer, skin]);
 
   const models = (cosmetics.models ?? []).filter(wearable);

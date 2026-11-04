@@ -16,6 +16,7 @@ import { ImportInstances } from "./ImportInstances";
 import { Flowers, Vines } from "./Decor";
 import { MinimapOffer } from "./MinimapOffer";
 import { TileMenu } from "./TileMenu";
+import { Select } from "../ui/Select";
 
 export type Nav = "builds" | "content" | "skins" | "rooms" | "accounts";
 type LibrarySkin = { id: string; slim: boolean; dataUrl: string };
@@ -332,18 +333,13 @@ export function Home({ onNavigate }: { onNavigate: (page: Nav) => void }) {
                 </button>
               )}
               {instances.length > 1 && (
-                <select
-                  className="launch-pick input"
+                <Select
+                  className="launch-pick"
                   value={current.id}
-                  aria-label={t("home.pick")}
-                  onChange={(e) => l.setSelected(e.currentTarget.value)}
-                >
-                  {instances.map((i) => (
-                    <option key={i.id} value={i.id}>
-                      {i.name} · {describe(i, t("instance.vanilla"))}
-                    </option>
-                  ))}
-                </select>
+                  label={t("home.pick")}
+                  options={instances.map((i) => ({ value: i.id, label: `${i.name} · ${describe(i, t("instance.vanilla"))}` }))}
+                  onChange={l.setSelected}
+                />
               )}
               {clientNote && <small className="muted">{clientNote}</small>}
               {l.errors[current.id] && (
@@ -497,29 +493,21 @@ export function Home({ onNavigate }: { onNavigate: (page: Nav) => void }) {
             {name}
           </button>
           {(l.accounts.length > 0 || l.offline.length > 0) && (
-            <select
-              className="input"
-              aria-label={t("home.playingAs")}
+            <Select
+              label={t("home.playingAs")}
               value={l.account ? `acc:${l.account.id}` : l.offline.includes(l.nick.trim()) ? `off:${l.nick.trim()}` : ""}
-              onChange={(e) => {
-                const [kind, id] = [e.currentTarget.value.slice(0, 4), e.currentTarget.value.slice(4)];
+              options={[
+                ...l.accounts.map((a) => ({ value: `acc:${a.id}`, label: a.name })),
+                ...l.offline.map((n) => ({ value: `off:${n}`, label: `${n} · ${t("home.offline")}` })),
+                { value: "", label: t("home.newNick") },
+              ]}
+              onChange={(v) => {
+                const [kind, id] = [v.slice(0, 4), v.slice(4)];
                 if (kind === "acc:") l.pickAccount(id);
                 else if (kind === "off:") l.pickOffline(id);
                 else (l.setNick(""), l.pickAccount(null));
               }}
-            >
-              {l.accounts.map((a) => (
-                <option key={a.id} value={`acc:${a.id}`}>
-                  {a.name}
-                </option>
-              ))}
-              {l.offline.map((n) => (
-                <option key={n} value={`off:${n}`}>
-                  {n} · {t("home.offline")}
-                </option>
-              ))}
-              <option value="">{t("home.newNick")}</option>
-            </select>
+            />
           )}
           {!l.account && !l.offline.includes(l.nick.trim()) && (
             <input

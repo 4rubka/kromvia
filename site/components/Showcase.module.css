@@ -21,6 +21,21 @@
   z-index: 1;
 }
 
+.poster {
+  position: absolute;
+  inset: 0 0 50px;
+  z-index: 1;
+  width: 100%;
+  height: calc(100% - 50px);
+  object-fit: contain;
+  transition: opacity 400ms;
+  pointer-events: none;
+}
+
+.poster[data-hidden] {
+  opacity: 0;
+}
+
 .pedestal {
   position: absolute;
   bottom: 0;

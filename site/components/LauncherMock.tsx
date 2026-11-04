@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import gsap from "gsap";
 import { Icon, type IconName } from "@launcher/ui/Icon";
+import { MODULE_COUNT, MODULES } from "@/lib/content";
 import { Player3D } from "./Player3D";
 import s from "./LauncherMock.module.css";
 
@@ -11,15 +13,106 @@ const H = 600;
 const RAIL: IconName[] = ["home", "library", "content", "wardrobe", "rooms", "friends", "profile", "settings"];
 
 const SERVERS = [
-  { name: "Hypixel", online: "27k", hue: 38 },
-  { name: "CubeCraft", online: "1.5k", hue: 205 },
-  { name: "Wynncraft", online: "1.6k", hue: 140 },
+  { name: "My SMP", online: "12", hue: 270 },
+  { name: "Skyblock", online: "340", hue: 205 },
+  { name: "Bedwars", online: "1.2k", hue: 140 },
 ];
+
+const INSTANCES = [
+  { name: "Survival with friends", meta: "1.21.11 · Fabric", hue: 140 },
+  { name: "Create modpack", meta: "1.20.1 · Forge", hue: 30 },
+  { name: "Vanilla", meta: "26.3", hue: 205 },
+];
+
+const TABS = [
+  { name: "All", n: MODULE_COUNT },
+  { name: "HUD", n: MODULES.HUD.length },
+  { name: "PvP", n: MODULES.PvP.length },
+  { name: "Utility", n: MODULES["Utility & visuals"].length },
+];
+
+const CARDS: { name: string; on: boolean; hue: number; flip?: boolean }[] = [
+  { name: "Keystrokes", on: true, hue: 270 },
+  { name: "CPS", on: true, hue: 200 },
+  { name: "Armor Status", on: true, hue: 30 },
+  { name: "FPS", on: true, hue: 140 },
+  { name: "Coordinates", on: false, hue: 50 },
+  { name: "Crosshair", on: true, hue: 0 },
+  { name: "Hit Colour", on: false, hue: 340 },
+  { name: "Motion Blur", on: false, hue: 230, flip: true },
+  { name: "Trails", on: true, hue: 290 },
+  { name: "Jump Circles", on: false, hue: 180 },
+  { name: "Potion Effects", on: true, hue: 310 },
+  { name: "Ping", on: false, hue: 100 },
+  { name: "Freelook", on: true, hue: 160 },
+  { name: "Clock", on: false, hue: 40 },
+  { name: "Toggle Sneak", on: true, hue: 250 },
+  { name: "Reach Display", on: false, hue: 10 },
+];
+
+function offsetIn(el: HTMLElement, root: HTMLElement) {
+  let x = el.offsetWidth / 2;
+  let y = el.offsetHeight / 2;
+  for (let n: HTMLElement | null = el; n && n !== root; n = n.offsetParent as HTMLElement | null) {
+    x += n.offsetLeft;
+    y += n.offsetTop;
+  }
+  return { x, y };
+}
+
+function useDemo(stage: React.RefObject<HTMLDivElement | null>, win: React.RefObject<HTMLDivElement | null>, ready: boolean) {
+  useEffect(() => {
+    if (!ready) return;
+    const root = win.current!;
+    const q = (k: string) => root.querySelector<HTMLElement>(`[data-d=${k}]`)!;
+    const [play, game, key, menu, cursor, flip] = ["play", "game", "key", "menu", "cursor", "flip"].map(q);
+    const panel = menu.firstElementChild as HTMLElement;
+    const cards = Array.from(menu.querySelectorAll("[data-card]"));
+    const p = offsetIn(play, root);
+    const at = `${p.x}px ${p.y}px`;
+
+    const ctx = gsap.context(() => {
+      if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        gsap.set(game, { clipPath: `circle(150% at ${at})`, autoAlpha: 1 });
+        gsap.set(menu, { autoAlpha: 1 });
+        return;
+      }
+      const tl = gsap.timeline({ repeat: -1, repeatDelay: 0.6, delay: 1.6 });
+      tl.set(cursor, { x: W * 0.62, y: H * 0.95, autoAlpha: 0 })
+        .set(game, { clipPath: `circle(0% at ${at})`, autoAlpha: 1 })
+        .set(menu, { autoAlpha: 0 })
+        .set(panel, { scale: 0.92 })
+        .set(cards, { autoAlpha: 0, y: 8 })
+        .set(key, { autoAlpha: 0, y: 30 })
+        .set(flip, { attr: { "data-on": "false" } })
+        .to(cursor, { autoAlpha: 1, duration: 0.2 })
+        .to(cursor, { x: p.x - 4, y: p.y - 2, duration: 0.9, ease: "power3.inOut" })
+        .to([cursor, play], { scale: 0.88, duration: 0.09, yoyo: true, repeat: 1 })
+        .to(cursor, { autoAlpha: 0, duration: 0.2 })
+        .to(game, { clipPath: `circle(150% at ${at})`, duration: 0.9, ease: "power2.in" }, "<")
+        .to(key, { autoAlpha: 1, y: 0, duration: 0.45, ease: "back.out(2)" }, "+=0.5")
+        .to(key, { y: 4, duration: 0.08, yoyo: true, repeat: 1 }, "+=0.25")
+        .to(menu, { autoAlpha: 1, duration: 0.25 }, "<0.1")
+        .to(panel, { scale: 1, duration: 0.45, ease: "back.out(1.6)" }, "<")
+        .to(cards, { autoAlpha: 1, y: 0, duration: 0.3, stagger: { each: 0.025, grid: [4, 4] } }, "<0.1")
+        .to(key, { autoAlpha: 0, y: 30, duration: 0.3 }, "+=0.3")
+        .set(flip, { attr: { "data-on": "true" } }, "+=0.6")
+        .to(flip, { scale: 1.05, duration: 0.12, yoyo: true, repeat: 1 }, "<")
+        .to([menu, game], { autoAlpha: 0, duration: 0.6 }, "+=2.6");
+      const io = new IntersectionObserver(([e]) => (e.isIntersecting ? tl.play() : tl.pause()));
+      io.observe(stage.current!);
+      return () => io.disconnect();
+    }, root);
+    return () => ctx.revert();
+  }, [ready, stage, win]);
+}
 
 export function LauncherMock() {
   const box = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState<number | null>(null);
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
+  const win = useRef<HTMLDivElement>(null);
+  useDemo(box, win, scale !== null);
 
   useEffect(() => {
     const el = box.current!;
@@ -37,6 +130,7 @@ export function LauncherMock() {
   return (
     <div ref={box} className={s.stage} style={{ height: H * (scale ?? 1), opacity: scale === null ? 0 : 1, transition: "opacity 400ms" }} onPointerMove={move} onPointerLeave={() => setTilt({ x: 0, y: 0 })}>
       <div
+        ref={win}
         className={s.window}
         style={{
           width: W,
@@ -83,8 +177,11 @@ export function LauncherMock() {
             <div className={`block ${s.launchpad}`}>
               <img src="/bee/welcome.webp" alt="" className={s.padBee} />
               <div className={s.padCard}>
-                <strong>New instance</strong>
-                <span>Create an instance: pick a version and a loader, the rest is automatic.</span>
+                <span className={s.label}>PvP 1.21.11</span>
+                <span className={s.padMeta}>Fabric · Kromvia client</span>
+                <span className={s.play} data-d="play">
+                  <Icon name="play" size={16} /> Play
+                </span>
               </div>
             </div>
 
@@ -93,7 +190,18 @@ export function LauncherMock() {
               <span className={`field ${s.search}`}>Search instances</span>
               <span className={`btn ghost ${s.import}`}>Import</span>
             </div>
-            <p className={s.empty}>No instances yet. Create one to play.</p>
+            <div className={s.list}>
+              {INSTANCES.map((it) => (
+                <div key={it.name} className={`block ${s.row}`}>
+                  <b style={{ "--h": it.hue } as React.CSSProperties} />
+                  <span>
+                    {it.name}
+                    <em>{it.meta}</em>
+                  </span>
+                  <Icon name="play" size={12} />
+                </div>
+              ))}
+            </div>
           </main>
 
           <aside className={s.aside}>
@@ -117,7 +225,63 @@ export function LauncherMock() {
             </div>
           </aside>
         </div>
+        <Demo />
       </div>
+    </div>
+  );
+}
+
+function Demo() {
+  return (
+    <div className={s.demo} aria-hidden="true">
+      <div className={s.game} data-d="game">
+        <img src="/game/peak.webp" alt="" />
+      </div>
+      <div className={s.menu} data-d="menu">
+        <div className={s.panel}>
+          <div className={s.sidebar}>
+            <div className={s.brand}>
+              <img src="/logo-mark.svg" alt="" width={22} height={22} />
+              <span>
+                KROMVIA
+                <em>client</em>
+              </span>
+            </div>
+            {TABS.map((t, i) => (
+              <span key={t.name} className={i === 0 ? s.tabOn : s.tab}>
+                {t.name} <em>{t.n}</em>
+              </span>
+            ))}
+            <span className={s.count}>
+              {CARDS.filter((c) => c.on).length + 18} / {MODULE_COUNT} enabled
+              <i style={{ width: `${((CARDS.filter((c) => c.on).length + 18) / MODULE_COUNT) * 100}%` }} />
+            </span>
+            <div className={s.sideBtns}>
+              {["Profiles", "Edit HUD", "Wardrobe", "Done"].map((b) => (
+                <span key={b}>{b}</span>
+              ))}
+            </div>
+          </div>
+          <div className={s.grid}>
+            <span className={s.find}>⌕ Search modules…</span>
+            <div className={s.cards}>
+              {CARDS.map((c) => (
+                <span key={c.name} className={s.card} data-card data-on={c.on} data-d={c.flip ? "flip" : undefined}>
+                  <b style={{ "--h": c.hue } as React.CSSProperties} />
+                  {c.name}
+                  <i />
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+      <span className={s.key} data-d="key">
+        <kbd>⇧ Right Shift</kbd>
+      </span>
+      <svg className={s.cursor} data-d="cursor" width="26" height="26" viewBox="0 0 24 24">
+        <path d="M4 2l15 11.5-6.6.9 3.9 7.4-2.8 1.4-3.8-7.5L4 20.5z" fill="#fff" stroke="#111" strokeWidth="1.4" strokeLinejoin="round" />
+      </svg>
     </div>
   );
 }

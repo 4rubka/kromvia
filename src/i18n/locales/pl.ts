@@ -654,4 +654,7 @@ export default {
   "metrics.peak": "szczyt {v}",
   "metrics.chart": "Pamięć na przebieg",
   "metrics.empty": "Zagraj kilka razy, a wykres pojawi się tutaj.",
+  "recover.failed": "Coś poszło nie tak w Kromvia.",
+  "recover.reload": "Załaduj ponownie",
+  "recover.openLog": "Otwórz dziennik",
 } satisfies Dict;

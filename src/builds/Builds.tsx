@@ -27,8 +27,8 @@ type Preset = "auto" | "maxFps" | "balanced" | "quality";
 const PRESETS: Preset[] = ["auto", "maxFps", "balanced", "quality"];
 
 type Tab = "content" | "conflicts" | "worlds" | "servers" | "screenshots" | "settings" | "performance" | "files" | "backups" | "cloud" | "icon";
-const TABS: Tab[] = ["content", "conflicts", "worlds", "servers", "screenshots", "settings", "performance"];
-const MORE_TABS: Tab[] = ["files", "backups", "cloud"];
+const TABS: Tab[] = ["content", "worlds", "servers", "screenshots", "settings", "performance"];
+const MORE_TABS: Tab[] = ["conflicts", "files", "backups", "cloud"];
 const TAB_LABELS: Record<Tab, MessageKey> = {
   content: "builds.content",
   conflicts: "conflicts.title",
@@ -51,6 +51,25 @@ export function Builds({ onAddContent }: { onAddContent: (kind: Kind) => void })
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("content");
   const [more, setMore] = useState(false);
+  const [actions, setActions] = useState<DOMRect | null>(null);
+  const actionsButton = useRef<HTMLButtonElement>(null);
+  const actionsMenu = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!actions) return;
+    const close = () => (setActions(null), setConfirmDelete(null));
+    const outside = (e: Event) => {
+      const target = e.target as Node;
+      if (!actionsMenu.current?.contains(target) && !actionsButton.current?.contains(target)) close();
+    };
+    document.addEventListener("mousedown", outside);
+    document.addEventListener("scroll", outside, true);
+    window.addEventListener("resize", close);
+    return () => {
+      document.removeEventListener("mousedown", outside);
+      document.removeEventListener("scroll", outside, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [actions]);
   const [dropping, setDropping] = useState(false);
   const [contentRev, setContentRev] = useState(0);
 
@@ -83,6 +102,16 @@ export function Builds({ onAddContent }: { onAddContent: (kind: Kind) => void })
     setCover(null);
     if (inst) invoke<string | null>("instance_cover", { id: inst.id }).then(setCover, () => {});
   }, [inst?.id, coverRev]);
+
+  const [broken, setBroken] = useState(0);
+  useEffect(() => {
+    setBroken(0);
+    if (inst)
+      invoke<{ severity: string }[] | null>("content_conflicts", { instanceId: inst.id }).then(
+        (list) => setBroken(list?.filter((c) => c.severity === "error").length ?? 0),
+        () => {},
+      );
+  }, [inst?.id, contentRev, tab]);
 
   const instRef = useRef(inst);
   instRef.current = inst;
@@ -244,27 +273,50 @@ export function Builds({ onAddContent }: { onAddContent: (kind: Kind) => void })
                 </div>
                 <div className="actions">
                   <PlayButton inst={inst} />
-                  <button className="btn btn-ghost" onClick={() => shortcut(inst)}>
-                    <Glyph name="external-link" /> {t("builds.shortcut")}
-                  </button>
-                  <button className="btn btn-ghost" onClick={() => duplicate(inst)}>
-                    <Glyph name="copy" /> {t("builds.duplicate")}
-                  </button>
-                  <button className="btn btn-ghost" onClick={() => saveTemplate(inst)}>
-                    <Glyph name="device-floppy" /> {t("builds.saveTemplate")}
-                  </button>
-                  {exporting ? (
+                  {exporting && (
                     <div className="job">
                       <Progress job={exporting} />
                     </div>
-                  ) : (
-                    <button className="btn btn-ghost" onClick={() => exportPack(inst)}>
-                      <Glyph name="file-export" /> {t("builds.export")}
-                    </button>
                   )}
-                  <button className="btn btn-danger" onClick={() => remove(inst)} onBlur={() => setConfirmDelete(null)}>
-                    <Glyph name="trash" /> {confirmDelete === inst.id ? t("instance.deleteConfirm") : t("instance.delete")}
+                  <button
+                    ref={actionsButton}
+                    className="btn btn-ghost"
+                    title={t("builds.more")}
+                    aria-label={t("builds.more")}
+                    aria-expanded={!!actions}
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setActions((a) => (a ? null : rect));
+                    }}
+                  >
+                    <Glyph name="dots" />
                   </button>
+                  {actions &&
+                    createPortal(
+                      <div
+                        ref={actionsMenu}
+                        className="tabs-menu"
+                        role="menu"
+                        style={{ position: "fixed", zIndex: 100, top: actions.bottom + 4, right: window.innerWidth - actions.right }}
+                      >
+                        <button className="btn btn-ghost" role="menuitem" onClick={() => (setActions(null), shortcut(inst))}>
+                          <Glyph name="external-link" /> {t("builds.shortcut")}
+                        </button>
+                        <button className="btn btn-ghost" role="menuitem" onClick={() => (setActions(null), duplicate(inst))}>
+                          <Glyph name="copy" /> {t("builds.duplicate")}
+                        </button>
+                        <button className="btn btn-ghost" role="menuitem" onClick={() => (setActions(null), saveTemplate(inst))}>
+                          <Glyph name="device-floppy" /> {t("builds.saveTemplate")}
+                        </button>
+                        <button className="btn btn-ghost" role="menuitem" disabled={!!exporting} onClick={() => (setActions(null), exportPack(inst))}>
+                          <Glyph name="file-export" /> {t("builds.export")}
+                        </button>
+                        <button className="btn btn-danger" role="menuitem" onClick={() => (confirmDelete === inst.id && setActions(null), remove(inst))}>
+                          <Glyph name="trash" /> {confirmDelete === inst.id ? t("instance.deleteConfirm") : t("instance.delete")}
+                        </button>
+                      </div>,
+                      document.body,
+                    )}
                 </div>
               </header>
               {launcher.errors[inst.id] && (
@@ -280,6 +332,7 @@ export function Builds({ onAddContent }: { onAddContent: (kind: Kind) => void })
                   {TABS.map((k) => (
                     <button key={k} aria-pressed={tab === k} onClick={() => setTab(k)}>
                       {t(TAB_LABELS[k])}
+                      {k === "content" && broken > 0 && <span className="tab-alert" title={t("conflicts.title")}>{broken}</span>}
                     </button>
                   ))}
                 </div>
@@ -292,6 +345,7 @@ export function Builds({ onAddContent }: { onAddContent: (kind: Kind) => void })
                       {MORE_TABS.map((k) => (
                         <button key={k} className="btn btn-ghost" role="menuitem" onClick={() => (setTab(k), setMore(false))}>
                           {t(TAB_LABELS[k])}
+                          {k === "conflicts" && broken > 0 && <span className="tab-alert">{broken}</span>}
                         </button>
                       ))}
                     </div>

@@ -654,4 +654,7 @@ export default {
   "metrics.peak": "vrchol {v}",
   "metrics.chart": "Paměť na běh",
   "metrics.empty": "Zahrajte si párkrát a graf se zobrazí zde.",
+  "recover.failed": "Něco se pokazilo v Kromvia.",
+  "recover.reload": "Znovu načíst",
+  "recover.openLog": "Otevřete protokol",
 } satisfies Dict;

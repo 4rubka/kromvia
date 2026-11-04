@@ -7,7 +7,21 @@ export type Option = { value: string; label: string };
 const LIST_HEIGHT = 280;
 const SEARCH_FROM = 12;
 
-export function Select({ value, options, onChange, label }: { value: string; options: Option[]; onChange: (value: string) => void; label?: string }) {
+export function Select({
+  value,
+  options,
+  onChange,
+  label,
+  className,
+  disabled,
+}: {
+  value: string;
+  options: Option[];
+  onChange: (value: string) => void;
+  label?: string;
+  className?: string;
+  disabled?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const [place, setPlace] = useState<CSSProperties>({});
   const [query, setQuery] = useState("");
@@ -63,7 +77,8 @@ export function Select({ value, options, onChange, label }: { value: string; opt
       <button
         ref={button}
         type="button"
-        className="input select"
+        className={className ? `input select ${className}` : "input select"}
+        disabled={disabled}
         aria-label={label}
         aria-haspopup="listbox"
         aria-expanded={open}

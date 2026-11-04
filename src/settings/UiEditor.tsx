@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useI18n } from "../i18n";
 import type { MessageKey } from "../i18n/en";
 import { Glyph } from "../ui/Glyph";
+import { Select } from "../ui/Select";
 import "./ui-editor.css";
 
 export type Part = "button" | "secondary" | "panel";
@@ -133,13 +134,11 @@ export function UiEditor({ pages }: { pages: string[] }) {
       <div className="field">
         <span>{t("ui.profile")}</span>
         <div className="actions">
-          <select className="input" value={profile.id} onChange={(e) => commit({ ...s, active: e.currentTarget.value })}>
-            {s.profiles.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.id === "default" ? t("ui.default") : p.name}
-              </option>
-            ))}
-          </select>
+          <Select
+            value={profile.id}
+            options={s.profiles.map((p) => ({ value: p.id, label: p.id === "default" ? t("ui.default") : p.name }))}
+            onChange={(v) => commit({ ...s, active: v })}
+          />
           <button className="btn btn-ghost" onClick={() => create(profile)}>
             <Glyph name="plus" /> {t(locked ? "ui.new" : "ui.duplicate")}
           </button>
