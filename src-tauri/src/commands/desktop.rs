@@ -1,7 +1,7 @@
 
 use std::sync::Mutex;
 
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::engine::backups::{self, Backup};
 use crate::engine::core::{crashlog, jobs::Jobs};
@@ -54,6 +54,26 @@ pub struct PendingLaunch(pub Mutex<Option<String>>);
 
 #[tauri::command]
 pub fn launch_request(pending: State<'_, PendingLaunch>) -> Option<String> {
+    pending.0.lock().unwrap().take()
+}
+
+#[derive(Default)]
+pub struct PendingPack(pub Mutex<Option<String>>);
+
+pub fn pack_code(url: &str) -> Option<String> {
+    let code = url.strip_prefix("kromvia://pack/")?.trim_end_matches('/');
+    ((4..=16).contains(&code.len()) && code.chars().all(|c| c.is_ascii_alphanumeric())).then(|| code.to_ascii_uppercase())
+}
+
+pub fn open_pack<'a>(app: &AppHandle, urls: impl IntoIterator<Item = &'a str>) {
+    let Some(code) = urls.into_iter().find_map(pack_code) else { return };
+    *app.state::<PendingPack>().0.lock().unwrap() = Some(code);
+    crate::tray::show_main(app);
+    let _ = app.emit("pack-request", ());
+}
+
+#[tauri::command]
+pub fn pack_request(pending: State<'_, PendingPack>) -> Option<String> {
     pending.0.lock().unwrap().take()
 }
 
@@ -137,4 +157,18 @@ pub fn media_now() -> Option<crate::engine::media::Track> {
 #[tauri::command]
 pub async fn media_control(action: String) -> Result<(), String> {
     crate::engine::media::control(&action).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::pack_code;
+
+    #[test]
+    fn reads_pack_links() {
+        assert_eq!(pack_code("kromvia://pack/ab23cd45"), Some("AB23CD45".into()));
+        assert_eq!(pack_code("kromvia://pack/AB23CD45/"), Some("AB23CD45".into()));
+        assert_eq!(pack_code("kromvia://pack/../x"), None);
+        assert_eq!(pack_code("kromvia://room/AB23CD45"), None);
+        assert_eq!(pack_code("https://kromvia.com/s/AB23CD45"), None);
+    }
 }

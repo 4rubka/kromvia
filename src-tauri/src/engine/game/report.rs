@@ -29,7 +29,7 @@ fn flag() -> std::path::PathBuf {
 }
 
 pub fn enabled() -> bool {
-    std::fs::read_to_string(flag()).is_ok_and(|s| s.trim() == "on")
+    !std::fs::read_to_string(flag()).is_ok_and(|s| s.trim() == "off")
 }
 
 pub fn set_enabled(on: bool) -> Result<(), String> {

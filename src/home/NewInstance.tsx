@@ -9,7 +9,7 @@ import { useJobs } from "../lib/jobs";
 
 type Template = { id: string; name: string; instance: Instance; created: number };
 
-export function NewInstance({ onDone }: { onDone: (inst: Instance | null) => void }) {
+export function NewInstance({ onDone, initialCode }: { onDone: (inst: Instance | null) => void; initialCode?: string | null }) {
   const { t } = useI18n();
   const [choice, setChoice] = useState<VersionChoice>({ mc: "", loader: null, build: "" });
   const [name, setName] = useState("");
@@ -17,8 +17,8 @@ export function NewInstance({ onDone }: { onDone: (inst: Instance | null) => voi
   const [templates, setTemplates] = useState<Template[]>([]);
   const [template, setTemplate] = useState("");
   const chosen = templates.find((x) => x.id === template);
-  const [mode, setMode] = useState<"version" | "code">("version");
-  const [code, setCode] = useState("");
+  const [mode, setMode] = useState<"version" | "code">(initialCode ? "code" : "version");
+  const [code, setCode] = useState(initialCode ?? "");
   const installs = useJobs("build-install", (_, e) => {
     if (e) return setError(e);
     invoke<Instance[]>("instance_list").then((list) => onDone([...list].sort((a, b) => b.created - a.created)[0] ?? null));

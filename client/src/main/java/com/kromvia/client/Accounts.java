@@ -45,6 +45,11 @@ public final class Accounts {
 		}
 		active = msg.get("active") == null || msg.get("active").isJsonNull() ? null : msg.get("active").getAsString();
 		list = Collections.unmodifiableList(entries);
+		com.kromvia.client.cosmetic.Cosmetics.prewarm();
+	}
+
+	public static boolean licensed() {
+		return active != null;
 	}
 
 	public static boolean available() {

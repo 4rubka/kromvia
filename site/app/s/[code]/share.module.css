@@ -32,8 +32,15 @@
   gap: 8px;
 }
 
-.page a {
+.page a:not(:global(.btn)) {
   color: var(--accent-hover);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
 }
 
 .files {

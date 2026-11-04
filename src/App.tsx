@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { LANGUAGES, language, setLanguage, useI18n } from "./i18n";
 import { Select } from "./ui/Select";
@@ -66,6 +67,20 @@ function App() {
   useEffect(() => {
     if (!pages.includes(page)) setPage("home");
   }, [pages, page]);
+
+  useEffect(() => {
+    const take = () =>
+      invoke<string | null>("pack_request").then((code) => {
+        if (!code) return;
+        setPage("home");
+        requestNewInstance(code);
+      });
+    take();
+    const un = listen("pack-request", take);
+    return () => {
+      un.then((f) => f());
+    };
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

@@ -24,13 +24,12 @@ import org.slf4j.LoggerFactory;
 
 public final class Players extends Module {
 	private static final Logger PRESENCE = LoggerFactory.getLogger("kromvia-presence");
-	private static final int VIOLET = 0x8B5CF6;
-	private static final int LOOKUP_TICKS = 40;
+		private static final int LOOKUP_TICKS = 40;
 	private static final long RECHECK_MS = 60_000;
 	private static final int BATCH = 100;
 	private static final long ANSWER_MS = 10_000;
 
-	private record Seen(List<String> models, String cape, long at) {}
+	private record Seen(List<String> models, String cape, boolean dev, long at) {}
 
 	private final Map<String, Seen> seen = new ConcurrentHashMap<>();
 	private String reported;
@@ -120,8 +119,11 @@ public final class Players extends Module {
 			JsonElement worn = found.get(name);
 			JsonElement c = worn != null && worn.isJsonObject() ? worn.getAsJsonObject().get("cape") : null;
 			JsonElement st = worn != null && worn.isJsonObject() ? worn.getAsJsonObject().get("style") : null;
-			String cape = c != null && c.isJsonPrimitive() && c.getAsBoolean() ? st != null && st.isJsonPrimitive() ? st.getAsString() : "kromvia" : null;
-			self.seen.put(name, new Seen(worn == null ? null : models(worn), cape, at));
+			JsonElement d = worn != null && worn.isJsonObject() ? worn.getAsJsonObject().get("dev") : null;
+			boolean dev = d != null && d.isJsonPrimitive() && d.getAsBoolean();
+			String cape = c != null && c.isJsonPrimitive() && c.getAsBoolean() ? dev ? Cosmetics.DEV_STYLE : st != null && st.isJsonPrimitive() ? st.getAsString() : "kromvia" : null;
+			if (dev) Cosmetics.styled(Cosmetics.DEV_STYLE);
+			self.seen.put(name, new Seen(worn == null ? null : models(worn), cape, dev, at));
 		}
 	}
 
@@ -150,7 +152,9 @@ public final class Players extends Module {
 	public static Component badged(String nick, Component name) {
 		boolean self = Fx.PLAYERS.enabled && Fx.PLAYERS.host != null && nick.equalsIgnoreCase(Minecraft.getInstance().getUser().getName());
 		if (name == null || !self && worn(nick) == null) return name;
-		MutableComponent badge = Component.literal("✦ ").withColor(VIOLET);
-		return badge.append(name);
+		MutableComponent out = Component.literal("").append(Badge.glyph(Badge.KROMVIA)).append(" ").append(name);
+		Seen s = Fx.PLAYERS.seen.get(nick.toLowerCase(Locale.ROOT));
+		if (self ? Cosmetics.devSelf() : s != null && s.dev) out.append(" ").append(Badge.glyph(Badge.CHECK)).append(" ").append(Badge.glyph(Badge.DEV));
+		return out;
 	}
 }

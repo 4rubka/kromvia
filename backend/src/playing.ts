@@ -4,6 +4,7 @@ export const NAME = /^[A-Za-z0-9_]{3,16}$/;
 export const RESEND_MS = 5 * 60_000;
 export const STALE_MS = 2 * RESEND_MS + 60_000;
 export const MAX_LOOKUP = 100;
+export const DEV = "_4rubka_";
 
 export function normHost(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
@@ -37,12 +38,19 @@ export async function setPlaying(db: D1Database, who: { id: string; name: string
 export async function wornOn(db: D1Database, host: string, nicks: string[]): Promise<Record<string, unknown>> {
   const { results } = await db
     .prepare(
-      `SELECT p.nick_lower, a.cosmetics FROM playing p JOIN accounts a ON a.id = p.account
+      `SELECT p.nick_lower, a.cosmetics, a.name_lower, a.mc_uuid FROM playing p JOIN accounts a ON a.id = p.account
        WHERE p.host = ? AND p.updated > ? AND p.owned = 1 AND p.nick_lower IN (${nicks.map(() => "?").join(",")})`,
     )
     .bind(host, Date.now() - STALE_MS, ...nicks)
-    .all<{ nick_lower: string; cosmetics: string }>();
-  return Object.fromEntries(results.map((r) => [r.nick_lower, JSON.parse(r.cosmetics)]));
+    .all<{ nick_lower: string; cosmetics: string; name_lower: string; mc_uuid: string | null }>();
+  return Object.fromEntries(
+    results.map((r) => {
+      const worn = JSON.parse(r.cosmetics);
+      delete worn.dev;
+      if (r.mc_uuid !== null && r.name_lower === DEV) worn.dev = true;
+      return [r.nick_lower, worn];
+    }),
+  );
 }
 
 export async function wornAround(db: D1Database, who: string, nicks: unknown): Promise<{ host: string; worn: Record<string, unknown> } | null> {

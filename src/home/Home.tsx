@@ -50,9 +50,9 @@ const NEWS = [
   { title: "18 new modules", text: "Target HUD, TPS, Hit Colour, No Fog, Totem Pops and more." },
 ];
 
-let newRequested = false;
-export function requestNewInstance() {
-  newRequested = true;
+let newRequested: string | boolean = false;
+export function requestNewInstance(code?: string) {
+  newRequested = code ?? true;
   window.dispatchEvent(new Event("kromvia:new-instance"));
 }
 function takeNewRequest() {
@@ -66,6 +66,7 @@ export function Home({ onNavigate }: { onNavigate: (page: Nav) => void }) {
   const l = useLauncher();
   const { current, instances } = l;
   const [creating, setCreating] = useState(false);
+  const [newCode, setNewCode] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [skin, setSkin] = useState<LibrarySkin | null>(null);
@@ -153,9 +154,14 @@ export function Home({ onNavigate }: { onNavigate: (page: Nav) => void }) {
             : null;
 
   useEffect(() => {
-    const onNew = () => (takeNewRequest(), setCreating(true));
+    const open = (r: string | boolean) => {
+      if (!r) return;
+      setNewCode(typeof r === "string" ? r : null);
+      setCreating(true);
+    };
+    const onNew = () => open(takeNewRequest());
     window.addEventListener("kromvia:new-instance", onNew);
-    if (takeNewRequest()) setCreating(true);
+    open(takeNewRequest());
     return () => window.removeEventListener("kromvia:new-instance", onNew);
   }, []);
 
@@ -386,8 +392,11 @@ export function Home({ onNavigate }: { onNavigate: (page: Nav) => void }) {
           {importing && <ImportInstances onImported={l.refresh} onClose={() => setImporting(false)} />}
           {creating && (
             <NewInstance
+              key={newCode ?? ""}
+              initialCode={newCode}
               onDone={(inst) => {
                 setCreating(false);
+                setNewCode(null);
                 if (inst) {
                   l.refresh();
                   l.setSelected(inst.id);

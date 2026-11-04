@@ -59,7 +59,7 @@ export function AppearanceExtras() {
   const [active, setActive] = useState(savedTheme() ?? "");
   const [hasBackground, setHasBackground] = useState(false);
   const [autostart, setAutostart] = useState(false);
-  const [crashReports, setCrashReports] = useState(false);
+  const [crashReports, setCrashReports] = useState(true);
   const [status, setStatus] = useState<{ error: boolean; text: string } | null>(null);
   const fail = (e: unknown) => setStatus({ error: true, text: String(e) });
 

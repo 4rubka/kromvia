@@ -441,9 +441,13 @@ select.input {
 
 .builds {
   display: grid;
-  grid-template-columns: minmax(200px, 280px) 1fr;
+  grid-template-columns: minmax(200px, 280px) minmax(0, 1fr);
   gap: var(--space-4);
   align-items: start;
+}
+
+.build {
+  min-width: 0;
 }
 
 .builds .instances {
@@ -942,10 +946,17 @@ h2,
 .library-tools {
   display: flex;
   gap: var(--space-2);
+  min-width: 0;
 }
 
 .library-tools .input {
-  width: 220px;
+  flex: 0 1 220px;
+  min-width: 80px;
+}
+
+.library-tools .btn {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .home-side {
@@ -1255,11 +1266,13 @@ h2,
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-3);
   margin-bottom: var(--space-3);
 }
 
 .library-head h2 {
   margin: 0;
+  flex-shrink: 0;
   font-size: var(--text-lg);
 }
 
@@ -2068,7 +2081,16 @@ h2,
 }
 
 .build-head .actions {
+  flex-wrap: wrap;
   margin: 0 0 0 auto;
+}
+
+.build .card-head {
+  flex-wrap: wrap;
+}
+
+.build-head .actions .btn {
+  white-space: nowrap;
 }
 
 .build .tabs {
@@ -2396,7 +2418,7 @@ kbd {
 
 .rows.compact {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
   gap: var(--space-1) var(--space-2);
 }
 

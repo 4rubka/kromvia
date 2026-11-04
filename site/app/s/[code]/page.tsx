@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Glyph } from "@/components/Glyph";
 import { share } from "@/lib/api";
 import { getLang } from "@/lib/i18n";
 import s from "./share.module.css";
@@ -9,13 +10,15 @@ const T = {
   en: {
     title: "Shared from Kromvia", shot: "Shared screenshot", from: (c: string) => `Shared from Kromvia · code ${c}`, log: "Shared log",
     mods: (n: number) => `${n} mods`, packs: (n: number) => `${n} packs and shaders`,
-    by: "From", install: (c: string) => <>. To install it, open any build in Kromvia, find &quot;Install from a share code&quot; and enter <b>{c}</b>.</>,
+    by: "From", open: "Open in Kromvia", get: "Get Kromvia",
+    install: (c: string) => <>Nothing happened? In Kromvia, press &quot;New instance&quot;, pick &quot;Friend&apos;s code&quot; and enter <b>{c}</b>.</>,
     buildDesc: (n: string, mc: string, mods: number) => `Kromvia build "${n}" for Minecraft ${mc}, ${mods} mods.`,
   },
   uk: {
     title: "Поширено з Kromvia", shot: "Скріншот", from: (c: string) => `Поширено з Kromvia · код ${c}`, log: "Лог",
     mods: (n: number) => `модів: ${n}`, packs: (n: number) => `паків і шейдерів: ${n}`,
-    by: "Від", install: (c: string) => <>. Щоб поставити, відкрий будь-яку збірку в Kromvia, знайди «Встановити з коду» і введи <b>{c}</b>.</>,
+    by: "Від", open: "Відкрити в Kromvia", get: "Завантажити Kromvia",
+    install: (c: string) => <>Нічого не сталось? У Kromvia натисни «Нова збірка», обери «Код друга» і введи <b>{c}</b>.</>,
     buildDesc: (n: string, mc: string, mods: number) => `Збірка Kromvia «${n}» для Minecraft ${mc}, модів: ${mods}.`,
   },
 };
@@ -69,8 +72,16 @@ export default async function Shared({ params }: PageProps<"/s/[code]">) {
       </div>
       <p className="muted">
         {t.by} <Link href={`/u/${from.name}`}>{from.name}</Link>
-        {t.install(code.toUpperCase())}
       </p>
+      <div className={s.actions}>
+        <a href={`kromvia://pack/${code.toUpperCase()}`} className="btn big">
+          <Glyph name="download" size={20} /> {t.open}
+        </a>
+        <Link href="/download" className="btn ghost">
+          {t.get}
+        </Link>
+      </div>
+      <p className="dim">{t.install(code.toUpperCase())}</p>
       <ul className={`block ${s.files}`}>
         {data.files.map((f) => (
           <li key={f.path}>

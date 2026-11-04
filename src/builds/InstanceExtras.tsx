@@ -546,7 +546,7 @@ export function Cloud({ inst, onInstalled }: { inst: Instance; onInstalled: () =
         <button className="btn" disabled={!!upload} onClick={() => run(invoke<number>("sync_build", { instanceId: inst.id }).then((id) => uploads.started(`sync-${inst.id}`, id)))}>
           <Glyph name="upload" /> {t("cloud.save")}
         </button>
-        <button className="btn btn-ghost" onClick={() => run(invoke<string>("share_build", { instanceId: inst.id }).then(setCode))}>
+        <button className="btn btn-ghost" onClick={() => run(invoke<string>("share_build", { instanceId: inst.id }).then((c) => setCode(`https://kromvia.com/s/${c}`)))}>
           <Glyph name="copy" /> {t("cloud.share")}
         </button>
       </div>
@@ -561,8 +561,8 @@ export function Cloud({ inst, onInstalled }: { inst: Instance; onInstalled: () =
       )}
       <h3>{t("cloud.fromCode")}</h3>
       <div className="field">
-        <input className="input" maxLength={16} value={input} placeholder={t("cloud.codePlaceholder")} aria-label={t("cloud.codePlaceholder")} onChange={(e) => setInput(e.currentTarget.value.trim())} />
-        <button className="btn" disabled={!input || !!installing} onClick={() => run(invoke<{ kind: string; data: unknown }>("share_get", { code: input }).then((s) => (s.kind === "build" ? install(s.data) : setError(t("cloud.notBuild")))))}>
+        <input className="input" value={input} placeholder={t("cloud.codePlaceholder")} aria-label={t("cloud.codePlaceholder")} onChange={(e) => setInput(e.currentTarget.value.trim())} />
+        <button className="btn" disabled={!input || !!installing} onClick={() => run(invoke<{ kind: string; data: unknown }>("share_get", { code: input.split("/").filter(Boolean).pop() ?? "" }).then((s) => (s.kind === "build" ? install(s.data) : setError(t("cloud.notBuild")))))}>
           <Glyph name="download" /> {t("cloud.install")}
         </button>
       </div>

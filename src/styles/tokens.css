@@ -36,16 +36,16 @@
   --border: #dde0e6;
   --text: #15171c;
   --text-muted: #5d6370;
-  --accent: #6d4ae8;
+  --accent: #8b5cf6;
   --accent-hover: #8b6cf5;
   --accent-2: #2f6fe0;
   --accent-text: #ffffff;
-  --accent-grad: linear-gradient(120deg, #6d4ae8, #2f6fe0);
+  --accent-grad: linear-gradient(var(--accent), var(--accent));
   --page-glow: radial-gradient(ellipse 70% 55% at 0% 0%, rgb(109 74 232 / 0.1), transparent 70%),
     radial-gradient(ellipse 60% 50% at 100% 100%, rgb(47 111 224 / 0.08), transparent 70%);
   --danger: #c93a3a;
   --warn: #a8661a;
-  --accent-glow: rgb(109 74 232 / 0.25);
+  --accent-glow: rgb(139 92 246 / 0.25);
   --accent-deep: #3f2a9a;
   --glass: rgb(255 255 255 / 0.7);
   --on-danger: #ffffff;
@@ -68,7 +68,7 @@
     --accent-2: #1f63d6;
     --accent-text: #ffffff;
     --accent-glow: rgb(139 92 246 / 0.3);
-    --accent-grad: linear-gradient(120deg, #a35fd6, #6a5cf0 45%, #1f63d6);
+    --accent-grad: linear-gradient(var(--accent), var(--accent));
     --page-glow: radial-gradient(ellipse 55% 45% at 55% 0%, rgb(0 92 198 / 0.2), transparent 70%),
       radial-gradient(ellipse 50% 50% at 0% 100%, rgb(191 111 140 / 0.12), transparent 70%),
       radial-gradient(ellipse 50% 50% at 100% 100%, rgb(135 87 153 / 0.14), transparent 70%);
@@ -94,7 +94,7 @@
   --accent-2: #1f63d6;
   --accent-text: #ffffff;
   --accent-glow: rgb(139 92 246 / 0.3);
-  --accent-grad: linear-gradient(120deg, #a35fd6, #6a5cf0 45%, #1f63d6);
+  --accent-grad: linear-gradient(var(--accent), var(--accent));
   --page-glow: radial-gradient(ellipse 55% 45% at 55% 0%, rgb(0 92 198 / 0.2), transparent 70%),
       radial-gradient(ellipse 50% 50% at 0% 100%, rgb(191 111 140 / 0.12), transparent 70%),
       radial-gradient(ellipse 50% 50% at 100% 100%, rgb(135 87 153 / 0.14), transparent 70%);

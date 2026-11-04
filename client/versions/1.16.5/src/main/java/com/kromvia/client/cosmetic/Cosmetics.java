@@ -72,6 +72,14 @@ public final class Cosmetics {
 		return null;
 	}
 
+	public static final String DEV_STYLE = "dev";
+
+	public static boolean devSelf() {
+		return com.kromvia.client.Accounts.licensed() && "_4rubka_".equalsIgnoreCase(net.minecraft.client.Minecraft.getInstance().getUser().getName());
+	}
+
+	public static void prewarm() {}
+
 	public static Cosmetic cape() {
 		if (cape == null) cape = styled(style);
 		return cape;

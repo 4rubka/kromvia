@@ -4,8 +4,9 @@ mod tray;
 mod watchdog;
 
 use tauri::{Emitter, Manager, WindowEvent};
+use tauri_plugin_deep_link::DeepLinkExt;
 
-use commands::desktop::PendingLaunch;
+use commands::desktop::{PendingLaunch, PendingPack};
 use engine::core::{crashlog, jobs::Jobs, paths};
 use engine::game::launch::Games;
 use engine::shortcut;
@@ -19,6 +20,7 @@ pub fn run() {
                 let _ = app.emit("launch-request", id);
             }
         }))
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -27,6 +29,7 @@ pub fn run() {
         .manage(engine::game::report::Reports::default())
         .manage(watchdog::UiReady::default())
         .manage(engine::social::Live::default())
+        .manage(PendingPack::default())
         .manage(PendingLaunch(std::sync::Mutex::new(shortcut::requested(std::env::args()))))
         .setup(|app| {
             paths::init(app.path().app_data_dir()?);
@@ -39,6 +42,13 @@ pub fn run() {
                 engine::window_state::restore(&w);
             }
             app.manage(tray::init(app.handle()));
+            #[cfg(any(windows, target_os = "linux"))]
+            let _ = app.deep_link().register_all();
+            let handle = app.handle().clone();
+            app.deep_link().on_open_url(move |e| commands::desktop::open_pack(&handle, e.urls().iter().map(|u| u.as_str())));
+            if let Ok(Some(urls)) = app.deep_link().get_current() {
+                commands::desktop::open_pack(app.handle(), urls.iter().map(|u| u.as_str()));
+            }
             engine::discord::start(app.handle());
             engine::media::start(app.handle());
             watchdog::start(app.handle());
@@ -167,6 +177,7 @@ pub fn run() {
             commands::desktop::backup_open_folder,
             commands::desktop::shortcut_create,
             commands::desktop::launch_request,
+            commands::desktop::pack_request,
             commands::desktop::launcher_log,
             commands::desktop::ui_ready,
             commands::update::update_check,

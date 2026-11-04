@@ -10,7 +10,7 @@
   --accent-hover: #a78bfa;
   --accent-deep: #3b1f86;
   --accent-2: #1f63d6;
-  --accent-grad: linear-gradient(120deg, #a35fd6, #6a5cf0 45%, #1f63d6);
+  --accent-grad: linear-gradient(var(--accent), var(--accent));
   --top: #c9b5ff;
   --side: #2f55c8;
   --bevel-top: rgb(255 255 255 / 0.07);

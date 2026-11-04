@@ -179,6 +179,17 @@ test("cosmetics show only to players on that server, for nicks that are a Kromvi
   expect(await setPlaying(env.DB, { id: b.id, name: "Bob" }, "other.test", "x")).toBe("bad nick");
 });
 
+test("only the licensed _4rubka_ account is marked dev", async () => {
+  const dev = await signup("_4rubka_");
+  const fake = await signup("Faker");
+  await call(fake, "PUT", "/v1/me/cosmetics", { cosmetics: { dev: true } });
+  await setPlaying(env.DB, { id: dev.id, name: "_4rubka_" }, "dev.test", "_4rubka_");
+  await setPlaying(env.DB, { id: fake.id, name: "Faker" }, "dev.test", "Faker");
+  expect(await wornOn(env.DB, "dev.test", ["_4rubka_", "faker"])).toEqual({ _4rubka_: {}, faker: {} });
+  await env.DB.prepare("UPDATE accounts SET mc_uuid = ? WHERE id = ?").bind("00000000000000000000000000000001", dev.id).run();
+  expect(await wornOn(env.DB, "dev.test", ["_4rubka_", "faker"])).toEqual({ _4rubka_: { dev: true }, faker: {} });
+});
+
 test("server addresses are compared normalised", () => {
   expect(normHost(" Play.Example.NET.:25565")).toBe("play.example.net");
   expect(normHost("10.0.0.1:25570")).toBe("10.0.0.1:25570");

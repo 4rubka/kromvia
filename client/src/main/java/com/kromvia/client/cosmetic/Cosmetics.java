@@ -7,15 +7,19 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.kromvia.client.Accounts;
 import com.kromvia.client.cosmetic.Cosmetic.Anchor;
 import com.kromvia.client.cosmetic.Cosmetic.Animator;
 import com.kromvia.client.cosmetic.Cosmetic.Piece;
 import com.kromvia.client.cosmetic.Cosmetic.Slot;
+import com.mojang.blaze3d.platform.NativeImage;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.PartPose;
 import net.minecraft.util.Mth;
@@ -27,6 +31,8 @@ public final class Cosmetics {
 	public static final int GOLD = 0xFFFFC83D;
 	public static final String KROMVIA_CAPE = "kromvia_cape";
 	public static final String[] CAPE_STYLES = {"kromvia", "ember", "frost"};
+	public static final String DEV_STYLE = "dev";
+	private static final String DEV_NICK = "_4rubka_";
 
 	public record Colour(String name, int argb) {}
 
@@ -40,6 +46,7 @@ public final class Cosmetics {
 	private static Cosmetic cape;
 	private static String style = "kromvia";
 	private static final Cosmetic[] STYLED = new Cosmetic[CAPE_STYLES.length];
+	private static Cosmetic dev;
 
 	private Cosmetics() {}
 
@@ -56,17 +63,23 @@ public final class Cosmetics {
 		return null;
 	}
 
+	public static boolean devSelf() {
+		return Accounts.licensed() && DEV_NICK.equalsIgnoreCase(Minecraft.getInstance().getUser().getName());
+	}
+
 	public static Cosmetic cape() {
+		if (devSelf()) return dev();
 		if (cape == null) cape = styled(style);
 		return cape;
 	}
 
 	public static void useCape(String style) {
-		Cosmetics.style = style == null ? "kromvia" : style;
+		Cosmetics.style = style == null || DEV_STYLE.equals(style) ? "kromvia" : style;
 		cape = null;
 	}
 
 	public static Cosmetic styled(String style) {
+		if (DEV_STYLE.equals(style)) return dev();
 		for (int i = 0; i < CAPE_STYLES.length; i++) {
 			if (!CAPE_STYLES[i].equals(style)) continue;
 			if (STYLED[i] == null) STYLED[i] = capeOf(KROMVIA_CAPE + "_" + style, style);
@@ -78,6 +91,19 @@ public final class Cosmetics {
 	private static Cosmetic capeOf(String id, String style) {
 		Piece p = new Piece(id, Shapes.cape(CapeArt.FRAMES, () -> CapeArt.frames(style)), Anchor.BODY, 0xFFFFFFFF, false, capeWave());
 		return new Cosmetic(KROMVIA_CAPE, "Kromvia Cape", Slot.BACK, 0xFFFFFFFF, List.of(p));
+	}
+
+	public static void prewarm() {
+		if (devSelf()) dev();
+	}
+
+	private static synchronized Cosmetic dev() {
+		if (dev == null) {
+			CompletableFuture<NativeImage[]> art = CompletableFuture.supplyAsync(DevCape::frames);
+			Piece p = new Piece(KROMVIA_CAPE + "_dev", Shapes.cape(DevCape.FRAMES, art::join), Anchor.BODY, 0xFFFFFFFF, false, capeWave());
+			dev = new Cosmetic(KROMVIA_CAPE, "Developer Cape", Slot.BACK, 0xFFFFFFFF, List.of(p));
+		}
+		return dev;
 	}
 
 	private static List<Cosmetic> load() {
