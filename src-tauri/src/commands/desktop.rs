@@ -41,7 +41,7 @@ pub fn backup_delete(instance_id: String, name: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn backup_open_folder(instance_id: String) -> Result<(), String> {
-    tauri_plugin_opener::open_path(backups::folder(&instance_id)?, None::<&str>).map_err(|e| e.to_string())
+    crate::engine::opener::open_path(backups::folder(&instance_id)?)
 }
 
 #[tauri::command]
@@ -91,7 +91,7 @@ pub fn ui_ready(app: AppHandle) {
 pub fn launcher_log_open() -> Result<(), String> {
     let dir = crashlog::dir();
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    tauri_plugin_opener::open_path(dir, None::<&str>).map_err(|e| e.to_string())
+    crate::engine::opener::open_path(dir)
 }
 
 #[tauri::command]

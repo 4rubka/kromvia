@@ -12,6 +12,7 @@ pub mod java;
 pub mod media;
 pub mod metrics;
 pub mod nbt;
+pub mod opener;
 pub mod relocate;
 pub mod servers;
 pub mod shortcut;

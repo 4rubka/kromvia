@@ -5,7 +5,7 @@ import { FloatingCubes } from "@/components/FloatingCubes";
 import { LauncherMock } from "@/components/LauncherMock";
 import { Showcase } from "@/components/Showcase";
 import { HomeMotion } from "@/components/HomeMotion";
-import { content, MODULE_COUNT, MODULES, VERSIONS } from "@/lib/content";
+import { content, MODULE_COUNT, MODULES } from "@/lib/content";
 import { getLang, getOs, OS_NAME } from "@/lib/i18n";
 import { DISCORD_INVITE } from "@/lib/i18n-shared";
 import s from "./home.module.css";
@@ -17,12 +17,6 @@ const T = {
   en: {
     title: "Minecraft launcher with its own built-in client",
     lede: `It runs any version on any loader. In game you get ${MODULE_COUNT}+ modules on Right Shift and cosmetics your friends can see.`,
-    yourMods: "your mods",
-    diff: [
-      { title: "Your mods next to the client", text: "The client is a mod inside a normal instance. Put Sodium, shaders or anything from Modrinth and CurseForge right beside it." },
-      { title: "Any version, any loader", text: "The launcher starts everything from alpha to the latest snapshot. The client runs on Fabric, and on Forge and NeoForge for 1.21 to 1.21.10." },
-      { title: "Friends without a server", text: "Send a room code and your singleplayer world is open. No hosting, no port forwarding." },
-    ],
     launch: "Launch your world", downloadFor: (os: string) => `Download for ${os}`, features: "See features",
     menuTitle: "Everything opens with Right Shift",
     menuText: "You don't have to hunt for mods. The Kromvia client is added to every instance, and its menu holds the HUD, PvP tools, visuals and cosmetics.",
@@ -38,12 +32,6 @@ const T = {
   uk: {
     title: "Лаунчер Minecraft з власним вбудованим клієнтом",
     lede: `Запускає будь-яку версію на будь-якому лоадері. У грі на Right Shift ${MODULE_COUNT}+ модулів і косметика, яку бачать друзі.`,
-    yourMods: "твої моди",
-    diff: [
-      { title: "Твої моди поруч із клієнтом", text: "Клієнт це мод у звичайній збірці. Став поруч Sodium, шейдери чи будь-що з Modrinth і CurseForge." },
-      { title: "Будь-яка версія, будь-який лоадер", text: "Лаунчер запускає все, від alpha до найсвіжішого снапшоту. Клієнт працює на Fabric, а на Forge і NeoForge для 1.21–1.21.10." },
-      { title: "Друзі без сервера", text: "Кинь другу код кімнати, і твій одиночний світ відкритий. Без хостингу й прокидання портів." },
-    ],
     launch: "Запустити свій світ", downloadFor: (os: string) => `Завантажити для ${os}`, features: "Усі можливості",
     menuTitle: "Усе відкривається на Right Shift",
     menuText: "Не треба шукати моди. Клієнт Kromvia додається в кожну збірку, а в його меню HUD, PvP-інструменти, візуали й косметика.",
@@ -88,39 +76,6 @@ export default async function Home() {
             <div data-m="hero-tilt">
               <LauncherMock />
             </div>
-          </div>
-        </div>
-      </section>
-
-      <section className={s.diffSection}>
-        <div className={`wrap ${s.diff}`}>
-          <div className={s.diffItem}>
-            <div className={s.stack} aria-hidden="true">
-              <span className={s.stackOn}>Kromvia client</span>
-              <span>Sodium</span>
-              <span>Iris Shaders</span>
-              <span className={s.stackMore}>+ {t.yourMods}</span>
-            </div>
-            <h3>{t.diff[0].title}</h3>
-            <p>{t.diff[0].text}</p>
-          </div>
-          <div className={s.diffItem}>
-            <div className={s.range} aria-hidden="true">
-              <b>a1.0.4</b>
-              <i />
-              <b>{VERSIONS.split(" to ")[1]}</b>
-            </div>
-            <h3>{t.diff[1].title}</h3>
-            <p>{t.diff[1].text}</p>
-          </div>
-          <div className={s.diffItem}>
-            <div className={s.code} aria-hidden="true">
-              {"K7Q2MX".split("").map((c, i) => (
-                <kbd key={i}>{c}</kbd>
-              ))}
-            </div>
-            <h3>{t.diff[2].title}</h3>
-            <p>{t.diff[2].text}</p>
           </div>
         </div>
       </section>

@@ -450,30 +450,32 @@ export function Content({ initialTab = "mod" }: { initialTab?: Tab }) {
         </div>
       )}
 
-      {asking && (
-        <div className="overlay" role="dialog" aria-modal="true" aria-label={t("content.target")} onClick={() => setAsking(null)}>
-          <section className="card onboarding" onClick={(e) => e.stopPropagation()}>
-            <h2>
-              {t("content.target")} · {asking.hit.title}
-            </h2>
-            <ul className="rows compact">
-              {instances.map((i) => (
-                <li key={i.id}>
-                  <button className="row plain pick-instance" aria-pressed={i.id === inst?.id} onClick={() => installInto(i)}>
-                    <span className="instance-name">{i.name}</span>
-                    <span className="muted">{describe(i, t("instance.vanilla"))}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <div className="actions">
-              <button className="btn btn-ghost" onClick={() => setAsking(null)}>
-                {t("common.cancel")}
-              </button>
-            </div>
-          </section>
-        </div>
-      )}
+      {asking &&
+        createPortal(
+          <div className="overlay" role="dialog" aria-modal="true" aria-label={t("content.target")} onClick={() => setAsking(null)}>
+            <section className="card onboarding" onClick={(e) => e.stopPropagation()}>
+              <h2>
+                {t("content.target")} · {asking.hit.title}
+              </h2>
+              <ul className="rows compact">
+                {instances.map((i) => (
+                  <li key={i.id}>
+                    <button className="row plain pick-instance" aria-pressed={i.id === inst?.id} onClick={() => installInto(i)}>
+                      <span className="instance-name">{i.name}</span>
+                      <span className="muted">{describe(i, t("instance.vanilla"))}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <div className="actions">
+                <button className="btn btn-ghost" onClick={() => setAsking(null)}>
+                  {t("common.cancel")}
+                </button>
+              </div>
+            </section>
+          </div>,
+          document.body,
+        )}
     </>
   );
 }

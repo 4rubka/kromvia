@@ -82,7 +82,7 @@ pub fn screenshot_delete(instance_id: String, name: String) -> Result<(), String
 
 #[tauri::command]
 pub fn screenshot_open(instance_id: String, name: String) -> Result<(), String> {
-    tauri_plugin_opener::open_path(worlds::screenshot_path(&instance_id, &name)?, None::<&str>).map_err(|e| e.to_string())
+    crate::engine::opener::open_path(worlds::screenshot_path(&instance_id, &name)?)
 }
 
 #[tauri::command]
@@ -103,7 +103,7 @@ pub fn instance_open_folder(instance_id: String, folder: String) -> Result<(), S
         dir = dir.join(folder);
     }
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    tauri_plugin_opener::open_path(dir, None::<&str>).map_err(|e| e.to_string())
+    crate::engine::opener::open_path(dir)
 }
 
 #[tauri::command]
@@ -113,7 +113,7 @@ pub fn crash_report_open(instance_id: String, path: PathBuf) -> Result<(), Strin
     if !path.starts_with(dir.canonicalize().map_err(|e| e.to_string())?) {
         return Err("not a crash report of this instance".into());
     }
-    tauri_plugin_opener::open_path(path, None::<&str>).map_err(|e| e.to_string())
+    crate::engine::opener::open_path(path)
 }
 
 #[derive(Serialize)]
@@ -144,7 +144,7 @@ pub fn instance_open_log(instance_id: String) -> Result<(), String> {
     if !log.is_file() {
         return Err("no latest.log yet".into());
     }
-    tauri_plugin_opener::open_path(log, None::<&str>).map_err(|e| e.to_string())
+    crate::engine::opener::open_path(log)
 }
 
 #[tauri::command]

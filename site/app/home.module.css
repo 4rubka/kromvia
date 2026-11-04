@@ -102,105 +102,6 @@
   }
 }
 
-.diffSection {
-  padding: clamp(48px, 7vw, 88px) 0 0;
-}
-
-.diff {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-}
-
-.diffItem {
-  display: grid;
-  grid-template-rows: 96px auto 1fr;
-  align-content: start;
-  gap: 10px;
-  padding: 0 clamp(20px, 3vw, 40px);
-  border-left: 1px solid var(--border);
-}
-
-.diffItem:first-child {
-  padding-left: 0;
-  border-left: 0;
-}
-
-.diffItem h3 {
-  font-size: 20px;
-}
-
-.diffItem p {
-  max-width: 34ch;
-  color: var(--text-muted);
-  font-size: 15px;
-}
-
-.stack {
-  display: flex;
-  flex-wrap: wrap;
-  align-content: start;
-  gap: 6px;
-}
-
-.stack span {
-  padding: 4px 10px 6px;
-  background: var(--surface-2);
-  box-shadow: inset 0 0 0 1px var(--border), inset 0 -2px 0 rgb(0 0 0 / 0.35);
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.stack .stackOn {
-  background: var(--accent);
-  box-shadow: inset 0 -2px 0 var(--accent-deep);
-  color: #fff;
-}
-
-.stack .stackMore {
-  background: none;
-  box-shadow: none;
-  outline: 1px dashed color-mix(in srgb, var(--text-muted) 50%, transparent);
-  outline-offset: -1px;
-  color: var(--text-muted);
-}
-
-.range {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-family: var(--font-display), sans-serif;
-  font-size: clamp(26px, 2.8vw, 36px);
-  line-height: 1;
-}
-
-.range i {
-  flex: 1;
-  max-width: 90px;
-  height: 3px;
-  background: repeating-linear-gradient(90deg, var(--accent) 0 8px, transparent 8px 12px);
-}
-
-.code {
-  display: flex;
-  gap: 5px;
-  align-items: start;
-}
-
-.code kbd {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 46px;
-  background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--border), inset 0 -4px 0 rgb(0 0 0 / 0.4);
-  font-family: var(--font-display), sans-serif;
-  font-size: 20px;
-}
-
-.code kbd:nth-child(4) {
-  margin-left: 10px;
-}
-
 .cosmetics {
   background: radial-gradient(ellipse 50% 60% at 25% 50%, rgb(139 92 246 / 0.16), transparent 70%);
 }
@@ -295,19 +196,8 @@
 }
 
 @media (max-width: 860px) {
-  .split,
-  .diff {
+  .split {
     grid-template-columns: 1fr;
-  }
-
-  .diff {
-    gap: 36px;
-  }
-
-  .diffItem {
-    grid-template-rows: auto;
-    padding: 0;
-    border-left: 0;
   }
 
   .statsRow {
