@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { useI18n } from "../i18n";
@@ -13,10 +15,11 @@ import { Empty } from "../ui/Empty";
 import { BlockIcon, ICON_BLOCKS, InstanceIcon } from "../art/ModelIcon";
 import { MODELS } from "../art/catalog";
 import { modelShot } from "../art/gltf";
+import { MOD_QUERY_KEY } from "../ui/Palette";
 import { aimContent, InstalledList, type Installed, type Kind } from "../content/Content";
 import { PackOrder, SafetyCheck } from "../content/Tools";
 import { ContentUpdates } from "../content/Updates";
-import { Backups, Cloud, Files, SavedServers, Screenshots, Worlds } from "./InstanceExtras";
+import { Backups, Cloud, Files, FolderButton, SavedServers, Screenshots, Worlds } from "./InstanceExtras";
 import { Conflicts } from "./Conflicts";
 import { Metrics } from "./Metrics";
 
@@ -24,7 +27,8 @@ type Preset = "auto" | "maxFps" | "balanced" | "quality";
 const PRESETS: Preset[] = ["auto", "maxFps", "balanced", "quality"];
 
 type Tab = "content" | "conflicts" | "worlds" | "servers" | "screenshots" | "settings" | "performance" | "files" | "backups" | "cloud" | "icon";
-const TABS: Tab[] = ["content", "conflicts", "worlds", "servers", "screenshots", "settings", "performance", "files", "backups", "cloud", "icon"];
+const TABS: Tab[] = ["content", "conflicts", "worlds", "servers", "screenshots", "settings", "performance"];
+const MORE_TABS: Tab[] = ["files", "backups", "cloud"];
 const TAB_LABELS: Record<Tab, MessageKey> = {
   content: "builds.content",
   conflicts: "conflicts.title",
@@ -46,6 +50,9 @@ export function Builds({ onAddContent }: { onAddContent: (kind: Kind) => void })
   const [notice, setNotice] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("content");
+  const [more, setMore] = useState(false);
+  const [dropping, setDropping] = useState(false);
+  const [contentRev, setContentRev] = useState(0);
 
   const launcher = useLauncher();
   const { selected, setSelected } = launcher;
@@ -76,6 +83,38 @@ export function Builds({ onAddContent }: { onAddContent: (kind: Kind) => void })
     setCover(null);
     if (inst) invoke<string | null>("instance_cover", { id: inst.id }).then(setCover, () => {});
   }, [inst?.id, coverRev]);
+
+  const instRef = useRef(inst);
+  instRef.current = inst;
+  useEffect(() => {
+    const off = getCurrentWebview().onDragDropEvent(({ payload }) => {
+      const target = instRef.current;
+      if (payload.type === "over" || payload.type === "enter") return setDropping(!!target);
+      setDropping(false);
+      if (payload.type !== "drop" || !target) return;
+      const packs = payload.paths.filter((p) => p.toLowerCase().endsWith(".mrpack"));
+      const files = payload.paths.filter((p) => !packs.includes(p));
+      packs.forEach((path) =>
+        invoke<number>("modpack_import", { path }).then(
+          (id) => imports.started(`modpack-file-${path}`, id),
+          (e) => setError(String(e)),
+        ),
+      );
+      if (files.length === 0) return;
+      setError(null);
+      setNotice(null);
+      invoke<string[]>("content_add_files", { instanceId: target.id, paths: files })
+        .then((added) => {
+          setNotice(t("builds.dropped", { n: String(added.length), name: target.name }));
+          setTab("content");
+          setContentRev((r) => r + 1);
+        })
+        .catch((e) => setError(String(e)));
+    });
+    return () => {
+      off.then((f) => f());
+    };
+  }, []);
 
   const importPack = async () => {
     setError(null);
@@ -168,31 +207,35 @@ export function Builds({ onAddContent }: { onAddContent: (kind: Kind) => void })
         <Empty bee="empty-builds">{t("builds.empty")}</Empty>
       ) : (
         <div className="builds">
-          <div>
-            <ul className="list instances">
-              {list.items.map((i, n) => [
-                (n === 0 || list.items[n - 1].group !== i.group) && (i.group || n > 0) && (
-                  <li key={`group-${i.group ?? ""}`} className="instance-group muted">
-                    {i.group ?? t("builds.ungrouped")}
-                  </li>
-                ),
-                <li key={i.id} className="list-row instance" data-selected={i.id === inst?.id} onClick={() => setSelected(i.id)}>
-                  <InstanceIcon inst={i} size={32} />
-                  <div className="list-main">
-                    <span className="instance-name">{i.name}</span>
-                    <span className="muted">
-                      {i.mcVersion} · {i.loader ? LOADER_NAMES[i.loader.kind] : t("instance.vanilla")}
-                    </span>
-                  </div>
-                </li>,
-              ])}
-            </ul>
-            {list.pager}
+          <div className="builds-side">
+            <div className="builds-scroll">
+              <ul className="list instances">
+                {list.items.map((i, n) => [
+                  (n === 0 || list.items[n - 1].group !== i.group) && (i.group || n > 0) && (
+                    <li key={`group-${i.group ?? ""}`} className="instance-group muted">
+                      {i.group ?? t("builds.ungrouped")}
+                    </li>
+                  ),
+                  <li key={i.id} className="list-row instance" data-selected={i.id === inst?.id} onClick={() => setSelected(i.id)} onDoubleClick={() => launcher.play(i)}>
+                    <InstanceIcon inst={i} size={32} />
+                    <div className="list-main">
+                      <span className="instance-name">{i.name}</span>
+                      <span className="muted">
+                        {i.mcVersion} · {i.loader ? LOADER_NAMES[i.loader.kind] : t("instance.vanilla")}
+                      </span>
+                    </div>
+                  </li>,
+                ])}
+              </ul>
+              {list.pager}
+            </div>
           </div>
           {inst && (
             <div className="build">
-              <header className="card build-head" data-cover={cover ? "" : undefined} style={cover ? { backgroundImage: `linear-gradient(90deg, var(--surface) 30%, transparent), url(${cover})` } : undefined}>
-                <InstanceIcon inst={inst} size={56} />
+              <header className="card build-head" data-cover={cover ? "" : undefined} style={cover ? ({ "--cover": `url("${cover}")` } as CSSProperties) : undefined}>
+                <button className="build-icon" title={t("builds.icon")} aria-label={t("builds.icon")} onClick={() => setTab("icon")}>
+                  <InstanceIcon inst={inst} size={56} />
+                </button>
                 <div className="list-main">
                   <h2>{inst.name}</h2>
                   <span className="muted">
@@ -224,17 +267,41 @@ export function Builds({ onAddContent }: { onAddContent: (kind: Kind) => void })
                   </button>
                 </div>
               </header>
-              {launcher.errors[inst.id] && <p className="error">{launcher.errors[inst.id]}</p>}
-              <div className="segmented tabs">
-                {TABS.map((k) => (
-                  <button key={k} aria-pressed={tab === k} onClick={() => setTab(k)}>
-                    {t(TAB_LABELS[k])}
+              {launcher.errors[inst.id] && (
+                <p className="error">
+                  {launcher.errors[inst.id]}{" "}
+                  <button className="btn btn-ghost" onClick={() => invoke("instance_open_log", { instanceId: inst.id }).catch((e) => setError(String(e)))}>
+                    <Glyph name="external-link" /> {t("game.openLog")}
                   </button>
-                ))}
+                </p>
+              )}
+              <div className="tabs-row">
+                <div className="segmented tabs">
+                  {TABS.map((k) => (
+                    <button key={k} aria-pressed={tab === k} onClick={() => setTab(k)}>
+                      {t(TAB_LABELS[k])}
+                    </button>
+                  ))}
+                </div>
+                <div className="tabs-more" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setMore(false)}>
+                  <button className={MORE_TABS.includes(tab) ? "btn" : "btn btn-ghost"} aria-expanded={more} onClick={() => setMore((m) => !m)}>
+                    {MORE_TABS.includes(tab) ? t(TAB_LABELS[tab]) : t("builds.more")} <Glyph name="chevron-down" />
+                  </button>
+                  {more && (
+                    <div className="tabs-menu" role="menu">
+                      {MORE_TABS.map((k) => (
+                        <button key={k} className="btn btn-ghost" role="menuitem" onClick={() => (setTab(k), setMore(false))}>
+                          {t(TAB_LABELS[k])}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               {tab === "content" && (
                 <InstanceContent
                   inst={inst}
+                  rev={contentRev}
                   onAdd={(kind) => {
                     aimContent(inst.id);
                     onAddContent(kind);
@@ -288,6 +355,14 @@ export function Builds({ onAddContent }: { onAddContent: (kind: Kind) => void })
           )}
         </div>
       )}
+      {dropping &&
+        inst &&
+        createPortal(
+          <div className="drop-hint" aria-hidden>
+            <Glyph name="upload" /> {t("builds.dropHere", { name: inst.name })}
+          </div>,
+          document.body,
+        )}
     </>
   );
 }
@@ -557,28 +632,52 @@ function ModelChoice({ id, name, onPick }: { id: string; name: string; onPick: (
   );
 }
 
+type Duplicate = { kind: string; id: string; name: string | null; files: string[] };
+
 const FOLDERS: { folder: string; kind: Kind }[] = [
   { folder: "mods", kind: "mod" },
   { folder: "resourcepacks", kind: "resourcepack" },
   { folder: "shaderpacks", kind: "shader" },
 ];
 
-function InstanceContent({ inst, onAdd }: { inst: Instance; onAdd: (kind: Kind) => void }) {
+function InstanceContent({ inst, rev, onAdd }: { inst: Instance; rev: number; onAdd: (kind: Kind) => void }) {
   const { t } = useI18n();
   const [files, setFiles] = useState<Installed[]>([]);
   const [tab, setTab] = useState(FOLDERS[0]);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(() => {
+    try {
+      const q = sessionStorage.getItem(MOD_QUERY_KEY) ?? "";
+      sessionStorage.removeItem(MOD_QUERY_KEY);
+      return q;
+    } catch {
+      return "";
+    }
+  });
   const [packsRev, setPacksRev] = useState(0);
+  const [dupes, setDupes] = useState<Duplicate[]>([]);
   const refresh = () => {
     setPacksRev((r) => r + 1);
+    invoke<Duplicate[]>("content_conflicts", { instanceId: inst.id }).then((c) => setDupes(c.filter((x) => x.kind === "duplicate")), () => setDupes([]));
     return invoke<Installed[]>("content_list", { instanceId: inst.id }).then(setFiles, () => setFiles([]));
   };
+  const keepOnly = (d: Duplicate, keep: string) =>
+    Promise.all(d.files.filter((f) => f !== keep).map((file) => invoke("content_remove", { instanceId: inst.id, folder: "mods", file }))).finally(refresh);
   const q = query.trim().toLowerCase();
   const shown = files.filter((x) => x.folder === tab.folder && (!q || x.title.toLowerCase().includes(q) || x.file.toLowerCase().includes(q)));
   useEffect(() => {
     refresh().then(() => invoke<number>("content_identify", { instanceId: inst.id })).then((n) => {
       if (n) refresh();
     }, () => {});
+  }, [inst.id, rev]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "F5") {
+        e.preventDefault();
+        refresh();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, [inst.id]);
 
   return (
@@ -591,17 +690,36 @@ function InstanceContent({ inst, onAdd }: { inst: Instance; onAdd: (kind: Kind) 
             </button>
           ))}
         </div>
-        <button className="btn" onClick={() => onAdd(tab.kind)}>
-          <Glyph name="plus" /> {t("builds.add")}
-        </button>
+        <div className="actions">
+          <FolderButton inst={inst} folder={tab.folder} />
+          <button className="btn" onClick={() => onAdd(tab.kind)}>
+            <Glyph name="plus" /> {t("builds.add")}
+          </button>
+        </div>
       </div>
       <input
+        data-search
         className="input content-filter"
         placeholder={t("builds.filter")}
         aria-label={t("builds.filter")}
         value={query}
         onChange={(e) => setQuery(e.currentTarget.value)}
       />
+      {tab.folder === "mods" &&
+        dupes.map((d) => (
+          <div key={d.id} className="dupe-warning">
+            <p>
+              <strong>{t("dupes.title", { name: d.name ?? d.id })}</strong> {t("dupes.hint")}
+            </p>
+            <div className="actions">
+              {d.files.map((f) => (
+                <button key={f} className="btn btn-ghost" title={f} onClick={() => keepOnly(d, f)}>
+                  {t("dupes.keep", { file: f })}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
       <ContentUpdates instanceId={inst.id} onChange={refresh} />
       <InstalledList files={shown} instanceId={inst.id} onChange={refresh} />
       {tab.folder === "mods" && <SafetyCheck instanceId={inst.id} />}

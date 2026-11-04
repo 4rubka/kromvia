@@ -15,6 +15,7 @@ import { NewInstance } from "./NewInstance";
 import { ImportInstances } from "./ImportInstances";
 import { Flowers, Vines } from "./Decor";
 import { MinimapOffer } from "./MinimapOffer";
+import { TileMenu } from "./TileMenu";
 
 export type Nav = "builds" | "content" | "skins" | "rooms" | "accounts";
 type LibrarySkin = { id: string; slim: boolean; dataUrl: string };
@@ -32,6 +33,14 @@ type Server = { name: string; address: string; color: string };
 const SERVERS_KEY = "kromvia.servers";
 const TINTS = ["#e0a53c", "#3a8fd9", "#5fb83f", "#d94a4a", "#b98cf0", "#12907e", "#d9466f"];
 const validAddress = (a: string) => /^[a-zA-Z0-9.:-]{1,253}$/.test(a) && !a.startsWith("-");
+
+function ago(seconds: number, t: ReturnType<typeof useI18n>["t"]) {
+  const mins = Math.max(0, Math.floor(Date.now() / 1000 - seconds) / 60);
+  if (mins < 1) return t("home.agoNow");
+  if (mins < 60) return t("home.agoMin", { n: String(Math.floor(mins)) });
+  if (mins < 60 * 24) return t("home.agoHour", { n: String(Math.floor(mins / 60)) });
+  return t("home.agoDay", { n: String(Math.floor(mins / 60 / 24)) });
+}
 
 function savedServers(): Server[] {
   try {
@@ -132,6 +141,22 @@ export function Home({ onNavigate }: { onNavigate: (page: Nav) => void }) {
       .then(setSkin, () => {});
   }, [who]);
 
+  const [menu, setMenu] = useState<{ inst: Instance; x: number; y: number } | null>(null);
+  const [summary, setSummary] = useState<Record<string, { lastPlayed: number; mods: number }>>({});
+  const libraryKey = instances.map((i) => i.id).join(",");
+  useEffect(() => {
+    instances.forEach((i) =>
+      invoke<{ lastPlayed: number; mods: number }>("instance_summary", { id: i.id }).then(
+        (sm) => setSummary((m) => ({ ...m, [i.id]: sm })),
+        () => {},
+      ),
+    );
+  }, [libraryKey, l.exits]);
+  const [cover, setCover] = useState<string | null>(null);
+  useEffect(() => {
+    setCover(null);
+    if (current) invoke<string | null>("instance_cover", { id: current.id }).then(setCover, () => {});
+  }, [current?.id]);
   const job = current && l.jobOf(current.id);
   const run = current && l.runOf(current.id);
   const name = l.account?.name ?? (l.nick.trim() || t("home.guest"));
@@ -270,7 +295,7 @@ export function Home({ onNavigate }: { onNavigate: (page: Nav) => void }) {
           )}
         </div>
 
-        <section className="launchpad tile-art-host">
+        <section className="launchpad tile-art-host" data-cover={cover ? "" : undefined} style={cover ? ({ "--cover": `url("${cover}")` } as CSSProperties) : undefined}>
           <Vines />
           <div className="launchpad-art">
             <img className="launchpad-bee" src="/bee/empty-home.webp" alt="" draggable={false} />
@@ -321,7 +346,14 @@ export function Home({ onNavigate }: { onNavigate: (page: Nav) => void }) {
                 </select>
               )}
               {clientNote && <small className="muted">{clientNote}</small>}
-              {l.errors[current.id] && <p className="error">{l.errors[current.id]}</p>}
+              {l.errors[current.id] && (
+                <p className="error">
+                  {l.errors[current.id]}{" "}
+                  <button className="btn btn-ghost" onClick={() => invoke("instance_open_log", { instanceId: current.id }).catch(() => {})}>
+                    <Glyph name="external-link" /> {t("game.openLog")}
+                  </button>
+                </p>
+              )}
               {run && <MinimapOffer inst={current} />}
             </div>
           ) : (
@@ -409,11 +441,18 @@ export function Home({ onNavigate }: { onNavigate: (page: Nav) => void }) {
             {library.items.map((inst) => {
               const exit = l.exits[inst.id];
               return (
-                <li key={inst.id}>
+                <li key={inst.id} onContextMenu={(e) => (e.preventDefault(), setMenu({ inst, x: e.clientX, y: e.clientY }))}>
                   <button className="tile" data-selected={inst.id === current?.id} title={t("home.openBuild")} onClick={() => open(inst)}>
                     <InstanceIcon inst={inst} size={56} />
                     <span className="tile-name">{inst.name}</span>
                     <small>{describe(inst, t("instance.vanilla"))}</small>
+                    {summary[inst.id] && (
+                      <small className="muted tile-meta">
+                        {summary[inst.id].mods > 0 && t("home.modCount", { n: String(summary[inst.id].mods) })}
+                        {summary[inst.id].mods > 0 && summary[inst.id].lastPlayed > 0 && " · "}
+                        {summary[inst.id].lastPlayed > 0 && ago(summary[inst.id].lastPlayed, t)}
+                      </small>
+                    )}
                     {exit !== undefined && exit !== 0 && (
                       <span className="error-inline small">{t("game.crashed", { code: String(exit) })}</span>
                     )}
@@ -436,6 +475,7 @@ export function Home({ onNavigate }: { onNavigate: (page: Nav) => void }) {
             })}
           </ul>
           {library.pager}
+          {menu && <TileMenu inst={menu.inst} x={menu.x} y={menu.y} onClose={() => setMenu(null)} onOpen={() => open(menu.inst)} />}
         </section>
 
         {current && l.crashes[current.id] && !run && <CrashHelp key={current.id} inst={current} crash={l.crashes[current.id]} />}

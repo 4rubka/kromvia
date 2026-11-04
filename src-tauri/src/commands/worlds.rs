@@ -91,7 +91,7 @@ pub async fn screenshot_discord(instance_id: String, name: String) -> Result<(),
     tauri::async_runtime::spawn_blocking(move || crate::engine::discord::screenshot_to_discord(&path)).await.map_err(|e| e.to_string())?
 }
 
-const FOLDERS: [&str; 6] = ["", "saves", "screenshots", "mods", "logs", "crash-reports"];
+const FOLDERS: [&str; 9] = ["", "saves", "screenshots", "mods", "resourcepacks", "shaderpacks", "config", "logs", "crash-reports"];
 
 #[tauri::command]
 pub fn instance_open_folder(instance_id: String, folder: String) -> Result<(), String> {
@@ -121,6 +121,30 @@ pub fn crash_report_open(instance_id: String, path: PathBuf) -> Result<(), Strin
 pub struct InstanceInfo {
     stats: Stats,
     usage: Usage,
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstanceSummary {
+    last_played: u64,
+    mods: usize,
+}
+
+#[tauri::command]
+pub fn instance_summary(id: String) -> Result<InstanceSummary, String> {
+    let mods = std::fs::read_dir(instances::game_dir(&id)?.join("mods"))
+        .map(|d| d.flatten().filter(|e| e.file_name().to_string_lossy().ends_with(".jar")).count())
+        .unwrap_or(0);
+    Ok(InstanceSummary { last_played: instances::stats(&id).last_played, mods })
+}
+
+#[tauri::command]
+pub fn instance_open_log(instance_id: String) -> Result<(), String> {
+    let log = instances::game_dir(&instance_id)?.join("logs").join("latest.log");
+    if !log.is_file() {
+        return Err("no latest.log yet".into());
+    }
+    tauri_plugin_opener::open_path(log, None::<&str>).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

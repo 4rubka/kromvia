@@ -63,6 +63,8 @@ pub struct InstalledFile {
     pub enabled: bool,
     pub title: String,
     pub project_id: Option<String>,
+    pub size: u64,
+    pub modified: u64,
 }
 
 fn index_path(instance_id: &str) -> Result<PathBuf, String> {
@@ -101,7 +103,10 @@ pub fn list(instance_id: &str) -> Result<Vec<InstalledFile>, String> {
                 None => (name, true),
             };
             let known = index.iter().find(|e| e.folder == folder && e.file == file);
+            let meta = entry.metadata().ok();
             out.push(InstalledFile {
+                size: meta.as_ref().map_or(0, |m| m.len()),
+                modified: meta.and_then(|m| m.modified().ok()).and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map_or(0, |d| d.as_secs()),
                 folder: folder.to_string(),
                 title: known.map_or_else(|| file.clone(), |e| e.title.clone()),
                 project_id: known.map(|e| e.project_id.clone()),
@@ -112,6 +117,33 @@ pub fn list(instance_id: &str) -> Result<Vec<InstalledFile>, String> {
     }
     out.sort_by(|a, b| (&a.folder, a.title.to_lowercase()).cmp(&(&b.folder, b.title.to_lowercase())));
     Ok(out)
+}
+
+fn folder_for(path: &std::path::Path) -> Option<&'static str> {
+    let ext = path.extension()?.to_str()?.to_ascii_lowercase();
+    match ext.as_str() {
+        "jar" => Some("mods"),
+        "zip" => {
+            let archive = zip::ZipArchive::new(std::fs::File::open(path).ok()?).ok()?;
+            let shader = archive.file_names().any(|n| n.is_ok_and(|n| n.starts_with("shaders/")));
+            Some(if shader { "shaderpacks" } else { "resourcepacks" })
+        }
+        _ => None,
+    }
+}
+
+pub fn add_files(instance_id: &str, paths: &[PathBuf]) -> Result<Vec<String>, String> {
+    let game = instances::game_dir(instance_id)?;
+    let mut added = Vec::new();
+    for path in paths {
+        let Some(folder) = folder_for(path) else { continue };
+        let Some(name) = path.file_name() else { continue };
+        let dir = game.join(folder);
+        std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+        std::fs::copy(path, safe_join(&dir, &name.to_string_lossy())?).map_err(|e| e.to_string())?;
+        added.push(format!("{folder}/{}", name.to_string_lossy()));
+    }
+    Ok(added)
 }
 
 pub fn checked_file(instance_id: &str, folder: &str, file: &str) -> Result<PathBuf, String> {

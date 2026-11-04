@@ -13,14 +13,14 @@ const CUBES: { x: number; y: number; size: number; blur?: number; delay: number;
 
 export function FloatingCubes() {
   return (
-    <div className={s.layer} aria-hidden="true">
+    <div className={s.layer} aria-hidden="true" data-cubes>
       {CUBES.map((c, i) => (
         <Cube
           key={i}
           size={c.size}
           className={s.cube}
           tones={c.dim ? ["#4a3a8a", "#2e2366", "#1a2a6a"] : undefined}
-          style={{ left: `${c.x}%`, top: `${c.y}%`, filter: c.blur ? `blur(${c.blur}px)` : undefined, animationDelay: `${-c.delay}s` }}
+          style={{ "--d": c.size / 40, left: `${c.x}%`, top: `${c.y}%`, filter: c.blur ? `blur(${c.blur}px)` : undefined, animationDelay: `${-c.delay}s` } as React.CSSProperties}
         />
       ))}
     </div>

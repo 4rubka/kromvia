@@ -1,6 +1,6 @@
 [package]
 name = "kromvia"
-version = "0.1.5"
+version = "0.1.6"
 description = "Kromvia Minecraft launcher"
 authors = ["_4rubka_"]
 edition = "2021"
@@ -60,6 +60,12 @@ lto = true
 opt-level = 3
 panic = "abort"
 strip = true
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
 
 [dev-dependencies]
 tauri = { version = "2", features = ["test"] }

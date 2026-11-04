@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { useI18n } from "../i18n";
 import type { MessageKey } from "../i18n/en";
@@ -37,7 +38,7 @@ const LOADERS: [string, string][] = [
   ["neoforge", "NeoForge"],
   ["quilt", "Quilt"],
 ];
-export type Installed = { folder: string; file: string; enabled: boolean; title: string; projectId: string | null };
+export type Installed = { folder: string; file: string; enabled: boolean; title: string; projectId: string | null; size: number; modified: number };
 
 const TABS: Tab[] = ["mod", "modpack", "resourcepack", "shader", "datapack", "installed"];
 const TARGET_KEY = "kromvia.contentTarget";
@@ -491,29 +492,126 @@ export function Content({ initialTab = "mod" }: { initialTab?: Tab }) {
   );
 }
 
+type InstalledSort = "name" | "date" | "size";
+type Show = "all" | "on" | "off";
+
 export function InstalledList({ files, instanceId, onChange }: { files: Installed[]; instanceId: string; onChange: () => void }) {
   const { t } = useI18n();
   const [error, setError] = useState<string | null>(null);
-  const paged = usePaged(files, PAGE);
-  if (files.length === 0) return <p className="muted">{t("content.nothingInstalled")}</p>;
+  const [sort, setSort] = useState<InstalledSort>("name");
+  const [show, setShow] = useState<Show>("all");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [pending, setPending] = useState<Installed[]>([]);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingRef = useRef<Installed[]>([]);
+  pendingRef.current = pending;
+
+  const key = (f: Installed) => f.folder + "/" + f.file;
+  const hidden = new Set(pending.map(key));
+  const visible = files
+    .filter((f) => !hidden.has(key(f)) && (show === "all" || f.enabled === (show === "on")))
+    .sort((a, b) => (sort === "date" ? b.modified - a.modified : sort === "size" ? b.size - a.size : 0));
+  const paged = usePaged(visible, PAGE);
+  const picked = visible.filter((f) => selected.has(key(f)));
 
   const act = (p: Promise<unknown>) => p.then(() => (setError(null), onChange()), (e) => setError(String(e)));
+  const commit = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    const doomed = pendingRef.current;
+    if (doomed.length === 0) return;
+    setPending([]);
+    act(Promise.all(doomed.map((f) => invoke("content_remove", { instanceId, folder: f.folder, file: f.file }))));
+  };
+  const remove = (list: Installed[]) => {
+    commit();
+    setSelected(new Set());
+    setPending(list);
+    timer.current = setTimeout(commit, 5000);
+  };
+  const undo = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    setPending([]);
+  };
+  const setEnabled = (list: Installed[], enabled: boolean) =>
+    act(Promise.all(list.filter((f) => f.folder === "mods" && f.enabled !== enabled).map((f) => invoke("content_set_enabled", { instanceId, file: f.file, enabled }))));
+  const toggle = (f: Installed) =>
+    setSelected((s) => {
+      const next = new Set(s);
+      if (!next.delete(key(f))) next.add(key(f));
+      return next;
+    });
+
+  useEffect(() => commit, [instanceId]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Delete" || picked.length === 0 || (e.target as HTMLElement).closest("input, textarea, select")) return;
+      e.preventDefault();
+      remove(picked);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  if (files.length === 0) return <p className="muted">{t("content.nothingInstalled")}</p>;
+  const mods = files.some((f) => f.folder === "mods");
   return (
     <>
       {error && <p className="error">{error}</p>}
+      <div className="installed-tools">
+        <div className="segmented">
+          {(["name", "date", "size"] as InstalledSort[]).map((k) => (
+            <button key={k} aria-pressed={sort === k} onClick={() => setSort(k)}>
+              {t(`installed.sort.${k}` as MessageKey)}
+            </button>
+          ))}
+        </div>
+        {mods && (
+          <div className="segmented">
+            {(["all", "on", "off"] as Show[]).map((k) => (
+              <button key={k} aria-pressed={show === k} onClick={() => setShow(k)}>
+                {t(`installed.show.${k}` as MessageKey)}
+              </button>
+            ))}
+          </div>
+        )}
+        <button className="btn btn-ghost" onClick={() => setSelected(picked.length === visible.length ? new Set() : new Set(visible.map(key)))}>
+          {t(picked.length === visible.length && visible.length > 0 ? "installed.selectNone" : "installed.selectAll")}
+        </button>
+      </div>
+      {picked.length > 0 && (
+        <div className="installed-bulk">
+          <span>{t("installed.selected", { n: String(picked.length) })}</span>
+          {mods && (
+            <>
+              <button className="btn btn-ghost" onClick={() => setEnabled(picked, true)}>
+                {t("installed.enable")}
+              </button>
+              <button className="btn btn-ghost" onClick={() => setEnabled(picked, false)}>
+                {t("installed.disable")}
+              </button>
+            </>
+          )}
+          <button className="btn btn-danger" onClick={() => remove(picked)}>
+            <Glyph name="trash" /> {t("instance.delete")}
+          </button>
+        </div>
+      )}
       <ul className="rows compact">
         {paged.items.map((f) => (
-          <li key={f.folder + f.file} className="row plain">
+          <li key={key(f)} className="row plain" data-selected={selected.has(key(f))} onClick={() => toggle(f)}>
             {f.folder === "mods" && (
               <input
                 type="checkbox"
                 checked={f.enabled}
                 title={t("content.enabled")}
-                onChange={(e) => act(invoke("content_set_enabled", { instanceId, file: f.file, enabled: e.currentTarget.checked }))}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => setEnabled([f], e.currentTarget.checked)}
               />
             )}
             <ContentIcon instanceId={instanceId} folder={f.folder} file={f.file} />
-            <div className="list-main">
+            <div className="list-main" title={`${f.title}\n${f.folder}/${f.file}`}>
               <span className={f.enabled ? "" : "muted"}>{f.title}</span>
               <span className="path muted">
                 {f.folder}/{f.file}
@@ -524,7 +622,7 @@ export function InstalledList({ files, instanceId, onChange }: { files: Installe
                 className="btn btn-ghost"
                 title={t("instance.delete")}
                 aria-label={t("instance.delete")}
-                onClick={() => act(invoke("content_remove", { instanceId, folder: f.folder, file: f.file }))}
+                onClick={(e) => (e.stopPropagation(), remove([f]))}
               >
                 <Glyph name="trash" />
               </button>
@@ -533,6 +631,16 @@ export function InstalledList({ files, instanceId, onChange }: { files: Installe
         ))}
       </ul>
       {paged.pager}
+      {pending.length > 0 &&
+        createPortal(
+          <div className="undo-toast" role="status">
+            <span>{pending.length === 1 ? t("installed.removedOne", { name: pending[0].title }) : t("installed.removed", { n: String(pending.length) })}</span>
+            <button className="btn btn-ghost" onClick={undo}>
+              {t("installed.undo")}
+            </button>
+          </div>,
+          document.body,
+        )}
     </>
   );
 }

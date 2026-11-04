@@ -9,6 +9,8 @@ import { Empty } from "../ui/Empty";
 type Update = { folder: string; file: string; title: string; newFile: string; version: string };
 type Issue = { kind: "incompatible" | "missing"; title: string; other: string };
 
+const BIG_UPDATE = 5;
+
 export function ContentUpdates({ instanceId, onChange }: { instanceId: string; onChange: () => void }) {
   const { t } = useI18n();
   const [updates, setUpdates] = useState<Update[] | null>(null);
@@ -32,6 +34,20 @@ export function ContentUpdates({ instanceId, onChange }: { instanceId: string; o
     check();
   });
   const job = jobs.jobs[`update-${instanceId}`];
+  const [asking, setAsking] = useState(false);
+  const backups = useJobs("backup-", (key, e) => {
+    if (key !== `backup-${instanceId}`) return;
+    if (e) setError(e);
+    else run(null);
+  });
+  const backup = backups.jobs[`backup-${instanceId}`];
+  const backupThenRun = () => {
+    setAsking(false);
+    invoke<number>("backup_create", { instanceId }).then(
+      (id) => backups.started(`backup-${instanceId}`, id),
+      (e) => setError(String(e)),
+    );
+  };
 
   useEffect(() => {
     setUpdates(null);
@@ -48,9 +64,9 @@ export function ContentUpdates({ instanceId, onChange }: { instanceId: string; o
   return (
     <div className="content-updates">
       <div className="actions">
-        {job ? (
+        {backup || job ? (
           <div className="job">
-            <Progress job={job} />
+            <Progress job={(backup ?? job)!} />
           </div>
         ) : (
           <>
@@ -58,13 +74,29 @@ export function ContentUpdates({ instanceId, onChange }: { instanceId: string; o
               <Glyph name="refresh" /> {checking ? t("updates.checking") : t("updates.check")}
             </button>
             {updates && updates.length > 0 && (
-              <button className="btn" onClick={() => run(null)}>
+              <button className="btn" onClick={() => (updates.length >= BIG_UPDATE ? setAsking(true) : run(null))}>
                 <Glyph name="download" /> {t("updates.all", { n: String(updates.length) })}
               </button>
             )}
           </>
         )}
       </div>
+      {asking && updates && (
+        <div className="dupe-warning">
+          <p>{t("updates.backupAsk", { n: String(updates.length) })}</p>
+          <div className="actions">
+            <button className="btn btn-ghost" onClick={() => setAsking(false)}>
+              {t("common.cancel")}
+            </button>
+            <button className="btn btn-ghost" onClick={() => (setAsking(false), run(null))}>
+              {t("updates.noBackup")}
+            </button>
+            <button className="btn" onClick={backupThenRun}>
+              {t("updates.backupFirst")}
+            </button>
+          </div>
+        </div>
+      )}
       {error && <p className="error">{error}</p>}
       {issues.map((i) => (
         <p key={i.kind + i.title + i.other} className="error">

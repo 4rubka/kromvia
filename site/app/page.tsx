@@ -4,6 +4,7 @@ import { Glyph } from "@/components/Glyph";
 import { FloatingCubes } from "@/components/FloatingCubes";
 import { LauncherMock } from "@/components/LauncherMock";
 import { Showcase } from "@/components/Showcase";
+import { HomeMotion } from "@/components/HomeMotion";
 import { content, MODULE_COUNT, MODULES } from "@/lib/content";
 import { getLang, getOs, OS_NAME } from "@/lib/i18n";
 import { DISCORD_INVITE } from "@/lib/i18n-shared";
@@ -52,13 +53,17 @@ export default async function Home() {
   const { CLIENT, LAUNCHER, SOCIAL } = content(lang);
   return (
     <>
-      <section className={s.hero}>
+      <HomeMotion />
+      <noscript>
+        <style>{"[data-hide]{visibility:visible!important}"}</style>
+      </noscript>
+      <section className={s.hero} data-m="hero">
         <FloatingCubes />
         <div className={`wrap ${s.heroGrid}`}>
-          <div className={s.heroText}>
-            <h1 className={s.title}>{t.title}</h1>
-            <p className={s.lede}>{t.lede}</p>
-            <div className={s.actions}>
+          <div className={s.heroText} data-m="hero-text">
+            <h1 className={s.title} data-m="hero-title" data-hide>{t.title}</h1>
+            <p className={s.lede} data-m="hero-lede" data-hide>{t.lede}</p>
+            <div className={s.actions} data-m="hero-actions" data-hide>
               <Link href="/download" className="btn big">
                 {os ? t.downloadFor(OS_NAME[os]) : t.launch} <Glyph name="arrow" size={22} />
               </Link>
@@ -67,8 +72,10 @@ export default async function Home() {
               </Link>
             </div>
           </div>
-          <div className={s.heroMock}>
-            <LauncherMock />
+          <div className={s.heroMock} data-m="hero-mock" data-hide>
+            <div data-m="hero-tilt">
+              <LauncherMock />
+            </div>
           </div>
         </div>
       </section>
@@ -82,7 +89,7 @@ export default async function Home() {
           </div>
           <BeeCards cards={CLIENT} />
         </div>
-        <div className={s.marquee} aria-label={t.modules}>
+        <div className={s.marquee} aria-label={t.modules} data-m="marquee">
           {ROWS.map((row, i) => (
             <div key={i} className={s.marqueeRow} style={{ animationDuration: `${60 + i * 12}s`, animationDirection: i % 2 ? "reverse" : "normal" }}>
               {[...row, ...row].map((m, j) => (
@@ -94,7 +101,7 @@ export default async function Home() {
       </section>
 
       <section className={`section ${s.cosmetics}`}>
-        <div className={`wrap ${s.split}`}>
+        <div className={`wrap ${s.split}`} data-m="cosm">
           <Showcase />
           <div className="section-head">
             <h2>{t.dressTitle}</h2>
@@ -122,7 +129,7 @@ export default async function Home() {
           <div className="section-head">
             <h2>{t.friends}</h2>
             {SOCIAL.map((c) => (
-              <div key={c.title} className={s.socialRow}>
+              <div key={c.title} className={s.socialRow} data-m="social">
                 <div>
                   <b>{c.title}</b>
                   <p>{c.text}</p>
@@ -131,14 +138,14 @@ export default async function Home() {
             ))}
           </div>
           <div className={s.roomsArt}>
-            <img src="/bee/rooms.webp" alt={t.roomsAlt} className={s.roomsBee} />
+            <img src="/bee/rooms.webp" alt={t.roomsAlt} className={s.roomsBee} data-m="rooms" />
           </div>
         </div>
       </section>
 
 
 
-      <section className={s.final}>
+      <section className={s.final} data-m="final">
         <FloatingCubes />
         <div className={`wrap ${s.finalInner}`}>
           <img src="/bee/welcome.webp" alt="" width={190} height={151} />

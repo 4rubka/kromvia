@@ -27,17 +27,17 @@ type Info = {
   usage: { total: number; saves: number; mods: number; screenshots: number; junk: number };
 };
 
-const validAddress = (a: string) => /^[a-zA-Z0-9.:-]{1,253}$/.test(a) && !a.startsWith("-");
-const quickPlayWorlds = (mc: string) => {
+export const validAddress = (a: string) => /^[a-zA-Z0-9.:-]{1,253}$/.test(a) && !a.startsWith("-");
+export const quickPlayWorlds = (mc: string) => {
   const m = /^1\.(\d+)/.exec(mc);
   return m ? Number(m[1]) >= 20 : /^\d{2}\./.test(mc);
 };
 
-function FolderButton({ inst, folder }: { inst: Instance; folder: string }) {
+export function FolderButton({ inst, folder, label }: { inst: Instance; folder: string; label?: string }) {
   const { t } = useI18n();
   return (
     <button className="btn btn-ghost" onClick={() => invoke("instance_open_folder", { instanceId: inst.id, folder })}>
-      <Glyph name="folder" /> {t("files.openFolder")}
+      <Glyph name="folder" /> {label ?? t("files.openFolder")}
     </button>
   );
 }
@@ -326,6 +326,17 @@ export function Screenshots({ inst }: { inst: Instance }) {
   );
 }
 
+const QUICK_FOLDERS: [string, MessageKey][] = [
+  ["", "quick.root"],
+  ["mods", "files.mods"],
+  ["resourcepacks", "content.tab.resourcepack"],
+  ["shaderpacks", "content.tab.shader"],
+  ["saves", "files.saves"],
+  ["screenshots", "builds.screenshots"],
+  ["config", "quick.config"],
+  ["logs", "quick.logs"],
+];
+
 export function Files({ inst }: { inst: Instance }) {
   const { t } = useI18n();
   const [info, setInfo] = useState<Info | null>(null);
@@ -390,9 +401,14 @@ export function Files({ inst }: { inst: Instance }) {
           ))}
         </dl>
       )}
+      <h3>{t("quick.folders")}</h3>
+      <div className="quick-folders">
+        {QUICK_FOLDERS.map(([folder, label]) => (
+          <FolderButton key={folder} inst={inst} folder={folder} label={t(label)} />
+        ))}
+      </div>
       <p className="muted">{t("files.repairHint")}</p>
       <div className="actions">
-        <FolderButton inst={inst} folder="" />
         <button className="btn btn-ghost" disabled={!u || u.junk === 0} onClick={clean}>
           <Glyph name="trash" /> {t("files.clean")}
         </button>

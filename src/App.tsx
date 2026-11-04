@@ -17,7 +17,8 @@ import { Rooms } from "./rooms/Rooms";
 import { LauncherProvider, useLauncher } from "./lib/launcher";
 import { JavaSettings } from "./settings/JavaSettings";
 import { Storage } from "./settings/Storage";
-import { Updates, useUpdate } from "./settings/Updates";
+import { UpdatePrompt, Updates, useUpdate } from "./settings/Updates";
+import { Palette } from "./ui/Palette";
 import { Legal } from "./settings/Legal";
 import { AppearanceExtras, SettingsBackup, useAppearance } from "./settings/Appearance";
 import { UiEditor, useUiProfile } from "./settings/UiEditor";
@@ -48,6 +49,7 @@ const HIDEABLE = PAGES.filter((p) => p !== "home" && p !== "settings");
 function App() {
   const { t } = useI18n();
   const [page, setPage] = useState<Page>("home");
+  const [palette, setPalette] = useState(false);
   const [contentTab, setContentTab] = useState<Kind>("mod");
   const [theme, setTheme] = useTheme();
   const background = useAppearance();
@@ -87,6 +89,11 @@ function App() {
       const typing = e.target instanceof HTMLElement && (e.target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName));
       const mod = e.ctrlKey || e.metaKey;
       if (e.key === "Escape") setKeysHelp(false);
+      if (mod && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPalette((v) => !v);
+        return;
+      }
       if (mod && /^[1-9]$/.test(e.key) && pagesRef.current[Number(e.key) - 1]) {
         e.preventDefault();
         setPage(pagesRef.current[Number(e.key) - 1]);
@@ -163,6 +170,8 @@ function App() {
           />
         )}
         {keysHelp && <HotkeyHelp onClose={() => setKeysHelp(false)} />}
+        {!intro && <UpdatePrompt />}
+        {palette && <Palette pages={pages} onPage={setPage} onClose={() => setPalette(false)} />}
         <LaunchKeys onPage={setPage} />
       </SocialProvider>
     </LauncherProvider>

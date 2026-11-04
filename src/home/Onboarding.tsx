@@ -122,6 +122,7 @@ export const HOTKEYS: [string, MessageKey][] = [
   ["Ctrl+N", "keys.new"],
   ["Ctrl+B", "keys.build"],
   ["Ctrl+F", "keys.search"],
+  ["Ctrl+K", "keys.palette"],
   ["?", "keys.help"],
   ["Esc", "keys.close"],
 ];

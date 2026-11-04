@@ -8,6 +8,7 @@
 .cube {
   position: absolute;
   opacity: 0.8;
+  translate: calc(var(--mx, 0px) * var(--d, 1)) calc((var(--my, 0px) + var(--sy, 0px)) * var(--d, 1));
   animation: drift 7s ease-in-out infinite;
 }
 

@@ -62,39 +62,9 @@ const VINE = [
   ".g......",
 ];
 
-const GARLAND = [
-  "g.......................g...................W...",
-  "gGGGg.............B...GG.GG.Gg.L...........WYWGG",
-  "...gG...P........BYBGg...g.gG.LYL...........Wg..",
-  ".....GgPYP.....GgGBGGg..GG...GgL........GggG.Gg.",
-  ".....g..PgGGgGGgG.......OO......GgGGgGGgG.g.....",
-  ".....GG..Gg.g...........Oo.......Gggg.....G.....",
-  ".....g......G.......................G....Gg.....",
-  ".....OO.....g.......................g.....G.....",
-  ".....Oo....GG.......................G.....P.....",
-  "............g......................Gg....PYP....",
-  "............G.......................G.....P.....",
-  "............L.......................g...........",
-  "...........LYL......................G...........",
-  "............L.......................B...........",
-  "...................................BYB..........",
-  "....................................B...........",
-];
-
-function svgUrl(rows: string[]) {
-  const rects = rows
-    .flatMap((row, y) => [...row].map((c, x) => (PALETTE[c] ? `<rect x="${x}" y="${y}" width="1" height="1" fill="${PALETTE[c]}"/>` : "")))
-    .join("");
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${rows[0].length} ${rows.length}" shape-rendering="crispEdges">${rects}</svg>`;
-  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
-}
-
-const GARLAND_URL = svgUrl(GARLAND);
-
 export function Vines() {
   return (
     <>
-      <div className="garland" style={{ backgroundImage: GARLAND_URL }} aria-hidden />
       <Pixels rows={VINE} size={4} className="vine vine-left" />
       <Pixels rows={VINE} size={4} className="vine vine-right" />
     </>

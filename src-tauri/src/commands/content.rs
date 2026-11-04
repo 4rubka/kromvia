@@ -142,6 +142,11 @@ pub fn pack_order_set(instance_id: String, enabled: Vec<String>) -> Result<(), S
 }
 
 #[tauri::command]
+pub fn content_add_files(instance_id: String, paths: Vec<std::path::PathBuf>) -> Result<Vec<String>, String> {
+    content::add_files(&instance_id, &paths)
+}
+
+#[tauri::command]
 pub fn content_list(instance_id: String) -> Result<Vec<InstalledFile>, String> {
     content::list(&instance_id)
 }

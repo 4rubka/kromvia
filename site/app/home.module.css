@@ -59,6 +59,12 @@
   padding: 14px 22px 17px;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .hero [data-hide] {
+    visibility: hidden;
+  }
+}
+
 .heroMock {
   filter: drop-shadow(0 30px 60px rgb(0 0 0 / 0.5));
 }
