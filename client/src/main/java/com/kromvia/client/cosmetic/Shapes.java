@@ -74,16 +74,16 @@ final class Shapes {
 
 	static Built cape(int frames, Supplier<NativeImage[]> images) {
 		MeshDefinition mesh = new MeshDefinition();
-		var parent = mesh.getRoot().addOrReplaceChild("part", strip(0), PartPose.offset(0, 0, 2.3f));
-		for (int i = 1; i < CAPE_STRIPS; i++) parent = parent.addOrReplaceChild("part", strip(i), PartPose.offset(0, 16f / CAPE_STRIPS, 0));
+		mesh.getRoot().addOrReplaceChild("part", CubeListBuilder.create().texOffs(0, 0).addBox(-5, 0, 0, 10, 16, 1), PartPose.offset(0, 0, 2.3f));
 		return new Built(LayerDefinition.create(mesh, CapeArt.W, CapeArt.H).bakeRoot().getChild("part"), frames, images);
 	}
 
-	static final int CAPE_STRIPS = 8;
-
-	private static CubeListBuilder strip(int i) {
-		int h = 16 / CAPE_STRIPS;
-		return CubeListBuilder.create().texOffs(0, i * h).addBox(-5, 0, 0, 10, h, 1);
+	/** A flat 4x4 sprite, crossed with a second plane so it can be seen from any side. */
+	static Built sprite(Supplier<NativeImage[]> images) {
+		MeshDefinition mesh = new MeshDefinition();
+		var part = mesh.getRoot().addOrReplaceChild("part", CubeListBuilder.create().texOffs(0, 0).addBox(-2, -2, 0, 4, 4, 0), PartPose.ZERO);
+		part.addOrReplaceChild("cross", CubeListBuilder.create().texOffs(0, 0).addBox(-2, -2, 0, 4, 4, 0), PartPose.rotation(0, (float) Math.PI / 2, 0));
+		return new Built(LayerDefinition.create(mesh, 8, 4).bakeRoot().getChild("part"), 1, images);
 	}
 
 	private static void paint(NativeImage img, Pattern p, Tex.Face f, float u, float v, float w, float h, Random rnd) {

@@ -37,7 +37,7 @@ public class CosmeticsLayer extends PlayerLayer {
 		Minecraft mc = Minecraft.getInstance();
 		boolean mine = state.id == PlayerPreview.ID || mc.player != null && state.id == mc.player.getId();
 		if (state.isInvisible) return;
-		for (Slot slot : new Slot[] {Slot.HEAD, Slot.FACE, Slot.NECK, Slot.BACK, Slot.BODY}) {
+		for (Slot slot : new Slot[] {Slot.HEAD, Slot.FACE, Slot.NECK, Slot.BACK, Slot.BODY, Slot.EFFECT}) {
 			Cosmetic c = mine ? Wardrobe.equipped(slot) : slot == Slot.BACK ? othersBack.apply(state.id) : null;
 			if (c == null) continue;
 			if ((slot == Slot.HEAD || slot == Slot.FACE) && !state.headEquipment.isEmpty()) continue;

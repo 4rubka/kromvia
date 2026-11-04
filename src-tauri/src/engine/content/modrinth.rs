@@ -236,7 +236,7 @@ pub async fn project(id: &str) -> Result<ProjectInfo, String> {
     http::get_json(&format!("{API}/project/{}", check_id(id)?)).await
 }
 
-async fn version(id: &str) -> Result<Version, String> {
+pub async fn version(id: &str) -> Result<Version, String> {
     http::get_json(&format!("{API}/version/{}", check_id(id)?)).await
 }
 

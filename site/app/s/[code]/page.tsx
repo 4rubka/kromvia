@@ -10,6 +10,7 @@ const T = {
   en: {
     title: "Shared from Kromvia", shot: "Shared screenshot", from: (c: string) => `Shared from Kromvia · code ${c}`, log: "Shared log",
     mods: (n: number) => `${n} mods`, packs: (n: number) => `${n} packs and shaders`,
+    pack: (src: string) => `Modpack from ${src}`, added: (n: number) => `${n} added on top`,
     by: "From", open: "Open in Kromvia", get: "Get Kromvia",
     install: (c: string) => <>Nothing happened? In Kromvia, press &quot;New instance&quot;, pick &quot;Friend&apos;s code&quot; and enter <b>{c}</b>.</>,
     buildDesc: (n: string, mc: string, mods: number) => `Kromvia build "${n}" for Minecraft ${mc}, ${mods} mods.`,
@@ -17,6 +18,7 @@ const T = {
   uk: {
     title: "Поширено з Kromvia", shot: "Скріншот", from: (c: string) => `Поширено з Kromvia · код ${c}`, log: "Лог",
     mods: (n: number) => `модів: ${n}`, packs: (n: number) => `паків і шейдерів: ${n}`,
+    pack: (src: string) => `Модпак з ${src}`, added: (n: number) => `додано зверху: ${n}`,
     by: "Від", open: "Відкрити в Kromvia", get: "Завантажити Kromvia",
     install: (c: string) => <>Нічого не сталось? У Kromvia натисни «Нова збірка», обери «Код друга» і введи <b>{c}</b>.</>,
     buildDesc: (n: string, mc: string, mods: number) => `Збірка Kromvia «${n}» для Minecraft ${mc}, модів: ${mods}.`,
@@ -67,8 +69,9 @@ export default async function Shared({ params }: PageProps<"/s/[code]">) {
       <div className={s.chips}>
         <span className="chip on">Minecraft {data.dependencies.minecraft}</span>
         {loader && <span className="chip">{LOADER_KEYS[loader[0]] ?? loader[0]} {loader[1]}</span>}
-        <span className="chip">{t.mods(mods.length)}</span>
-        {other > 0 && <span className="chip">{t.packs(other)}</span>}
+        {data.pack && <span className="chip">{t.pack(data.pack.source === "curseforge" ? "CurseForge" : "Modrinth")}</span>}
+        <span className="chip">{data.pack ? t.added(data.files.length) : t.mods(mods.length)}</span>
+        {!data.pack && other > 0 && <span className="chip">{t.packs(other)}</span>}
       </div>
       <p className="muted">
         {t.by} <Link href={`/u/${from.name}`}>{from.name}</Link>

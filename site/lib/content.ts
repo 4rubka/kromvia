@@ -3,9 +3,10 @@ import type { Lang } from "./i18n-shared";
 export const MODULES: Record<"PvP" | "HUD" | "Utility & visuals", string[]> = {
   PvP: [
     "1.7 Animations", "Armor Status", "Armour Break Alert", "Attack Indicator", "Bow Charge", "Combo Counter", "CPS",
-    "Crosshair", "Damage Tint by Type", "Durability Alert", "Freelook", "Hit Bubbles", "Hit Colour", "Hit Particles",
-    "Hit Sound", "Item Counter", "Keystrokes", "Low HP Warning", "Potion Effects", "Reach Display", "Stretched 4:3",
-    "Target HUD", "Target Marker", "Totem Pop Counter", "Visible Damage",
+    "Crosshair", "Damage Tint by Type", "Durability Alert", "Freelook", "Hit Bubbles", "Hit Colour",
+    "Hit Particle Colour", "Hit Particles", "Hit Sound", "Hitboxes", "Item Counter", "Keystrokes", "Low HP Warning",
+    "Potion Effects", "Reach Display", "Stretched 4:3", "Target HUD", "Target Marker", "Totem Pop Counter",
+    "Visible Damage",
   ],
   HUD: [
     "Biome", "Clock", "Compass", "Coordinates", "Day Counter", "Detailed Armour Bar", "Effect Bars", "Effect Timers",
@@ -13,11 +14,12 @@ export const MODULES: Record<"PvP" | "HUD" | "Utility & visuals", string[]> = {
     "Session Time", "Speed",
   ],
   "Utility & visuals": [
-    "Ambience", "Behind You", "Better Chat", "Block Outline", "Bobbing", "Camera", "Chat Filter", "Chat History",
-    "Chat Macros", "Chat Timestamps", "Clear Weather", "Confirm Disconnect", "Custom FOV", "Death Coordinates",
-    "Gamma per Dimension", "Hand Position", "Hand Sway", "Hide Scoreboard", "Inventory Scale", "IRL Weather",
-    "Jump Circles", "Low Fire", "Motion Blur", "Nametags", "No Fog", "No Hurt Cam", "No Pumpkin Blur",
-    "Numeric Tab Ping", "Particles", "Screen Colours", "Sound Volumes", "Time Changer", "Toggle Sneak", "Trails",
+    "Ambience", "Auto Sprint", "Behind You", "Better Chat", "Block Outline", "Bobbing", "Camera", "Chat Filter",
+    "Chat History", "Chat Macros", "Chat Timestamps", "Chat Tools", "China Hat", "Clear Weather",
+    "Confirm Disconnect", "Custom FOV", "Death Coordinates", "Fullbright", "Gamma per Dimension", "Hand Position",
+    "Hand Sway", "Hide Scoreboard", "Inventory", "Inventory Scale", "IRL Weather", "Jump Circles", "Kromvia Players",
+    "Low Fire", "Motion Blur", "Nametags", "No Fog", "No Hurt Cam", "No Pumpkin Blur", "Numeric Tab Ping", "Overlays",
+    "Particles", "Screen Colours", "Sound Volumes", "Time Changer", "Toggle Sneak", "Trails", "Weather", "Zoom",
   ],
 };
 

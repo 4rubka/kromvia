@@ -20,6 +20,11 @@ public final class Rooms {
 		hostNext = on;
 	}
 
+	public static void hostNow() {
+		hostNext = true;
+		tried = null;
+	}
+
 	public static void tick(Minecraft mc) {
 		var server = mc.getSingleplayerServer();
 		if (!(HOSTING || hostNext) || server == null || mc.player == null || server == tried) return;

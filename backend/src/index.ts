@@ -129,6 +129,7 @@ const CF_ROUTES: [string, RegExp][] = [
   ["GET", /^\/v1\/mods\/\d+\/files$/],
   ["POST", /^\/v1\/mods$/],
   ["POST", /^\/v1\/mods\/files$/],
+  ["POST", /^\/v1\/fingerprints\/432$/],
 ];
 const CF_MAX_BODY = 64 * 1024;
 

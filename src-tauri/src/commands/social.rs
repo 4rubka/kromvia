@@ -157,15 +157,16 @@ pub async fn sync_delete(key: String) -> Result<Value, String> {
 #[tauri::command]
 pub fn sync_build(app: AppHandle, jobs: State<'_, Jobs>, instance_id: String) -> Result<u64, String> {
     jobs.spawn(&app, format!("sync-{instance_id}"), move |job| async move {
-        let manifest = mrpack::manifest(&instance_id, &job).await?;
+        let (manifest, _) = mrpack::manifest(&instance_id, &job).await?;
         social::sync_put(&format!("build.{instance_id}"), manifest).await.map(|_| ())
     })
 }
 
 #[tauri::command]
-pub async fn share_build(instance_id: String) -> Result<String, String> {
-    let manifest = mrpack::manifest(&instance_id, &std::sync::Arc::new(Job::detached("share"))).await?;
-    social::share("build", manifest).await
+pub async fn share_build(instance_id: String) -> Result<Value, String> {
+    let (manifest, missing) = mrpack::manifest(&instance_id, &std::sync::Arc::new(Job::detached("share"))).await?;
+    let code = social::share("build", manifest).await?;
+    Ok(serde_json::json!({ "code": code, "missing": missing }))
 }
 
 #[tauri::command]

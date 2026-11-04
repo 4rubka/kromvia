@@ -14,7 +14,13 @@ export type Player = {
 
 export type Ranked = { id: string; name: string; verified: boolean; likes: number };
 
-export type BuildIndex = { name: string; files: { path: string; fileSize: number }[]; dependencies: Record<string, string> };
+export type BuildIndex = {
+  name: string;
+  files: { path: string; fileSize: number }[];
+  dependencies: Record<string, string>;
+  pack?: { source: string; project: string; file: string };
+  removed?: string[];
+};
 
 export type Share =
   | { kind: "build"; data: BuildIndex; created: number; from: { id: string; name: string; verified: boolean } }

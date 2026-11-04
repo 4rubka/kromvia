@@ -134,8 +134,12 @@ function useLauncherState() {
     });
     pushOutfit().catch(() => {});
     const unWardrobe = listen<Parameters<typeof outfitFromGame>[0]>("wardrobe-changed", ({ payload }) => outfitFromGame(payload));
+    const unSwitch = listen<{ id: string | null; name: string }>("account-switched", ({ payload }) => {
+      if (!payload.id) setNick(payload.name);
+      refreshAccounts();
+    });
     return () => {
-      [unStart, unLog, unExit, unRequest, unJoin, unWardrobe].forEach((u) => u.then((f) => f()));
+      [unStart, unLog, unExit, unRequest, unJoin, unWardrobe, unSwitch].forEach((u) => u.then((f) => f()));
     };
   }, []);
 

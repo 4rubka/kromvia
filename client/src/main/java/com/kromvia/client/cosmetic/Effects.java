@@ -1,83 +1,110 @@
 package com.kromvia.client.cosmetic;
 
-import com.kromvia.client.cosmetic.Cosmetic.Slot;
-import net.minecraft.client.Minecraft;
-import net.minecraft.core.particles.DustParticleOptions;
-import net.minecraft.core.particles.ParticleOptions;
-import net.minecraft.core.particles.ParticleTypes;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.kromvia.client.cosmetic.Cosmetic.Anchor;
+import com.kromvia.client.cosmetic.Cosmetic.Animator;
+import com.kromvia.client.cosmetic.Cosmetic.Piece;
+import com.mojang.blaze3d.platform.NativeImage;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 import net.minecraft.util.Mth;
-import net.minecraft.util.RandomSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public final class Effects {
-	private static final RandomSource RANDOM = RandomSource.create();
-	private static int tick;
+/**
+ * Effects are the launcher's and the site's pixel icons (src/art/effects.json) floating around the
+ * player. They are drawn with the cosmetics layer, so the wardrobe preview shows them too.
+ */
+final class Effects {
+	private static final Logger LOG = LoggerFactory.getLogger("kromvia");
+	private static final int SPRITES = 6;
+	private static final float PERIOD = 50;
+	private static final float PI = (float) Math.PI, TWO_PI = PI * 2;
+	private static final Set<String> FALLING = Set.of("snow", "petals", "ash", "rain_cloud", "spores");
+	private static final Set<String> CIRCLING = Set.of("aura", "glow", "portal", "enchant", "witch", "rainbow");
+	private static JsonObject icons;
+
+	private enum Motion { RISE, FALL, ORBIT }
 
 	private Effects() {}
 
-	public static void tick(Minecraft mc) {
-		Cosmetic c = Wardrobe.equipped(Slot.EFFECT);
-		if (c == null || mc.player == null || mc.level == null || mc.isPaused() || mc.player.isInvisible()) return;
-		tick++;
-		var p = mc.player;
-		double px = p.getX(), py = p.getY(), pz = p.getZ();
-		if (c.id().equals("aura")) {
-			double a = tick * 0.35;
-			for (int i = 0; i < 2; i++) {
-				double t = a + i * Math.PI;
-				spawn(mc, ParticleTypes.END_ROD, px + Math.cos(t) * 0.8, py + 0.1, pz + Math.sin(t) * 0.8, 0, 0.01, 0);
-			}
-			return;
+	static List<Piece> pieces(String id) {
+		JsonObject sprite = icons().getAsJsonObject(id);
+		if (sprite == null) return List.of();
+		Motion motion = FALLING.contains(id) ? Motion.FALL : CIRCLING.contains(id) ? Motion.ORBIT : Motion.RISE;
+		List<Piece> out = new ArrayList<>();
+		for (int i = 0; i < SPRITES; i++) {
+			Shapes.Built built = Shapes.sprite(() -> new NativeImage[] {icon(sprite)});
+			out.add(new Piece(id + "_fx" + i, built, Anchor.BODY, 0xFFFFFFFF, true, animator(motion, i / (float) SPRITES)));
 		}
-		if (c.id().equals("rain_cloud")) {
-			for (int i = 0; i < 2; i++) {
-				spawn(mc, ParticleTypes.CLOUD, px + RANDOM.nextGaussian() * 0.3, py + 2.6, pz + RANDOM.nextGaussian() * 0.3, 0, 0, 0);
-			}
-			if (tick % 2 == 0) spawn(mc, ParticleTypes.DRIPPING_WATER, px + RANDOM.nextGaussian() * 0.3, py + 2.4, pz + RANDOM.nextGaussian() * 0.3, 0, 0, 0);
-			return;
+		return out;
+	}
+
+	private static JsonObject icons() {
+		if (icons != null) return icons;
+		try (InputStream in = Effects.class.getResourceAsStream("/kromvia/effects.json")) {
+			icons = new Gson().fromJson(new InputStreamReader(in, StandardCharsets.UTF_8), JsonObject.class);
+		} catch (IOException | RuntimeException e) {
+			LOG.error("Could not read the effect icons", e);
+			icons = new JsonObject();
 		}
-		if (tick % 4 != 0) return;
-		double angle = RANDOM.nextDouble() * Math.PI * 2;
-		double r = 0.5 + RANDOM.nextDouble() * 0.3;
-		double x = px + Math.cos(angle) * r;
-		double y = py + 0.2 + RANDOM.nextDouble() * 1.6;
-		double z = pz + Math.sin(angle) * r;
-		switch (c.id()) {
-			case "hearts" -> spawn(mc, ParticleTypes.HEART, x, y + 0.4, z, 0, 0.02, 0);
-			case "flames" -> spawn(mc, ParticleTypes.FLAME, x, py + 0.1, z, 0, 0.02, 0);
-			case "soul_flames" -> spawn(mc, ParticleTypes.SOUL_FIRE_FLAME, x, py + 0.1, z, 0, 0.02, 0);
-			case "sparkles" -> {
-				spawn(mc, ParticleTypes.END_ROD, x, y, z, 0, 0.01, 0);
-				spawn(mc, dust(16), px - (x - px), y, pz - (z - pz), 0, 0, 0);
+		return icons;
+	}
+
+	/** The 9x9 icon twice side by side: the front and the back face of the sprite's plane. */
+	private static NativeImage icon(JsonObject sprite) {
+		var rows = sprite.getAsJsonArray("rows");
+		JsonObject colors = sprite.getAsJsonObject("colors");
+		NativeImage img = new NativeImage(18, 9, true);
+		for (int y = 0; y < rows.size(); y++) {
+			String row = rows.get(y).getAsString();
+			for (int x = 0; x < row.length(); x++) {
+				String key = String.valueOf(row.charAt(x));
+				if (!colors.has(key)) continue;
+				int rgb = Integer.parseInt(colors.get(key).getAsString().substring(1), 16);
+				Tex.put(img, x, y, 0xFF000000 | rgb);
+				Tex.put(img, 17 - x, y, 0xFF000000 | rgb);
 			}
-			case "notes" -> spawn(mc, ParticleTypes.NOTE, x, y + 0.5, z, RANDOM.nextDouble(), 0, 0);
-			case "snow" -> spawn(mc, ParticleTypes.SNOWFLAKE, x, py + 2.3, z, 0, -0.03, 0);
-			case "petals" -> spawn(mc, ParticleTypes.CHERRY_LEAVES, x, py + 2.2, z, 0, 0, 0);
-			case "totem" -> spawn(mc, ParticleTypes.TOTEM_OF_UNDYING, x, y, z, 0, 0.1, 0);
-			case "enchant" -> spawn(mc, ParticleTypes.ENCHANT, x, y + 0.6, z, px - x, -0.5, pz - z);
-			case "glow" -> spawn(mc, ParticleTypes.GLOW, x, y, z, 0, 0.01, 0);
-			case "portal" -> spawn(mc, ParticleTypes.PORTAL, x, y, z, (px - x) * 2, -0.3, (pz - z) * 2);
-			case "witch" -> spawn(mc, ParticleTypes.WITCH, x, y, z, 0, 0, 0);
-			case "crit" -> spawn(mc, ParticleTypes.CRIT, x, y, z, 0, 0.1, 0);
-			case "souls" -> spawn(mc, ParticleTypes.SCULK_SOUL, x, py + 0.2, z, 0, 0.03, 0);
-			case "ash" -> spawn(mc, ParticleTypes.WHITE_ASH, x, py + 2, z, 0, 0, 0);
-			case "spores" -> spawn(mc, ParticleTypes.SPORE_BLOSSOM_AIR, x, y, z, 0, 0, 0);
-			case "fireworks" -> {
-				spawn(mc, ParticleTypes.FIREWORK, x, y, z, 0, 0.05, 0);
-				for (int i = 0; i < 3; i++) {
-					spawn(mc, dust(RANDOM.nextInt(120)), x + RANDOM.nextGaussian() * 0.15, y + RANDOM.nextGaussian() * 0.15, z + RANDOM.nextGaussian() * 0.15, 0, 0, 0);
+		}
+		return img;
+	}
+
+	private static Animator animator(Motion motion, float phase) {
+		float spread = phase * 5.3f % 1;
+		return (p, s) -> {
+			float t = (s.ageInTicks / PERIOD + phase) % 1;
+			float angle, radius, scale;
+			switch (motion) {
+				case FALL -> {
+					angle = phase * TWO_PI;
+					radius = 3 + 6 * spread;
+					p.y = -16 + t * 38;
+					scale = Math.min(1, t * 8) * Math.min(1, (1 - t) * 4);
+				}
+				case ORBIT -> {
+					angle = (phase + t) * TWO_PI;
+					radius = 9;
+					p.y = 20 + Mth.sin((t + phase) * TWO_PI * 2);
+					scale = 0.9f;
+				}
+				default -> {
+					angle = phase * TWO_PI + t * PI;
+					radius = 7 + 2 * spread;
+					p.y = 22 - t * 32;
+					scale = Mth.sin(t * PI);
 				}
 			}
-			case "sparks" -> spawn(mc, ParticleTypes.ELECTRIC_SPARK, x, y, z, 0, 0, 0);
-			case "rainbow" -> spawn(mc, dust(tick), x, py + 0.2, z, 0, 0, 0);
-			default -> {}
-		}
-	}
-
-	private static ParticleOptions dust(int tick) {
-		return new DustParticleOptions(Mth.hsvToRgb((tick % 120) / 120f, 0.8f, 1f), 1.2f);
-	}
-
-	private static void spawn(Minecraft mc, ParticleOptions type, double x, double y, double z, double dx, double dy, double dz) {
-		mc.level.addParticle(type, x, y, z, dx, dy, dz);
+			p.x = Mth.cos(angle) * radius;
+			p.z = Mth.sin(angle) * radius;
+			p.yRot = -angle;
+			p.xRot = 0;
+			PartScale.set(p, scale);
+		};
 	}
 }

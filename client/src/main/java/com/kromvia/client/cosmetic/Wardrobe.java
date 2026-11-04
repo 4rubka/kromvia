@@ -99,6 +99,7 @@ public final class Wardrobe {
 		JsonObject o = read();
 		EQUIPPED.clear();
 		MODELS.clear();
+		COLORS.clear();
 		JsonObject equipped = o.has("equipped") && o.get("equipped").isJsonObject() ? o.getAsJsonObject("equipped") : new JsonObject();
 		for (Map.Entry<String, JsonElement> e : equipped.entrySet()) {
 			if (!e.getValue().isJsonPrimitive()) continue;

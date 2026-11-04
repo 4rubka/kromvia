@@ -7,6 +7,7 @@ use std::sync::Arc;
 use serde::Deserialize;
 
 use super::modrinth::{Category, SearchFilters, SearchHit, SearchResult};
+use super::packref::{self, PackPath, PackRef};
 use super::{read_index, write_index, ContentEntry, ContentKind};
 use crate::engine::core::http::{self, Download, Hash};
 use crate::engine::core::jobs::Job;
@@ -89,6 +90,8 @@ pub struct File {
     release_type: u8,
     file_length: u64,
     pub download_url: Option<String>,
+    #[serde(default)]
+    pub file_fingerprint: u32,
     #[serde(default)]
     hashes: Vec<FileHash>,
     #[serde(default)]
@@ -400,17 +403,50 @@ fn read_manifest(archive: &Path) -> Result<Manifest, String> {
 pub async fn install_pack(project_id: &str, job: &Arc<Job>) -> Result<Instance, String> {
     job.progress("resolve", 0, None);
     let f = latest_file(mod_id(project_id)?, ContentKind::Modpack, None).await?;
-    check_name(&f)?;
+    let (inst, blocked) = install_pack_file(&f, job).await?;
+    blocked_error(inst, blocked)
+}
+
+/// Installs one exact file of a pack, and leaves the mods CurseForge refuses to hand out to the caller.
+pub async fn install_pack_version(project_id: u64, file_id: u64, job: &Arc<Job>) -> Result<(Instance, Vec<String>), String> {
+    job.progress("resolve", 0, None);
+    let f = files(&[file_id]).await?.into_iter().next().ok_or_else(|| format!("CurseForge file {file_id} not found"))?;
+    if f.mod_id != project_id {
+        return Err(format!("CurseForge file {file_id} is not part of project {project_id}"));
+    }
+    install_pack_file(&f, job).await
+}
+
+async fn install_pack_file(f: &File, job: &Arc<Job>) -> Result<(Instance, Vec<String>), String> {
+    check_name(f)?;
     let archive = paths::temp().join(format!("cf-pack-{}.zip", f.id));
-    let url = url(&f, &f.display_name)?;
-    let d = Download { url: &url, dest: &archive, hash: sha1(&f), size: Some(f.file_length) };
+    let url = url(f, &f.display_name)?;
+    let d = Download { url: &url, dest: &archive, hash: sha1(f), size: Some(f.file_length) };
     http::download(&d, job.cancel_flag(), |done, total| job.progress("download", done, total)).await?;
-    let result = install_zip(&archive, job).await;
+    let result = install_archive(&archive, job).await;
     let _ = std::fs::remove_file(&archive);
-    result
+    let (inst, blocked, pack_files) = result?;
+    let pack = PackRef { source: SOURCE.into(), project: f.mod_id.to_string(), file: f.id.to_string() };
+    packref::save(&inst.id, pack, pack_files)?;
+    Ok((inst, blocked))
 }
 
 pub async fn install_zip(archive: &Path, job: &Arc<Job>) -> Result<Instance, String> {
+    let (inst, blocked, _) = install_archive(archive, job).await?;
+    blocked_error(inst, blocked)
+}
+
+fn blocked_error(inst: Instance, blocked: Vec<String>) -> Result<Instance, String> {
+    if blocked.is_empty() {
+        return Ok(inst);
+    }
+    Err(format!(
+        "the pack is installed, but these authors only allow downloads from the CurseForge website; add them to the mods folder by hand: {}",
+        blocked.join(", ")
+    ))
+}
+
+async fn install_archive(archive: &Path, job: &Arc<Job>) -> Result<(Instance, Vec<String>, Vec<PackPath>), String> {
     let m = read_manifest(archive)?;
     let mc = &m.minecraft.version;
     let loader = m.minecraft.mod_loaders.iter().find(|l| l.primary).or(m.minecraft.mod_loaders.first());
@@ -420,11 +456,7 @@ pub async fn install_zip(archive: &Path, job: &Arc<Job>) -> Result<Instance, Str
     };
     let inst = instances::create(&m.name, mc, loader)?;
     match fill(&inst, &m, archive, job).await {
-        Ok(blocked) if blocked.is_empty() => Ok(inst),
-        Ok(blocked) => Err(format!(
-            "the pack is installed, but these authors only allow downloads from the CurseForge website; add them to the mods folder by hand: {}",
-            blocked.join(", ")
-        )),
+        Ok((blocked, pack_files)) => Ok((inst, blocked, pack_files)),
         Err(e) => {
             let _ = instances::delete(&inst.id);
             Err(e)
@@ -432,18 +464,21 @@ pub async fn install_zip(archive: &Path, job: &Arc<Job>) -> Result<Instance, Str
     }
 }
 
-async fn fill(inst: &Instance, m: &Manifest, archive: &Path, job: &Arc<Job>) -> Result<Vec<String>, String> {
+async fn fill(inst: &Instance, m: &Manifest, archive: &Path, job: &Arc<Job>) -> Result<(Vec<String>, Vec<PackPath>), String> {
     let game = instances::game_dir(&inst.id)?;
     job.progress("resolve", 0, None);
     let wanted: Vec<&ManifestFile> = m.files.iter().filter(|f| f.required).collect();
     let list = files(&wanted.iter().map(|f| f.file_id).collect::<Vec<_>>()).await?;
     let info = mods(&wanted.iter().map(|f| f.project_id).collect::<Vec<_>>()).await?;
 
-    let (mut tasks, mut blocked, mut entries) = (vec![], vec![], vec![]);
+    let (mut tasks, mut blocked, mut entries, mut pack_files) = (vec![], vec![], vec![], vec![]);
     for f in &list {
         let m = info.get(&f.mod_id);
         let name = m.map(|m| m.name.clone()).unwrap_or_else(|| f.display_name.clone());
         let folder = folder_of_class(m.and_then(|m| m.class_id));
+        if let Some(sha1) = sha1_hex(f) {
+            pack_files.push(PackPath { path: format!("{folder}/{}", f.file_name), sha1 });
+        }
         if f.download_url.is_none() {
             blocked.push(name);
             continue;
@@ -459,12 +494,71 @@ async fn fill(inst: &Instance, m: &Manifest, archive: &Path, job: &Arc<Job>) -> 
         .await
         .map_err(|e| e.to_string())??;
     write_index(&inst.id, &entries)?;
-    Ok(blocked)
+    Ok((blocked, pack_files))
+}
+
+fn sha1_hex(f: &File) -> Option<String> {
+    f.hashes.iter().find(|h| h.algo == 1).map(|h| h.value.to_lowercase())
+}
+
+/// CurseForge's file fingerprint: MurmurHash2 (seed 1) over the bytes with whitespace removed.
+pub fn fingerprint(bytes: &[u8]) -> u32 {
+    const M: u32 = 0x5bd1_e995;
+    let data: Vec<u8> = bytes.iter().copied().filter(|b| !matches!(b, 9 | 10 | 13 | 32)).collect();
+    let mut h: u32 = 1 ^ data.len() as u32;
+    let mut chunks = data.chunks_exact(4);
+    for c in &mut chunks {
+        let mut k = u32::from_le_bytes([c[0], c[1], c[2], c[3]]);
+        k = k.wrapping_mul(M);
+        k ^= k >> 24;
+        k = k.wrapping_mul(M);
+        h = h.wrapping_mul(M) ^ k;
+    }
+    let rest = chunks.remainder();
+    if !rest.is_empty() {
+        for (i, b) in rest.iter().enumerate() {
+            h ^= (*b as u32) << (8 * i);
+        }
+        h = h.wrapping_mul(M);
+    }
+    h ^= h >> 13;
+    h = h.wrapping_mul(M);
+    h ^ (h >> 15)
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FingerprintMatches {
+    #[serde(default)]
+    exact_matches: Vec<FingerprintMatch>,
+}
+
+#[derive(Deserialize)]
+struct FingerprintMatch {
+    file: File,
+}
+
+/// Download URLs of files CurseForge knows by fingerprint. Files whose authors block third-party
+/// downloads are left out.
+pub async fn urls_by_fingerprint(fingerprints: &[u32]) -> Result<HashMap<u32, String>, String> {
+    if fingerprints.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let found: Data<FingerprintMatches> = post(&format!("/fingerprints/{MINECRAFT}"), serde_json::json!({ "fingerprints": fingerprints })).await?;
+    Ok(found.data.exact_matches.into_iter().filter_map(|m| Some((m.file.file_fingerprint, m.file.download_url?))).collect())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fingerprint_skips_whitespace() {
+        assert_eq!(fingerprint(b""), 1540447798);
+        assert_eq!(fingerprint(b"a"), 626045324);
+        assert_eq!(fingerprint(b"Hello, World!\n"), 1961219979);
+        assert_eq!(fingerprint(b"abc def\tghi\r\n"), 326929598);
+    }
     use std::io::Write;
 
     #[test]

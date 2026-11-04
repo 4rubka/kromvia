@@ -248,9 +248,7 @@ pub async fn launch<R: Runtime>(
     let wardrobe = crate::engine::wardrobe::json_path();
     let cape_png = crate::engine::wardrobe::cape_path();
     let (wardrobe, cape_png) = (wardrobe.to_string_lossy().into_owned(), cape_png.to_string_lossy().into_owned());
-    if std::path::Path::new(&wardrobe).is_file() {
-        env.push(("KROMVIA_WARDROBE", &wardrobe));
-    }
+    env.push(("KROMVIA_WARDROBE", &wardrobe));
     if std::path::Path::new(&cape_png).is_file() {
         env.push(("KROMVIA_CAPE_PNG", &cape_png));
     }
@@ -343,9 +341,14 @@ fn has_mod(inst: &Instance, name: &str) -> bool {
 }
 
 async fn add_e4mc(inst: &Instance, job: &Arc<Job>) {
-    let fabric = inst.loader.as_ref().is_some_and(|l| l.kind == LoaderKind::Fabric);
+    let client = match inst.loader.as_ref().map(|l| l.kind) {
+        Some(LoaderKind::Fabric) => paths::client_jar(&inst.mc_version),
+        Some(LoaderKind::Forge) => paths::forge_client_jar(&inst.mc_version, "forge"),
+        Some(LoaderKind::NeoForge) => paths::forge_client_jar(&inst.mc_version, "neoforge"),
+        _ => None,
+    };
     let Ok(marker) = instances::dir(&inst.id).map(|d| d.join(".e4mc-unsupported")) else { return };
-    if !fabric || paths::client_jar(&inst.mc_version).is_none() || marker.exists() || has_mod(inst, "e4mc") {
+    if client.is_none() || marker.exists() || has_mod(inst, "e4mc") {
         return;
     }
     if let Err(e) = modrinth::install(&inst.id, "e4mc", None, ContentKind::Mod, job).await {
@@ -769,6 +772,8 @@ fn switch_account<R: Runtime>(app: &AppHandle<R>, run_id: u64, who: &serde_json:
         None => games.running.lock().unwrap().get(&run_id).is_some_and(|r| r.offline.as_deref() == Some(name.as_str())),
     };
     if allowed {
+        let _ = accounts::set_active(id.as_deref());
+        let _ = app.emit("account-switched", serde_json::json!({ "id": id, "name": name }));
         games.switching.lock().unwrap().insert(run_id, Switch { id, name });
         games.stop(run_id);
     }

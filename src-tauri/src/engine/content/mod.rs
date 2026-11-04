@@ -3,6 +3,7 @@ pub mod conflicts;
 pub mod curseforge;
 pub mod modrinth;
 pub mod mrpack;
+pub mod packref;
 pub mod safety;
 pub mod updates;
 

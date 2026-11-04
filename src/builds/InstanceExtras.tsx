@@ -529,6 +529,7 @@ export function Cloud({ inst, onInstalled }: { inst: Instance; onInstalled: () =
   const { instances } = useLauncher();
   const [entries, setEntries] = useState<SyncEntry[]>([]);
   const [code, setCode] = useState<string | null>(null);
+  const [left, setLeft] = useState<string[]>([]);
   const [input, setInput] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -557,12 +558,22 @@ export function Cloud({ inst, onInstalled }: { inst: Instance; onInstalled: () =
 
   return (
     <section className="card">
-      <p className="muted">{t("cloud.hint")}</p>
+      <p className="muted">{t("cloud.about")}</p>
       <div className="actions">
         <button className="btn" disabled={!!upload} onClick={() => run(invoke<number>("sync_build", { instanceId: inst.id }).then((id) => uploads.started(`sync-${inst.id}`, id)))}>
           <Glyph name="upload" /> {t("cloud.save")}
         </button>
-        <button className="btn btn-ghost" onClick={() => run(invoke<string>("share_build", { instanceId: inst.id }).then((c) => setCode(`https://kromvia.com/s/${c}`)))}>
+        <button
+          className="btn btn-ghost"
+          onClick={() =>
+            run(
+              invoke<{ code: string; missing: string[] }>("share_build", { instanceId: inst.id }).then((r) => {
+                setCode(`https://kromvia.com/s/${r.code}`);
+                setLeft(r.missing);
+              }),
+            )
+          }
+        >
           <Glyph name="copy" /> {t("cloud.share")}
         </button>
       </div>
@@ -575,6 +586,7 @@ export function Cloud({ inst, onInstalled }: { inst: Instance; onInstalled: () =
           </button>
         </div>
       )}
+      {code && left.length > 0 && <p className="error">{t("cloud.missing", { files: left.map((f) => f.split("/").pop()).join(", ") })}</p>}
       <h3>{t("cloud.fromCode")}</h3>
       <div className="field">
         <input className="input" value={input} placeholder={t("cloud.codePlaceholder")} aria-label={t("cloud.codePlaceholder")} onChange={(e) => setInput(e.currentTarget.value.trim())} />

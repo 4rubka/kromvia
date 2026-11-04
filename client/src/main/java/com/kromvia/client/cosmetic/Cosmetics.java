@@ -89,7 +89,7 @@ public final class Cosmetics {
 	}
 
 	private static Cosmetic capeOf(String id, String style) {
-		Piece p = new Piece(id, Shapes.cape(CapeArt.FRAMES, () -> CapeArt.frames(style)), Anchor.BODY, 0xFFFFFFFF, false, capeWave());
+		Piece p = new Piece(id, Shapes.cape(CapeArt.FRAMES, () -> CapeArt.frames(style)), Anchor.BODY, 0xFFFFFFFF, false, capeSwing());
 		return new Cosmetic(KROMVIA_CAPE, "Kromvia Cape", Slot.BACK, 0xFFFFFFFF, List.of(p));
 	}
 
@@ -100,7 +100,7 @@ public final class Cosmetics {
 	private static synchronized Cosmetic dev() {
 		if (dev == null) {
 			CompletableFuture<NativeImage[]> art = CompletableFuture.supplyAsync(DevCape::frames);
-			Piece p = new Piece(KROMVIA_CAPE + "_dev", Shapes.cape(DevCape.FRAMES, art::join), Anchor.BODY, 0xFFFFFFFF, false, capeWave());
+			Piece p = new Piece(KROMVIA_CAPE + "_dev", Shapes.cape(DevCape.FRAMES, art::join), Anchor.BODY, 0xFFFFFFFF, false, capeSwing());
 			dev = new Cosmetic(KROMVIA_CAPE, "Developer Cape", Slot.BACK, 0xFFFFFFFF, List.of(p));
 		}
 		return dev;
@@ -122,6 +122,7 @@ public final class Cosmetics {
 				List<Piece> pieces = new ArrayList<>();
 				JsonArray ps = o.has("pieces") ? o.getAsJsonArray("pieces") : new JsonArray();
 				for (JsonElement pe : ps) pieces.add(piece(id + "_" + pieces.size(), pe.getAsJsonObject()));
+				if (slot == Slot.EFFECT && pieces.isEmpty()) pieces.addAll(Effects.pieces(id));
 				list.add(new Cosmetic(id, o.get("name").getAsString(), slot, (int) o.get("color").getAsLong(), List.copyOf(pieces)));
 			}
 		} catch (IOException | RuntimeException e) {
@@ -168,20 +169,6 @@ public final class Cosmetics {
 
 	private static Animator capeSwing() {
 		return (p, s) -> p.xRot = (6 + s.capeLean / 2 + s.capeFlap) * Mth.DEG_TO_RAD + 0.1f;
-	}
-
-	private static Animator capeWave() {
-		Animator swing = capeSwing();
-		return (p, s) -> {
-			swing.pose(p, s);
-			float move = Math.min(1, s.capeLean / 90f);
-			float speed = 0.12f + 0.3f * move, amp = 0.035f + 0.1f * move;
-			ModelPart strip = p;
-			for (int i = 1; i < Shapes.CAPE_STRIPS; i++) {
-				strip = strip.getChild("part");
-				strip.xRot = 0.015f + move * 0.03f + Mth.sin(s.ageInTicks * speed - i * 0.8f) * amp;
-			}
-		};
 	}
 
 	private static Animator flap(int side, float speed, float sweep) {
