@@ -103,6 +103,11 @@ InputConstants.KEY_LALT -> org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_ALT
 InputConstants.KEY_RSHIFT -> org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_SHIFT
 InputConstants.KEY_R -> org.lwjgl.glfw.GLFW.GLFW_KEY_R
 InputConstants.KEY_C -> org.lwjgl.glfw.GLFW.GLFW_KEY_C
+InputConstants.KEY_N -> org.lwjgl.glfw.GLFW.GLFW_KEY_N
+InputConstants.KEY_J -> org.lwjgl.glfw.GLFW.GLFW_KEY_J
+InputConstants.KEY_H -> org.lwjgl.glfw.GLFW.GLFW_KEY_H
+InputConstants.KEY_G -> org.lwjgl.glfw.GLFW.GLFW_KEY_G
+InputConstants.KEY_F4 -> org.lwjgl.glfw.GLFW.GLFW_KEY_F4
 InputConstants.PRESS -> org.lwjgl.glfw.GLFW.GLFW_PRESS
 addRenderableWidget -> addButton
 multiplayer.resolver.ServerAddress -> multiplayer.ServerAddress

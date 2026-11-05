@@ -96,4 +96,21 @@ public final class UiStyle {
 		}
 		g.blit(LOGO, x, y, 0, 0, size, size, 128, 128, 128, 128);
 	}
+
+	public static java.util.List<String> wrap(net.minecraft.client.gui.Font font, String text, int width) {
+		java.util.List<String> lines = new java.util.ArrayList<>();
+		if (text.isEmpty()) return lines;
+		String line = "";
+		for (String word : text.split(" ")) {
+			String next = line.isEmpty() ? word : line + " " + word;
+			if (font.width(next) > width && !line.isEmpty()) {
+				lines.add(line);
+				line = word;
+			} else {
+				line = next;
+			}
+		}
+		lines.add(line);
+		return lines;
+	}
 }

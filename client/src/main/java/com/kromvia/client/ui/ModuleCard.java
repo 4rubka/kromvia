@@ -3,6 +3,7 @@ package com.kromvia.client.ui;
 import com.kromvia.client.compat.Gfx;
 import com.kromvia.client.compat.DrawnButton;
 import com.kromvia.client.module.Module;
+import com.kromvia.client.module.ModuleInfo;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
@@ -76,12 +77,21 @@ public class ModuleCard extends DrawnButton {
 
 		if (in > 0.35F) {
 			float bob = hover * Mth.sin((System.currentTimeMillis() % 1200) / 1200F * Mth.TWO_PI) * 1.2F;
-			float is = 1.5F + hover * 0.2F;
-			g.pose().pushMatrix();
-			g.pose().translate(x + w / 2F, y + 18 + bob);
-			g.pose().scale(is, is);
-			g.renderItem(module.icon(), -8, -8);
-			g.pose().popMatrix();
+			String icon = ModuleInfo.icon(module);
+			if (Icons.has(icon)) {
+				int tint = ARGB.srgbLerp(knob, ARGB.srgbLerp(hover, UiStyle.MUTED, UiStyle.TEXT), UiStyle.TOP);
+				g.pose().pushMatrix();
+				g.pose().translate(0, bob);
+				Icons.draw(g, icon, x + w / 2 - 10, y + 8, 20, UiStyle.fade(tint, in));
+				g.pose().popMatrix();
+			} else {
+				float is = 1.5F + hover * 0.2F;
+				g.pose().pushMatrix();
+				g.pose().translate(x + w / 2F, y + 18 + bob);
+				g.pose().scale(is, is);
+				g.renderItem(module.icon(), -8, -8);
+				g.pose().popMatrix();
+			}
 		}
 
 		String name = module.name;

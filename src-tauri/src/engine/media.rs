@@ -19,6 +19,23 @@ struct Now {
     playing: bool,
     position_ms: u64,
     length_ms: u64,
+    player_id: String,
+    shuffle: Option<bool>,
+    repeat: Option<&'static str>,
+    players: Vec<Source>,
+}
+
+#[derive(Clone, Default, PartialEq, Serialize)]
+pub struct Source {
+    id: String,
+    name: String,
+    playing: bool,
+}
+
+static PREFERRED: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+
+fn preferred() -> Option<String> {
+    PREFERRED.lock().unwrap().clone()
 }
 
 #[derive(Serialize, Clone)]
@@ -94,6 +111,7 @@ fn mime(bytes: &[u8]) -> &'static str {
 }
 
 pub fn start<R: Runtime>(app: &AppHandle<R>) {
+    loudness::start(app);
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         let mut last: Option<Now> = None;
@@ -134,6 +152,8 @@ pub fn start<R: Runtime>(app: &AppHandle<R>) {
                         "title": n.title, "artist": n.artist, "playing": n.playing,
                         "position": n.position_ms, "length": n.length_ms,
                         "art": path.as_ref().map(|p| p.to_string_lossy().into_owned()),
+                        "album": n.album, "player": n.player, "playerId": n.player_id,
+                        "shuffle": n.shuffle, "repeat": n.repeat, "players": n.players,
                     })
                 });
                 app.state::<Games>().media(for_game);
@@ -169,11 +189,34 @@ fn save_art(key: &str, bytes: &[u8]) -> Option<PathBuf> {
     Some(path)
 }
 
-pub async fn control(action: &str) -> Result<(), String> {
-    match action {
-        "play_pause" | "next" | "previous" => platform::control(action).await,
-        _ => Err(format!("unknown action {action}")),
-    }
+pub enum Action {
+    PlayPause,
+    Next,
+    Previous,
+    Seek(u64),
+    Shuffle(bool),
+    Repeat(&'static str),
+}
+
+pub async fn control(action: &str, value: &serde_json::Value) -> Result<(), String> {
+    let action = match action {
+        "play_pause" => Action::PlayPause,
+        "next" => Action::Next,
+        "previous" => Action::Previous,
+        "seek" => Action::Seek(value.as_u64().ok_or("seek needs a position")?),
+        "shuffle" => Action::Shuffle(value.as_bool().ok_or("shuffle needs on or off")?),
+        "repeat" => Action::Repeat(match value.as_str() {
+            Some("track") => "track",
+            Some("playlist") => "playlist",
+            _ => "none",
+        }),
+        "select" => {
+            *PREFERRED.lock().unwrap() = value.as_str().map(String::from);
+            return Ok(());
+        }
+        _ => return Err(format!("unknown action {action}")),
+    };
+    platform::control(action).await
 }
 
 #[cfg(target_os = "linux")]
@@ -183,7 +226,7 @@ mod platform {
     use zbus::zvariant::{OwnedValue, Value};
     use zbus::{Connection, Proxy};
 
-    use super::Now;
+    use super::{Action, Now, Source};
 
     const PREFIX: &str = "org.mpris.MediaPlayer2.";
     const PATH: &str = "/org/mpris/MediaPlayer2";
@@ -199,18 +242,35 @@ mod platform {
             .await
     }
 
-    async fn pick(conn: &Connection) -> Option<(String, String)> {
-        let names = zbus::fdo::DBusProxy::new(conn).await.ok()?.list_names().await.ok()?;
-        let mut paused = None;
+    async fn players(conn: &Connection) -> Vec<(String, String)> {
+        let Ok(dbus) = zbus::fdo::DBusProxy::new(conn).await else { return vec![] };
+        let Ok(names) = dbus.list_names().await else { return vec![] };
+        let mut out = vec![];
         for name in names.into_iter().map(|n| n.to_string()).filter(|n| n.starts_with(PREFIX)) {
             let Ok(p) = proxy(conn, name.clone(), PLAYER).await else { continue };
-            match p.get_property::<String>("PlaybackStatus").await.as_deref() {
-                Ok("Playing") => return Some((name, "Playing".into())),
-                Ok("Paused") if paused.is_none() => paused = Some((name, "Paused".into())),
-                _ => {}
+            if let Ok(status) = p.get_property::<String>("PlaybackStatus").await {
+                out.push((name, status));
             }
         }
-        paused
+        out
+    }
+
+    async fn pick(conn: &Connection) -> Option<(String, String)> {
+        let all = players(conn).await;
+        if let Some(want) = super::preferred() {
+            if let Some(p) = all.iter().find(|(n, _)| *n == want) {
+                return Some(p.clone());
+            }
+        }
+        all.iter().find(|(_, s)| s == "Playing").or_else(|| all.iter().find(|(_, s)| s == "Paused")).cloned()
+    }
+
+    async fn identity(conn: &Connection, name: &str) -> String {
+        let id = match proxy(conn, name.to_string(), "org.mpris.MediaPlayer2").await {
+            Ok(root) => root.get_property::<String>("Identity").await.ok(),
+            Err(_) => None,
+        };
+        id.unwrap_or_else(|| name.trim_start_matches(PREFIX).split('.').next().unwrap_or_default().to_string())
     }
 
     fn inner<'a>(v: &'a Value<'a>) -> &'a Value<'a> {
@@ -254,12 +314,22 @@ mod platform {
             return None;
         }
         let position = p.get_property::<i64>("Position").await.ok().and_then(|n| u64::try_from(n).ok()).unwrap_or(0);
-        let identity = match proxy(&conn, name.clone(), "org.mpris.MediaPlayer2").await {
-            Ok(root) => root.get_property::<String>("Identity").await.ok(),
+        let player = identity(&conn, &name).await;
+        let mut sources = vec![];
+        for (n, status) in players(&conn).await {
+            sources.push(Source { name: identity(&conn, &n).await, id: n, playing: status == "Playing" });
+        }
+        let repeat = match p.get_property::<String>("LoopStatus").await.as_deref() {
+            Ok("Track") => Some("track"),
+            Ok("Playlist") => Some("playlist"),
+            Ok(_) => Some("none"),
             Err(_) => None,
         };
-        let player = identity.unwrap_or_else(|| name.trim_start_matches(PREFIX).split('.').next().unwrap_or_default().to_string());
         let now = Now {
+            player_id: name.clone(),
+            shuffle: p.get_property::<bool>("Shuffle").await.ok(),
+            repeat,
+            players: sources,
             player,
             title,
             artist: artists(&meta),
@@ -272,16 +342,29 @@ mod platform {
         Some((now, None))
     }
 
-    pub async fn control(action: &str) -> Result<(), String> {
+    pub async fn control(action: Action) -> Result<(), String> {
         let conn = Connection::session().await.map_err(|e| e.to_string())?;
         let (name, _) = pick(&conn).await.ok_or("nothing is playing")?;
         let p = proxy(&conn, name, PLAYER).await.map_err(|e| e.to_string())?;
-        let method = match action {
-            "play_pause" => "PlayPause",
-            "next" => "Next",
-            _ => "Previous",
+        let done = match action {
+            Action::PlayPause => p.call_method("PlayPause", &()).await.map(|_| ()),
+            Action::Next => p.call_method("Next", &()).await.map(|_| ()),
+            Action::Previous => p.call_method("Previous", &()).await.map(|_| ()),
+            Action::Seek(ms) => {
+                let now = p.get_property::<i64>("Position").await.unwrap_or(0);
+                p.call_method("Seek", &(ms as i64 * 1000 - now)).await.map(|_| ())
+            }
+            Action::Shuffle(on) => p.set_property("Shuffle", on).await.map_err(zbus::Error::from),
+            Action::Repeat(mode) => {
+                let status = match mode {
+                    "track" => "Track",
+                    "playlist" => "Playlist",
+                    _ => "None",
+                };
+                p.set_property("LoopStatus", status).await.map_err(zbus::Error::from)
+            }
         };
-        p.call_method(method, &()).await.map(|_| ()).map_err(|e| e.to_string())
+        done.map_err(|e| e.to_string())
     }
 }
 
@@ -291,12 +374,29 @@ mod platform {
         GlobalSystemMediaTransportControlsSession as Session, GlobalSystemMediaTransportControlsSessionManager as Manager,
         GlobalSystemMediaTransportControlsSessionPlaybackStatus as Status,
     };
+    use windows::Media::MediaPlaybackAutoRepeatMode as RepeatMode;
     use windows::Storage::Streams::DataReader;
 
-    use super::Now;
+    use super::{Action, Now, Source};
+
+    fn sessions() -> windows::core::Result<Vec<Session>> {
+        Ok(Manager::RequestAsync()?.join()?.GetSessions()?.into_iter().collect())
+    }
 
     fn session() -> windows::core::Result<Session> {
+        if let Some(want) = super::preferred() {
+            for s in sessions()? {
+                if s.SourceAppUserModelId()?.to_string() == want {
+                    return Ok(s);
+                }
+            }
+        }
         Manager::RequestAsync()?.join()?.GetCurrentSession()
+    }
+
+    fn app_name(id: &str) -> String {
+        let base = id.rsplit(['\\', '!']).next().unwrap_or(id);
+        base.trim_end_matches(".exe").to_string()
     }
 
     fn thumbnail(props: &windows::Media::Control::GlobalSystemMediaTransportControlsSessionMediaProperties) -> windows::core::Result<Vec<u8>> {
@@ -319,7 +419,8 @@ mod platform {
         if title.is_empty() {
             return Ok(None);
         }
-        let status = s.GetPlaybackInfo()?.PlaybackStatus()?;
+        let info = s.GetPlaybackInfo()?;
+        let status = info.PlaybackStatus()?;
         if status != Status::Playing && status != Status::Paused {
             return Ok(None);
         }
@@ -329,8 +430,24 @@ mod platform {
         let artist = props.Artist()?.to_string();
         let album = props.AlbumTitle()?.to_string();
         let art_key = thumb.as_ref().map(|_| format!("smtc:{title}\u{0}{artist}\u{0}{album}")).unwrap_or_default();
+        let id = s.SourceAppUserModelId()?.to_string();
+        let mut players = vec![];
+        for other in sessions().unwrap_or_default() {
+            let Ok(oid) = other.SourceAppUserModelId() else { continue };
+            let playing = other.GetPlaybackInfo().and_then(|i| i.PlaybackStatus()).map(|st| st == Status::Playing).unwrap_or(false);
+            players.push(Source { name: app_name(&oid.to_string()), id: oid.to_string(), playing });
+        }
+        let repeat = info.AutoRepeatMode().and_then(|r| r.Value()).ok().map(|r| match r {
+            RepeatMode::Track => "track",
+            RepeatMode::List => "playlist",
+            _ => "none",
+        });
         let now = Now {
-            player: s.SourceAppUserModelId()?.to_string().trim_end_matches(".exe").to_string(),
+            player: app_name(&id),
+            player_id: id,
+            shuffle: info.IsShuffleActive().and_then(|b| b.Value()).ok(),
+            repeat,
+            players,
             title,
             artist,
             album,
@@ -346,14 +463,22 @@ mod platform {
         tauri::async_runtime::spawn_blocking(|| read().ok().flatten()).await.ok().flatten()
     }
 
-    pub async fn control(action: &str) -> Result<(), String> {
-        let action = action.to_string();
+    pub async fn control(action: Action) -> Result<(), String> {
         tauri::async_runtime::spawn_blocking(move || -> windows::core::Result<bool> {
             let s = session()?;
-            match action.as_str() {
-                "play_pause" => s.TryTogglePlayPauseAsync()?.join(),
-                "next" => s.TrySkipNextAsync()?.join(),
-                _ => s.TrySkipPreviousAsync()?.join(),
+            match action {
+                Action::PlayPause => s.TryTogglePlayPauseAsync()?.join(),
+                Action::Next => s.TrySkipNextAsync()?.join(),
+                Action::Previous => s.TrySkipPreviousAsync()?.join(),
+                Action::Seek(ms) => s.TryChangePlaybackPositionAsync(ms as i64 * 10_000)?.join(),
+                Action::Shuffle(on) => s.TryChangeShuffleActiveAsync(on)?.join(),
+                Action::Repeat(mode) => s
+                    .TryChangeAutoRepeatModeAsync(match mode {
+                        "track" => RepeatMode::Track,
+                        "playlist" => RepeatMode::List,
+                        _ => RepeatMode::None,
+                    })?
+                    .join(),
             }
         })
         .await
@@ -365,13 +490,73 @@ mod platform {
 
 #[cfg(not(any(target_os = "linux", windows)))]
 mod platform {
-    use super::Now;
+    use super::{Action, Now};
 
     pub async fn now() -> Option<(Now, Option<Vec<u8>>)> {
         None
     }
 
-    pub async fn control(_action: &str) -> Result<(), String> {
+    pub async fn control(_action: Action) -> Result<(), String> {
         Err("not supported on this system".into())
     }
+}
+
+#[cfg(target_os = "linux")]
+mod loudness {
+    use std::process::Stdio;
+    use std::time::Duration;
+
+    use tauri::{AppHandle, Manager, Runtime};
+    use tokio::io::AsyncReadExt;
+
+    use crate::engine::game::launch::Games;
+
+    const RATE: usize = 11025;
+    const CHUNK: usize = RATE / 20;
+
+    fn wanted() -> bool {
+        super::last().is_some_and(|t| t.playing)
+    }
+
+    pub fn start<R: Runtime>(app: &AppHandle<R>) {
+        let app = app.clone();
+        tauri::async_runtime::spawn(async move {
+            loop {
+                tokio::time::sleep(Duration::from_secs(1)).await;
+                if !app.state::<Games>().any_running() || !wanted() {
+                    continue;
+                }
+                let Ok(mut child) = tokio::process::Command::new("parec")
+                    .args(["-d", "@DEFAULT_MONITOR@", "--format=s16le", "--channels=1", "--latency-msec=40", "--raw"])
+                    .arg(format!("--rate={RATE}"))
+                    .stdout(Stdio::piped())
+                    .stderr(Stdio::null())
+                    .kill_on_drop(true)
+                    .spawn()
+                else {
+                    tokio::time::sleep(Duration::from_secs(30)).await;
+                    continue;
+                };
+                let Some(mut out) = child.stdout.take() else { continue };
+                let mut buf = vec![0u8; CHUNK * 2];
+                while app.state::<Games>().any_running() && wanted() {
+                    if out.read_exact(&mut buf).await.is_err() {
+                        break;
+                    }
+                    let sum: f64 = buf.chunks_exact(2).map(|b| f64::from(i16::from_le_bytes([b[0], b[1]])).powi(2)).sum();
+                    let rms = (sum / CHUNK as f64).sqrt() / 32768.0;
+                    app.state::<Games>().level(rms.min(1.0) as f32);
+                }
+                let _ = child.kill().await;
+                app.state::<Games>().level(-1.0);
+            }
+        });
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+mod loudness {
+    use tauri::{AppHandle, Runtime};
+
+    pub fn start<R: Runtime>(_app: &AppHandle<R>) {}
 }

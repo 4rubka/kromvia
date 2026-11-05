@@ -48,4 +48,8 @@ final class Types {
 		ps.mulPose(new com.mojang.math.Quaternion(r.x, r.y, r.z, r.w));
 		ps.scale(k.x, k.y, k.z);
 	}
+
+	static void text(Object out, PoseStack pose, String text, float x, float y, int color, boolean shadow, boolean seeThrough, int background) {
+		Minecraft.getInstance().font.drawInBatch(text, x, y, color, shadow, pose.last().pose(), (MultiBufferSource) out, seeThrough, background, 0xF000F0);
+	}
 }

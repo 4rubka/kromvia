@@ -1,5 +1,6 @@
 pub mod forge;
 pub mod install;
+pub mod lag;
 pub mod launch;
 pub mod loaders;
 pub mod crash;

@@ -47,4 +47,8 @@ final class Types {
 		converted.load(java.nio.FloatBuffer.wrap(a));
 		ps.mulPoseMatrix(converted);
 	}
+
+	static void text(Object out, PoseStack pose, String text, float x, float y, int color, boolean shadow, boolean seeThrough, int background) {
+		Minecraft.getInstance().font.drawInBatch(text, x, y, color, shadow, pose.last().pose(), (MultiBufferSource) out, seeThrough, background, 0xF000F0);
+	}
 }

@@ -11,6 +11,7 @@ import java.util.Locale;
 import com.kromvia.client.Config;
 import com.kromvia.client.KromviaClient;
 import com.kromvia.client.module.Module;
+import com.kromvia.client.module.ModuleInfo;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -32,6 +33,8 @@ public class ModuleMenu extends KScreen {
 	private float marker = -1;
 	private int px, py, pw, ph, cols;
 	private EditBox search;
+	private Card hovered;
+	private long hoverSince;
 
 	private record Card(Module module, ModuleCard card, KButton gear) {}
 
@@ -122,7 +125,8 @@ public class ModuleMenu extends KScreen {
 
 	private boolean matches(Module m) {
 		String q = query.trim().toLowerCase(Locale.ROOT);
-		return (category == null || m.category == category) && (q.isEmpty() || m.name.toLowerCase(Locale.ROOT).contains(q));
+		return (category == null || m.category == category) && (q.isEmpty() || m.name.toLowerCase(Locale.ROOT).contains(q)
+				|| com.kromvia.client.module.ModuleInfo.description(m).toLowerCase(Locale.ROOT).contains(q));
 	}
 
 	private int gridTop() {
@@ -220,6 +224,14 @@ public class ModuleMenu extends KScreen {
 			if (c.gear != null) g.widget(c.gear, mouseX, mouseY, delta);
 		}
 		g.disableScissor();
+		Card hovered = null;
+		for (Card c : cards) {
+			if (c.card().visible && c.card().isMouseOver(mouseX, mouseY)) hovered = c;
+		}
+		if (hovered != this.hovered) {
+			this.hovered = hovered;
+			hoverSince = System.currentTimeMillis();
+		}
 
 		g.fillGradient(px + SIDEBAR + 1, gridTop(), px + pw - 1, gridTop() + 8, 0xF6090B0E, 0x00090B0E);
 		g.fillGradient(px + SIDEBAR + 1, gridBottom() - 8, px + pw - 1, gridBottom(), 0x00090B0E, 0xF6090B0E);
@@ -241,6 +253,31 @@ public class ModuleMenu extends KScreen {
 		g.fill(px + 10, py + 40 + CATEGORY_NAMES.length * TAB + 18, px + 10 + Math.round((SIDEBAR - 20) * on / (float) cards.size()),
 				py + 40 + CATEGORY_NAMES.length * TAB + 20, UiStyle.FRONT);
 		g.pose().popMatrix();
+		if (hovered != null && System.currentTimeMillis() - hoverSince > 350) tooltip(g, ModuleInfo.description(hovered.module()), mouseX, mouseY);
+	}
+
+	private void tooltip(Gfx g, String text, int mouseX, int mouseY) {
+		if (text.isEmpty()) return;
+		List<String> lines = new ArrayList<>();
+		StringBuilder line = new StringBuilder();
+		for (String word : text.split(" ")) {
+			String next = line.length() == 0 ? word : line + " " + word;
+			if (font.width(next) > 170 && line.length() > 0) {
+				lines.add(line.toString());
+				line = new StringBuilder(word);
+			} else {
+				line = new StringBuilder(next);
+			}
+		}
+		lines.add(line.toString());
+		int w = 0;
+		for (String l : lines) w = Math.max(w, font.width(l));
+		int h = lines.size() * 10 + 6;
+		int x = Math.min(mouseX + 10, width - w - 12), y = Math.min(mouseY + 12, height - h - 4);
+		g.fill(x - 1, y - 1, x + w + 9, y + h + 1, UiStyle.LINE);
+		g.fill(x, y, x + w + 8, y + h, 0xFF0B0D11);
+		g.fill(x, y, x + 2, y + h, UiStyle.FRONT);
+		for (int i = 0; i < lines.size(); i++) g.drawString(font, lines.get(i), x + 6, y + 4 + i * 10, UiStyle.TEXT, false);
 	}
 
 	@Override

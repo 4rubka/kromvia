@@ -156,7 +156,7 @@ pub fn media_now() -> Option<crate::engine::media::Track> {
 
 #[tauri::command]
 pub async fn media_control(action: String) -> Result<(), String> {
-    crate::engine::media::control(&action).await
+    crate::engine::media::control(&action, &serde_json::Value::Null).await
 }
 
 #[cfg(test)]

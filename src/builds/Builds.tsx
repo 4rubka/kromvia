@@ -20,6 +20,7 @@ import { PackOrder, SafetyCheck } from "../content/Tools";
 import { ContentUpdates } from "../content/Updates";
 import { Backups, Cloud, Files, FolderButton, SavedServers, Screenshots, Worlds } from "./InstanceExtras";
 import { Conflicts } from "./Conflicts";
+import { LagCheck } from "./LagCheck";
 import { Metrics } from "./Metrics";
 
 type Preset = "auto" | "maxFps" | "balanced" | "quality";
@@ -379,6 +380,14 @@ export function Builds({ onAddContent }: { onAddContent: (kind: Kind) => void })
               {tab === "settings" && <InstanceSettings key={inst.id} inst={inst} groups={groups} onSaved={refresh} />}
               {tab === "performance" && (
                 <>
+                  <LagCheck
+                    instanceId={inst.id}
+                    onFind={(query) => {
+                      aimContent(inst.id, query);
+                      onAddContent("mod");
+                    }}
+                    onConflicts={() => setTab("conflicts")}
+                  />
                   <section className="card">
                     <p className="muted">{t(inst.loader ? "builds.presetHint" : "builds.presetVanilla")}</p>
                     {presetJob ? (

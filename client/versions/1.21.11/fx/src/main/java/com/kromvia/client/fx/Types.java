@@ -41,4 +41,9 @@ final class Types {
 	static void mulPose(PoseStack ps, org.joml.Matrix4f m) {
 		ps.mulPose(m);
 	}
+
+	static void text(Object out, PoseStack pose, String text, float x, float y, int color, boolean shadow, boolean seeThrough, int background) {
+		((SubmitNodeCollector) out).submitText(pose, x, y, net.minecraft.network.chat.Component.literal(text).getVisualOrderText(), shadow,
+				seeThrough ? net.minecraft.client.gui.Font.DisplayMode.SEE_THROUGH : net.minecraft.client.gui.Font.DisplayMode.NORMAL, 0xF000F0, color, background, 0);
+	}
 }

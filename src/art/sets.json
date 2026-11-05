@@ -117,5 +117,15 @@
       "royal_armor"
     ],
     "effect": "enchant"
+  },
+  {
+    "id": "gentleman",
+    "name": "Gentleman",
+    "items": [
+      "top_hat",
+      "monocle",
+      "bow_tie"
+    ],
+    "effect": "enchant"
   }
 ]

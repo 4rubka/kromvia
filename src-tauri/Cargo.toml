@@ -1,6 +1,6 @@
 [package]
 name = "kromvia"
-version = "0.1.10"
+version = "0.1.11"
 description = "Kromvia Minecraft launcher"
 authors = ["_4rubka_"]
 edition = "2021"
@@ -50,7 +50,7 @@ tauri-plugin-updater = "2"
 zbus = "5"
 
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.62", features = ["Media_Control", "Foundation", "Storage_Streams"] }
+windows = { version = "0.62", features = ["Media", "Media_Control", "Foundation", "Storage_Streams"] }
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

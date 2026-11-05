@@ -157,6 +157,16 @@ pub async fn content_conflicts(instance_id: String) -> Result<Vec<content::confl
 }
 
 #[tauri::command]
+pub async fn lag_scan(instance_id: String) -> Result<Vec<crate::engine::game::lag::Finding>, String> {
+    crate::engine::game::lag::scan(&instance_id).await
+}
+
+#[tauri::command]
+pub fn lag_fix(instance_id: String, fix: crate::engine::game::lag::Fix) -> Result<(), String> {
+    crate::engine::game::lag::fix(&instance_id, fix)
+}
+
+#[tauri::command]
 pub async fn content_icon(instance_id: String, folder: String, file: String) -> Result<Option<String>, String> {
     content::icon(&instance_id, &folder, &file).await
 }

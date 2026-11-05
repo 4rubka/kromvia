@@ -108,6 +108,17 @@ impl Games {
         }
     }
 
+    pub fn any_running(&self) -> bool {
+        !self.running.lock().unwrap().is_empty()
+    }
+
+    pub fn level(&self, value: f32) {
+        let line = format!("{{\"level\":{value:.3}}}\n");
+        for r in self.running.lock().unwrap().values() {
+            let _ = r.stdin.send(line.clone());
+        }
+    }
+
     pub fn social(&self, state: &serde_json::Value) {
         let line = serde_json::json!({ "social": state }).to_string() + "\n";
         for r in self.running.lock().unwrap().values() {
@@ -928,7 +939,8 @@ fn playing<R: Runtime>(app: &AppHandle<R>, run_id: u64, text: &str) {
     }
     if let Some(action) = v["media"].as_str() {
         let action = action.to_string();
-        tauri::async_runtime::spawn(async move { crate::engine::media::control(&action).await });
+        let value = v["value"].clone();
+        tauri::async_runtime::spawn(async move { crate::engine::media::control(&action, &value).await });
         return;
     }
     if let Some(wanted) = v["install"].as_array() {

@@ -33,6 +33,7 @@ public class KromviaTitleScreen extends KScreen {
 	private float spin = 160;
 	private boolean dragging;
 	private int serverCount;
+	private String confirmRemove;
 	private int worldCount;
 
 	public KromviaTitleScreen() {
@@ -87,8 +88,20 @@ public class KromviaTitleScreen extends KScreen {
 		int sx = width - SIDE_W - 10;
 		for (int i = 0; i < serverCount; i++) {
 			ServerData data = list.get(i);
-			addRenderableWidget(new KButton(sx, BAR + 26 + i * 24, SIDE_W, 20, Component.literal("▶ " + data.name),
+			addRenderableWidget(new KButton(sx, BAR + 26 + i * 24, SIDE_W - 24, 20, Component.literal("▶ " + data.name),
 					b -> ConnectScreen.startConnecting(this, minecraft, ServerAddress.parseString(data.ip), data, false, null)));
+			boolean asking = data.ip.equals(confirmRemove);
+			addRenderableWidget(new KButton(sx + SIDE_W - 20, BAR + 26 + i * 24, 20, 20, Component.literal(asking ? "?" : "✕"), b -> {
+				if (data.ip.equals(confirmRemove)) {
+					list.remove(data);
+					list.save();
+					confirmRemove = null;
+				} else {
+					confirmRemove = data.ip;
+				}
+				clearWidgets();
+				init();
+			}, () -> data.ip.equals(confirmRemove)).flat());
 		}
 
 		List<String> worlds = recentWorlds(new File(minecraft.gameDirectory, "saves"), 3);

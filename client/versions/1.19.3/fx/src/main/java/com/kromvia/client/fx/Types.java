@@ -43,4 +43,8 @@ final class Types {
 	static void mulPose(PoseStack ps, org.joml.Matrix4f m) {
 		ps.mulPoseMatrix(m);
 	}
+
+	static void text(Object out, PoseStack pose, String text, float x, float y, int color, boolean shadow, boolean seeThrough, int background) {
+		Minecraft.getInstance().font.drawInBatch(text, x, y, color, shadow, pose.last().pose(), (MultiBufferSource) out, seeThrough, background, 0xF000F0);
+	}
 }

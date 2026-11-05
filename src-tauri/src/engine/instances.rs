@@ -219,6 +219,13 @@ fn check_icon(icon: &str) -> Result<(), String> {
     if ok { Ok(()) } else { Err("bad icon".into()) }
 }
 
+pub fn set_memory(id: &str, memory_mb: Option<u64>) -> Result<Instance, String> {
+    let mut inst = get(id)?;
+    inst.memory_mb = memory_mb;
+    save(&inst)?;
+    Ok(inst)
+}
+
 pub fn set_icon(id: &str, icon: Option<String>) -> Result<Instance, String> {
     if let Some(icon) = &icon {
         check_icon(icon)?;

@@ -489,7 +489,9 @@ public final class Fx {
 
 	public static void submitWorld(PoseStack pose, Object out, Vec3 cam) {
 		Minecraft mc = Minecraft.getInstance();
-		if (mc.player == null || mc.level == null || WORLD.stream().noneMatch(m -> m.enabled)) return;
+		if (mc.player == null || mc.level == null) return;
+		Lyrics.INSTANCE.world(mc, pose, out, cam);
+		if (WORLD.stream().noneMatch(m -> m.enabled)) return;
 		float partial = Ver.partial(mc);
 		Types.shapes(out, pose, (p, b) -> {
 			for (WorldFx m : WORLD) {

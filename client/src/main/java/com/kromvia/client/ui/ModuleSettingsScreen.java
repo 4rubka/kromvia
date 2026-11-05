@@ -10,6 +10,7 @@ import com.kromvia.client.Config;
 import com.kromvia.client.module.Features;
 import com.kromvia.client.module.Hud;
 import com.kromvia.client.module.Module;
+import com.kromvia.client.module.ModuleInfo;
 import com.kromvia.client.module.setting.BoolSetting;
 import com.kromvia.client.module.setting.ChoiceSetting;
 import com.kromvia.client.module.setting.ColorSetting;
@@ -164,11 +165,16 @@ public class ModuleSettingsScreen extends KScreen {
 		g.pose().pushMatrix();
 		slide(g);
 		super.draw(g, mouseX, mouseY, delta);
-		g.pose().pushMatrix();
-		g.pose().translate(px + 10, py + 6);
-		g.pose().scale(1.25F, 1.25F);
-		g.renderItem(module.icon(), 0, 0);
-		g.pose().popMatrix();
+		String icon = ModuleInfo.icon(module);
+		if (Icons.has(icon)) {
+			Icons.draw(g, icon, px + 10, py + 6, 20, module.enabled ? UiStyle.TOP : UiStyle.TEXT);
+		} else {
+			g.pose().pushMatrix();
+			g.pose().translate(px + 10, py + 6);
+			g.pose().scale(1.25F, 1.25F);
+			g.renderItem(module.icon(), 0, 0);
+			g.pose().popMatrix();
+		}
 		g.drawString(font, module.name, px + 34, py + 12, UiStyle.TEXT, false);
 
 		for (String[] l : labels) {
@@ -177,6 +183,8 @@ public class ModuleSettingsScreen extends KScreen {
 		}
 
 		int cx = px + pw / 4, cy = py + (ph - 30) / 2 + 10;
+		List<String> about = UiStyle.wrap(font, ModuleInfo.description(module), pw / 2 - 34);
+		for (int i = 0; i < about.size(); i++) g.drawString(font, about.get(i), px + 16, py + ph - 40 - (about.size() - i) * 10, UiStyle.MUTED, false);
 		g.drawCenteredString(font, "Preview", cx, py + 36, UiStyle.MUTED);
 		if (module == Features.CROSSHAIR) {
 			Features.CROSSHAIR.draw(g, cx, cy);
@@ -185,11 +193,15 @@ public class ModuleSettingsScreen extends KScreen {
 			int w = Math.round(module.width(minecraft) * s), h = Math.round(module.height(minecraft) * s);
 			if (w > 0 && h > 0) Hud.drawScaled(g, minecraft, module, cx - w / 2, cy - h / 2);
 		} else {
-			g.pose().pushMatrix();
-			g.pose().translate(cx - 24, cy - 24);
-			g.pose().scale(3, 3);
-			g.renderItem(module.icon(), 0, 0);
-			g.pose().popMatrix();
+			if (Icons.has(icon)) {
+				Icons.draw(g, icon, cx - 24, cy - 24, 48, module.enabled ? UiStyle.TOP : UiStyle.MUTED);
+			} else {
+				g.pose().pushMatrix();
+				g.pose().translate(cx - 24, cy - 24);
+				g.pose().scale(3, 3);
+				g.renderItem(module.icon(), 0, 0);
+				g.pose().popMatrix();
+			}
 		}
 		g.pose().popMatrix();
 	}

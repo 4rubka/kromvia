@@ -163,6 +163,8 @@ pub fn run() {
             commands::content::content_add_files,
             commands::content::content_icon,
             commands::content::content_conflicts,
+            commands::content::lag_scan,
+            commands::content::lag_fix,
             commands::content::content_set_enabled,
             commands::content::content_remove,
             commands::content::content_updates,
