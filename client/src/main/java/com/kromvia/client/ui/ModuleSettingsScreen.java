@@ -30,6 +30,8 @@ public class ModuleSettingsScreen extends KScreen {
 	private final List<String[]> labels = new ArrayList<>();
 	private final long opened = System.currentTimeMillis();
 	private int px, py, pw, ph, scroll, contentH;
+	private KButton keyButton;
+	private boolean listening;
 
 	private record Placed(AbstractWidget widget, int y) {}
 
@@ -63,6 +65,12 @@ public class ModuleSettingsScreen extends KScreen {
 			b.setMessage(Component.literal(module.enabled ? "On" : "Off"));
 			Config.save();
 		}, () -> module.enabled));
+
+		keyButton = new KButton(px + pw - 176, py + 8, 82, 18, Component.literal(keyLabel()), b -> {
+			listening = !listening;
+			b.setMessage(Component.literal(keyLabel()));
+		}, () -> listening);
+		addRenderableWidget(keyButton);
 
 		int x = listX(), w = listW();
 		int y = 0;
@@ -204,6 +212,21 @@ public class ModuleSettingsScreen extends KScreen {
 			}
 		}
 		g.pose().popMatrix();
+	}
+
+	private String keyLabel() {
+		return listening ? "Press a key" : "Key: " + Keys.name(module.key);
+	}
+
+	@Override
+	protected boolean keyDown(int key) {
+		if (!listening) return false;
+		module.key = key == 256 || key == 259 ? -1 : key;
+		module.keyHeld = true;
+		listening = false;
+		keyButton.setMessage(Component.literal(keyLabel()));
+		Config.save();
+		return true;
 	}
 
 	@Override

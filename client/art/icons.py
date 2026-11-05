@@ -1,10 +1,4 @@
 #!/usr/bin/env python3
-"""Renders the Kromvia client icon set into one atlas per pixel size.
-
-Each icon is drawn on a 24x24 grid in white; the game tints it. Run from anywhere:
-    python3 client/art/icons.py
-Needs resvg and Pillow.
-"""
 import io
 import math
 import pathlib
@@ -29,7 +23,6 @@ SUN_RAYS = '<path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.
 F = 'fill="#fff" stroke="none"'
 
 ICONS = {
-    # HUD readouts
     "fps": f'<path d="M4 17a8 8 0 1 1 16 0"/><path d="M12 17l4-5"/><circle cx="12" cy="17" r="1.6" {F}/>',
     "cps": '<rect x="8" y="8" width="8" height="13" rx="4"/><path d="M12 8v4M5 5l2 2M12 2.5v2.5M19 5l-2 2"/>',
     "ping": '<path d="M5 20v-3M10 20v-6M15 20v-9M20 20V7"/>',
@@ -65,7 +58,6 @@ ICONS = {
     "death_coords": '<path d="M12 21s-7-6-7-12a7 7 0 0 1 14 0c0 6-7 12-7 12z"/><path d="M10 7l4 4M14 7l-4 4"/>',
     "tab_ping": '<path d="M3 6h9M3 12h9M3 18h9M16 18v-2M19 18v-5M22 18v-8"/>',
     "crosshair": f'<path d="M12 3v6M12 15v6M3 12h6M15 12h6"/><circle cx="12" cy="12" r="1.2" {F}/>',
-    # Visual tweaks
     "no_hurt_cam": CAMERA + SLASH,
     "low_fire": '<path d="M12 2c1 4 6 6 6 10a6 6 0 0 1-12 0c0-3 2-4 2-7 2 1 3 2 4 4 0-3-1-5 0-7z"/><path d="M4 22h16"/>',
     "no_pumpkin": '<path d="M12 7c-5 0-8 3-8 7s3 6 8 6 8-2 8-6-3-7-8-7z"/><path d="M12 7c0-2 1-3 2-4"/>' + SLASH,
@@ -82,6 +74,7 @@ ICONS = {
     "snaplook": '<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v5h5"/><circle cx="12" cy="12" r="2"/>',
     "behind_you": '<circle cx="14" cy="6" r="3"/><path d="M8 21v-3a6 6 0 0 1 12 0v3M2 13h5M2 13l2-2M2 13l2 2"/>',
     "freecam": '<rect x="3" y="8" width="13" height="10" rx="2"/><path d="M16 12l5-3v8l-5-3"/><path d="M6 4l3-2 3 2M9 2v4"/>',
+    "easy_place": '<path d="M4 4h16v6H4z"/><path d="M12 13v8M8.5 17.5L12 21l3.5-3.5"/>',
     "zoom": '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21M10.5 7.5v6M7.5 10.5h6"/>',
     "fullbright": f'<circle cx="12" cy="12" r="4.5" {F}/>' + SUN_RAYS,
     "crash_patch": SHIELD + '<path d="M8.5 12l2.5 2.5 4.5-5"/>',
@@ -128,7 +121,6 @@ ICONS = {
     "music": '<path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/>',
     "kromvia_players": '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/>',
     "welcome_guide": '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/>',
-    # Music controls
     "play": f'<path d="M7 4.5l12.5 7.5L7 19.5z" {F}/>',
     "pause": f'<rect x="6" y="4" width="4.5" height="16" rx="1.2" {F}/><rect x="13.5" y="4" width="4.5" height="16" rx="1.2" {F}/>',
     "next": f'<path d="M4.5 4.5L15 12 4.5 19.5z" {F}/><rect x="16.5" y="4.5" width="3" height="15" rx="1" {F}/>',

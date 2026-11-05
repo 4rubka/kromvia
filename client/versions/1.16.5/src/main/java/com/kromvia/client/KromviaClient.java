@@ -47,6 +47,7 @@ public class KromviaClient implements ClientModInitializer {
 			Features.FREELOOK,
 			Features.SNAPLOOK,
 			new com.kromvia.client.module.Freecam(),
+			new com.kromvia.client.module.EasyPlace(),
 			Features.CRASH_PATCH,
 			Features.CROSSHAIR,
 			Features.NO_HURT_CAM,

@@ -50,6 +50,7 @@ freelook
 snaplook
 behind_you
 freecam
+easy_place
 zoom
 fullbright
 crash_patch

@@ -26,6 +26,7 @@ public final class Config {
 
 	private static final class Data {
 		Map<String, Boolean> modules = new TreeMap<>();
+		Map<String, Integer> keys = new TreeMap<>();
 		Map<String, JsonObject> settings = new TreeMap<>();
 		Map<Cosmetic.Slot, String> cosmetics = new TreeMap<>();
 		Map<String, Integer> colors = new TreeMap<>();
@@ -42,6 +43,8 @@ public final class Config {
 			for (Module m : KromviaClient.MODULES) {
 				Boolean on = data.modules == null ? null : data.modules.get(m.id);
 				if (on != null) m.enabled = on;
+				Integer key = data.keys == null ? null : data.keys.get(m.id);
+				m.key = key == null ? -1 : key;
 				float[] pos = data.hud == null ? null : data.hud.get(m.id);
 				if (pos != null && pos.length == 2) {
 					m.hudX = pos[0];
@@ -65,6 +68,7 @@ public final class Config {
 		Data data = new Data();
 		for (Module m : KromviaClient.MODULES) {
 			data.modules.put(m.id, m.enabled);
+			if (m.key >= 0) data.keys.put(m.id, m.key);
 			if (m.hudX >= 0) data.hud.put(m.id, new float[] {m.hudX, m.hudY});
 			if (m.settings.isEmpty()) continue;
 			JsonObject values = new JsonObject();

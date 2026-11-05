@@ -10,6 +10,7 @@ import java.util.Map;
 import com.kromvia.client.KromviaClient;
 import com.kromvia.client.ui.HudEditor;
 import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 
 public final class Hud {
 	private static final int MARGIN = 4;
@@ -78,6 +79,18 @@ public final class Hud {
 	}
 
 	public static void tick(Minecraft mc) {
+		boolean free = mc.player != null && Mc.screen() == null;
+		for (Module m : KromviaClient.MODULES) {
+			if (m.key < 0) continue;
+			boolean down = free && Mc.keyDown(m.key);
+			if (down && !m.keyHeld) {
+				m.enabled = !m.enabled;
+				if (!m.enabled) m.disable(mc);
+				com.kromvia.client.Config.save();
+				Mc.actionbar(Component.literal(m.name + ": " + (m.enabled ? "§aOn" : "§cOff")));
+			}
+			m.keyHeld = down;
+		}
 		for (Module m : KromviaClient.MODULES) {
 			if (m.enabled) m.tick(mc);
 		}

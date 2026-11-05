@@ -34,6 +34,7 @@ pub struct Source {
 
 static PREFERRED: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 
+#[cfg(any(target_os = "linux", windows))]
 fn preferred() -> Option<String> {
     PREFERRED.lock().unwrap().clone()
 }
@@ -189,6 +190,7 @@ fn save_art(key: &str, bytes: &[u8]) -> Option<PathBuf> {
     Some(path)
 }
 
+#[cfg_attr(not(any(target_os = "linux", windows)), allow(dead_code))]
 pub enum Action {
     PlayPause,
     Next,
@@ -386,7 +388,7 @@ mod platform {
     fn session() -> windows::core::Result<Session> {
         if let Some(want) = super::preferred() {
             for s in sessions()? {
-                if s.SourceAppUserModelId()?.to_string() == want {
+                if s.SourceAppUserModelId()? == *want {
                     return Ok(s);
                 }
             }
@@ -543,7 +545,7 @@ mod loudness {
                     if out.read_exact(&mut buf).await.is_err() {
                         break;
                     }
-                    let sum: f64 = buf.chunks_exact(2).map(|b| f64::from(i16::from_le_bytes([b[0], b[1]])).powi(2)).sum();
+                    let sum: f64 = buf.as_chunks::<2>().0.iter().map(|b| f64::from(i16::from_le_bytes(*b)).powi(2)).sum();
                     let rms = (sum / CHUNK as f64).sqrt() / 32768.0;
                     app.state::<Games>().level(rms.min(1.0) as f32);
                 }

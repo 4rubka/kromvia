@@ -38,6 +38,10 @@ public final class Mc {
 		return mc().gui.hud.isHidden();
 	}
 
+	public static void actionbar(Component message) {
+		mc().gui.hud.setOverlayMessage(message, false);
+	}
+
 	public static void say(Component message) {
 		mc().gui.hud.getChat().addClientSystemMessage(message);
 	}

@@ -108,10 +108,12 @@ impl Games {
         }
     }
 
+    #[cfg(target_os = "linux")]
     pub fn any_running(&self) -> bool {
         !self.running.lock().unwrap().is_empty()
     }
 
+    #[cfg(target_os = "linux")]
     pub fn level(&self, value: f32) {
         let line = format!("{{\"level\":{value:.3}}}\n");
         for r in self.running.lock().unwrap().values() {

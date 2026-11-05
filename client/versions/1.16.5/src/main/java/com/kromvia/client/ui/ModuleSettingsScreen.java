@@ -28,6 +28,8 @@ public class ModuleSettingsScreen extends KScreen {
 	private final List<String[]> labels = new ArrayList<>();
 	private final long opened = System.currentTimeMillis();
 	private int px, py, pw, ph, scroll, contentH;
+	private KButton keyButton;
+	private boolean listening;
 
 	private static final class Placed {
 		private final AbstractWidget widget;
@@ -77,6 +79,12 @@ public class ModuleSettingsScreen extends KScreen {
 			b.setMessage(new net.minecraft.network.chat.TextComponent(module.enabled ? "On" : "Off"));
 			Config.save();
 		}, () -> module.enabled));
+
+		keyButton = new KButton(px + pw - 176, py + 8, 82, 18, new net.minecraft.network.chat.TextComponent(keyLabel()), b -> {
+			listening = !listening;
+			b.setMessage(new net.minecraft.network.chat.TextComponent(keyLabel()));
+		}, () -> listening);
+		addButton(keyButton);
 
 		int x = listX(), w = listW();
 		int y = 0;
@@ -210,6 +218,21 @@ public class ModuleSettingsScreen extends KScreen {
 			}
 		}
 		g.pose().popMatrix();
+	}
+
+	private String keyLabel() {
+		return listening ? "Press a key" : "Key: " + Keys.name(module.key);
+	}
+
+	@Override
+	protected boolean keyDown(int key) {
+		if (!listening) return false;
+		module.key = key == 256 || key == 259 ? -1 : key;
+		module.keyHeld = true;
+		listening = false;
+		keyButton.setMessage(new net.minecraft.network.chat.TextComponent(keyLabel()));
+		Config.save();
+		return true;
 	}
 
 	@Override
