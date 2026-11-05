@@ -6,10 +6,10 @@ import { boxItem, boxModel } from "@launcher/art/procedural";
 import { Player3D } from "./Player3D";
 import s from "./Showcase.module.css";
 
-const PICKS = ["crown", "halo", "wizard_hat", "headphones", "sunglasses", "dragon_wings", "fairy_wings", "jetpack", "fox_tail", "chain"];
+const PICKS = ["royal_crown", "angel_halo", "demon_horns", "cyber_visor", "dragon_scarf", "dragon_wings", "phoenix_wings", "flame_blade", "angel_sword", "fox_tail"];
 
 export function Showcase() {
-  const [worn, setWorn] = useState<Record<string, string>>({ head: "crown", back: "dragon_wings" });
+  const [worn, setWorn] = useState<Record<string, string>>({ head: "royal_crown", back: "dragon_wings" });
   const [touched, setTouched] = useState(false);
   const [ready, setReady] = useState(false);
 

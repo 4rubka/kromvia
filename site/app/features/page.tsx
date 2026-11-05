@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BeeCards } from "@/components/BeeCard";
 import { Glyph } from "@/components/Glyph";
-import { content, MODULE_COUNT, MODULES, VERSIONS } from "@/lib/content";
+import { content, FORGE_VERSIONS, MODULE_COUNT, MODULES, VERSIONS } from "@/lib/content";
 import { getLang } from "@/lib/i18n";
 import s from "./features.module.css";
 
@@ -12,7 +12,7 @@ const T = {
     head: "Everything in Kromvia",
     lede: "The launcher handles versions, mods and Java. The built-in client adds the menu, HUD and cosmetics on top of every instance.",
     launcher: "Launcher", client: "Built-in client",
-    clientNote: `Runs on Fabric for Minecraft ${VERSIONS}, and on Forge and NeoForge for 1.21 to 1.21.10. Press Right Shift in any instance to open it.`,
+    clientNote: `Runs on Fabric and Quilt for Minecraft ${VERSIONS}, and on Forge and NeoForge for ${FORGE_VERSIONS}. Press Right Shift in any instance to open it.`,
     download: "Download Kromvia",
   },
   uk: {
@@ -20,7 +20,7 @@ const T = {
     head: "Усе, що є в Kromvia",
     lede: "Лаунчер бере на себе версії, моди й Java. Вбудований клієнт додає меню, HUD і косметику в кожну збірку.",
     launcher: "Лаунчер", client: "Вбудований клієнт",
-    clientNote: `Працює на Fabric для Minecraft ${VERSIONS.replace(" to ", " до ")}, а на Forge і NeoForge для 1.21–1.21.10. Натисни Right Shift у будь-якій збірці, щоб відкрити.`,
+    clientNote: `Працює на Fabric і Quilt для Minecraft ${VERSIONS.replace(" to ", " до ")}, а на Forge і NeoForge для ${FORGE_VERSIONS.replace(" to ", "–")}. Натисни Right Shift у будь-якій збірці, щоб відкрити.`,
     download: "Завантажити Kromvia",
   },
 };

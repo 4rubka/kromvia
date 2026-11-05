@@ -5,12 +5,19 @@ import { modelShot, shot } from "@launcher/art/gltf";
 import { boxModel } from "@launcher/art/procedural";
 import { Player3D } from "@/components/Player3D";
 import type { CatalogItem } from "@/lib/catalog";
+import SETS from "@launcher/art/sets.json";
 import s from "./cosmetics.module.css";
 
-const SLOTS = ["head", "face", "neck", "back", "body", "feet"];
+const SLOTS = ["head", "face", "neck", "back", "weapon", "body", "feet"];
+
+type CosmeticSet = { id: string; name: string; items: string[] };
 
 export function Wardrobe({ items }: { items: CatalogItem[] }) {
-  const [worn, setWorn] = useState<Record<string, string>>({ back: "wings-angel" });
+  const slotOf = (id: string) => items.find((i) => i.id === id)?.slot;
+  const outfit = (set: CosmeticSet) => Object.fromEntries(set.items.flatMap((id) => (slotOf(id) ? [[slotOf(id)!, id]] : [])));
+  const sets = SETS as CosmeticSet[];
+
+  const [worn, setWorn] = useState<Record<string, string>>(() => outfit(sets.find((x) => x.id === "angel") ?? sets[0]));
   const [cape, setCape] = useState(false);
   const [slot, setSlot] = useState<string | null>(null);
 
@@ -44,6 +51,17 @@ export function Wardrobe({ items }: { items: CatalogItem[] }) {
           </div>
         </div>
         <div>
+          <div className={s.filters}>
+            {sets.map((set) => {
+              const want = outfit(set);
+              const on = Object.keys(want).length === Object.keys(worn).length && Object.entries(want).every(([k, v]) => worn[k] === v);
+              return (
+                <button key={set.id} className={`chip ${on ? "on" : ""}`} aria-pressed={on} onClick={() => setWorn(outfit(set))}>
+                  {set.name}
+                </button>
+              );
+            })}
+          </div>
           <div className={s.filters}>
             <button className={`chip ${slot === null ? "on" : ""}`} onClick={() => setSlot(null)}>All</button>
             {SLOTS.filter((sl) => items.some((i) => i.slot === sl)).map((sl) => (

@@ -4,8 +4,8 @@ import { getLang } from "@/lib/i18n";
 import { Wardrobe } from "./Wardrobe";
 
 const T = {
-  en: { meta: { title: "Cosmetics", description: "Wings, capes, hats and more for the Kromvia client. Try them on." }, head: "Cosmetics", lede: "Try them on. In game, every Kromvia player on your server sees what you wear." },
-  uk: { meta: { title: "Косметика", description: "Крила, плащі, капелюхи й не тільки для клієнта Kromvia. Приміряй." }, head: "Косметика", lede: "Приміряй. У грі кожен гравець Kromvia на твоєму сервері бачить, що на тобі." },
+  en: { meta: { title: "Cosmetics", description: "Voxel wings, helmets, armour and weapons for the Kromvia client, plus 10 full costumes. Try them on." }, head: "Cosmetics", lede: "Try on a whole costume or mix single pieces. In game, every Kromvia player on your server sees what you wear." },
+  uk: { meta: { title: "Косметика", description: "Воксельні крила, шоломи, броня й зброя для клієнта Kromvia, а ще 10 повних костюмів. Приміряй." }, head: "Косметика", lede: "Приміряй цілий костюм або збери свій з окремих речей. У грі кожен гравець Kromvia на твоєму сервері бачить, що на тобі." },
 };
 
 export async function generateMetadata(): Promise<Metadata> {

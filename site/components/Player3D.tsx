@@ -69,7 +69,7 @@ export function Player3D({
   const models = (cosmetics.models ?? []).filter(wearable);
   const items = (cosmetics.items ?? []).filter((id) => boxItem(id)?.pieces.length);
   const style = STYLES.includes(cosmetics.style as CapeStyle) ? (cosmetics.style as CapeStyle) : "kromvia";
-  const wings = models.some((id) => id.startsWith("wings"));
+  const wings = models.some((id) => id.startsWith("wings")) || items.some((id) => boxItem(id)?.slot === "back");
 
   useEffect(() => {
     if (!viewer) return;

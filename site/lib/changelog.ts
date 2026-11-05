@@ -1,5 +1,28 @@
 export const CHANGELOG: { date: string; title: string; items: string[] }[] = [
   {
+    date: "2026-11-05",
+    title: "Voxel costumes and Forge",
+    items: [
+      "New voxel cosmetics: 56 items and 10 full costumes with wings, helmets, horns, armour and weapons.",
+      "Flip through costumes in the wardrobe and wear a whole set in one click. Weapons get their own slot.",
+      "The client now runs on Quilt, and on Forge and NeoForge from 1.20.6 to 26.3.",
+      "Friends page with skin heads, people search, profiles, screenshots in chat and a Join button.",
+      "New modules: Snaplook, Crash Patch, Glint Colour, Scoreboard and Vanilla HUD.",
+      "After a crash the launcher names mods that clash and offers to turn one off.",
+    ],
+  },
+  {
+    date: "2026-11-04",
+    title: "Pause menu and shared modpacks",
+    items: [
+      "A new pause menu with your player, the wardrobe, Host World and friends.",
+      "Share codes keep CurseForge mods, not only the ones from Modrinth.",
+      "Rooms work on Forge and NeoForge too.",
+      "Particle effects use the same pixel icons as the launcher.",
+      "Every Kromvia player gets a K badge next to their name.",
+    ],
+  },
+  {
     date: "2026-11-03",
     title: "Bees and a better cape",
     items: [
