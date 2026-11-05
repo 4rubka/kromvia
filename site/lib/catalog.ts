@@ -1,5 +1,8 @@
 import { MODELS } from "@launcher/art/catalog";
-import BOXES from "@launcher/art/cosmetics.json";
+import CATALOG_JSON from "@launcher/art/cosmetics.json";
+import VOXELS from "@launcher/art/voxels.json";
+
+const BOXES = [...CATALOG_JSON, ...VOXELS];
 
 export type CatalogItem = { id: string; name: string; slot: string; kind: "model" | "box"; credit?: { author: string; url: string } };
 

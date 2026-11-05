@@ -33,8 +33,9 @@ export const LOADER_NAMES: Record<LoaderKind, string> = {
 };
 
 type RunInfo = { runId: number; instanceId: string };
-export type CrashCause = "outOfMemory" | "tooMuchMemory" | "wrongJava" | "missingMod" | "duplicateMod" | "brokenMod" | "driver" | "unknown";
+export type CrashCause = "outOfMemory" | "tooMuchMemory" | "wrongJava" | "missingMod" | "duplicateMod" | "brokenMod" | "modRemoved" | "driver" | "unknown";
 export type Crash = { cause: CrashCause; detail: string | null; report: string | null; auto: boolean };
+export type ModsChange = { removed: string[]; added: string[] };
 type ExitEvent = RunInfo & { code: number | null; crash: Crash | null };
 export type LaunchExtra = { join?: string; world?: string; room?: boolean };
 
@@ -69,6 +70,7 @@ function useLauncherState() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [exits, setExits] = useState<Record<string, number | null>>({});
   const [crashes, setCrashes] = useState<Record<string, Crash>>({});
+  const [modsChanged, setModsChanged] = useState<Record<string, ModsChange>>({});
   const [logs, setLogs] = useState<Record<string, LogLine[]>>({});
   const [selected, setSelected] = useState<string | null>(null);
   const [rooms, setRooms] = useState<Record<string, string>>({});
@@ -96,7 +98,11 @@ function useLauncherState() {
       setLogs((l) => ({ ...l, [payload.instanceId]: [] }));
       setExits(({ [payload.instanceId]: _, ...rest }) => rest);
       setCrashes(({ [payload.instanceId]: _, ...rest }) => rest);
+      setModsChanged(({ [payload.instanceId]: _, ...rest }) => rest);
     });
+    const unMods = listen<ModsChange & { instanceId: string }>("game-mods-changed", ({ payload: { instanceId, removed, added } }) =>
+      setModsChanged(({ [instanceId]: _, ...rest }) => (removed.length || added.length ? { ...rest, [instanceId]: { removed, added } } : rest)),
+    );
     const unLog = listen<{ runId: number; line: LogLine }>("game-log", ({ payload }) => {
       const id = runs[payload.runId];
       if (!id) return;
@@ -112,6 +118,7 @@ function useLauncherState() {
     });
     const unExit = listen<ExitEvent>("game-exit", ({ payload }) => {
       setRunning((r) => r.filter((x) => x.runId !== payload.runId));
+      setModsChanged(({ [payload.instanceId]: _, ...rest }) => rest);
       setExits((e) => ({ ...e, [payload.instanceId]: payload.code }));
       const crash = payload.crash;
       if (crash) setCrashes((c) => ({ ...c, [payload.instanceId]: crash }));
@@ -149,7 +156,7 @@ function useLauncherState() {
       refreshAccounts();
     });
     return () => {
-      [unStart, unLog, unExit, unScene, unRequest, unJoin, unWardrobe, unSwitch].forEach((u) => u.then((f) => f()));
+      [unStart, unMods, unLog, unExit, unScene, unRequest, unJoin, unWardrobe, unSwitch].forEach((u) => u.then((f) => f()));
     };
   }, []);
 
@@ -234,6 +241,7 @@ function useLauncherState() {
     setError,
     exits,
     crashes,
+    modsChanged,
     logs,
     rooms,
     hosting,

@@ -97,9 +97,7 @@ public final class Onboarding extends KScreen {
 				List<Module> list = HUD.stream().map(Onboarding::module).filter(m -> m != null).toList();
 				int cols = 3, bw = (w - (cols - 1) * 4) / cols;
 				for (int i = 0; i < list.size(); i++) toggle(list.get(i), list.get(i).name, x + (i % cols) * (bw + 4), y + (i / cols) * 24, bw);
-				int by = y + ((list.size() + cols - 1) / cols) * 24;
-				addRenderableWidget(new KButton(x, by, w / 2 - 2, 18, Component.literal("All"), b -> setAll(list, true)).flat());
-				addRenderableWidget(new KButton(x + w / 2 + 2, by, w / 2 - 2, 18, Component.literal("None"), b -> setAll(list, false)).flat());
+				allNone(x + w, () -> setAll(list, true), () -> setAll(list, false));
 			}
 			case "Visuals" -> {
 				toggle(module("block_outline"), "Coloured block outline", x, y, w);
@@ -118,16 +116,14 @@ public final class Onboarding extends KScreen {
 				for (int i = 0; i < EXTRAS.size(); i++) {
 					Extra e = EXTRAS.get(i);
 					boolean in = FabricLoader.getInstance().isModLoaded(e.modId());
-					KButton b = addRenderableWidget(new KButton(x, y + i * 22, w, 20, Component.literal(in ? e.label() + "  ✓" : e.label()), btn -> {
+					KButton b = addRenderableWidget(new KButton(x, y + i * 22, w, 20, Component.literal(e.label()), btn -> {
 						if (!PICKED.remove(e.slug())) PICKED.add(e.slug());
-					}, () -> in || PICKED.contains(e.slug())));
+					}, () -> in || PICKED.contains(e.slug())).toggle());
 					b.active = !in && Accounts.sender != null;
 				}
-				int by = y + EXTRAS.size() * 22 + 2;
-				addRenderableWidget(new KButton(x, by, w / 2 - 2, 18, Component.literal("All"), b -> {
+				allNone(x + w, () -> {
 					for (Extra e : EXTRAS) if (!FabricLoader.getInstance().isModLoaded(e.modId())) PICKED.add(e.slug());
-				}).flat());
-				addRenderableWidget(new KButton(x + w / 2 + 2, by, w / 2 - 2, 18, Component.literal("None"), b -> PICKED.clear()).flat());
+				}, PICKED::clear);
 			}
 			default -> {}
 		}
@@ -147,7 +143,13 @@ public final class Onboarding extends KScreen {
 			m.enabled = !m.enabled;
 			if (!m.enabled) m.disable(minecraft);
 			Config.save();
-		}, () -> m.enabled));
+		}, () -> m.enabled).toggle());
+	}
+
+	private void allNone(int right, Runnable all, Runnable none) {
+		int y = py + 40;
+		addRenderableWidget(new KButton(right - 80, y, 38, 14, Component.literal("All"), b -> all.run()).flat());
+		addRenderableWidget(new KButton(right - 38, y, 38, 14, Component.literal("None"), b -> none.run()).flat());
 	}
 
 	private void setAll(List<Module> list, boolean on) {

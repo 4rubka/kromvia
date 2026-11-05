@@ -2,7 +2,7 @@
  * 3D models bundled in public/models, all CC BY 4.0 from Sketchfab: free to use, the authors
  * are credited on the Licenses page (Settings).
  */
-export type Slot = "head" | "face" | "neck" | "back" | "feet" | "body";
+export type Slot = "head" | "face" | "neck" | "back" | "weapon" | "feet" | "body";
 
 export type ModelEntry = {
   id: string;

@@ -160,6 +160,13 @@ export function Home({ onNavigate }: { onNavigate: (page: Nav) => void }) {
   }, [current?.id]);
   const job = current && l.jobOf(current.id);
   const run = current && l.runOf(current.id);
+  const [restarting, setRestarting] = useState<string | null>(null);
+  useEffect(() => {
+    if (!restarting || l.runOf(restarting)) return;
+    const inst = instances.find((i) => i.id === restarting);
+    setRestarting(null);
+    if (inst) l.play(inst);
+  }, [restarting, l.running]);
   const name = l.account?.name ?? (l.nick.trim() || t("home.guest"));
   const recent = [...instances].sort((a, b) => b.created - a.created).slice(0, 3);
   const shown = instances.filter((i) => i.name.toLowerCase().includes(query.trim().toLowerCase()));
@@ -474,6 +481,14 @@ export function Home({ onNavigate }: { onNavigate: (page: Nav) => void }) {
           {menu && <TileMenu inst={menu.inst} x={menu.x} y={menu.y} onClose={() => setMenu(null)} onOpen={() => open(menu.inst)} />}
         </section>
 
+        {current && run && l.modsChanged[current.id] && (
+          <p className="error crash-help">
+            {t("game.modsChanged", { files: [...l.modsChanged[current.id].removed, ...l.modsChanged[current.id].added].join(", ") })}
+            <button className="btn" onClick={() => (setRestarting(current.id), invoke("game_stop", { runId: run.runId }))}>
+              <Glyph name="refresh" /> {t("game.restart")}
+            </button>
+          </p>
+        )}
         {current && l.crashes[current.id] && !run && <CrashHelp key={current.id} inst={current} crash={l.crashes[current.id]} />}
         {current && l.logs[current.id] && (
           <section>

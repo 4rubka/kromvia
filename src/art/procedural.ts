@@ -1,9 +1,11 @@
 import { Box3, BoxGeometry, CanvasTexture, Group, Mesh, MeshStandardMaterial, NearestFilter, SRGBColorSpace, Vector3, type Object3D } from "three";
 import type { SkinViewer } from "skinview3d";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import CATALOG from "./cosmetics.json";
+import VOXELS from "./voxels.json";
 
-export type Slot = "head" | "face" | "neck" | "back" | "body" | "feet" | "effect";
-type Anchor = "head" | "body" | "right_arm" | "left_arm";
+export type Slot = "head" | "face" | "neck" | "back" | "weapon" | "body" | "feet" | "effect";
+type Anchor = "head" | "body" | "right_arm" | "left_arm" | "right_leg" | "left_leg";
 type Anim =
   | { type: "flap"; side: number; speed: number; sweep: number }
   | { type: "cape" }
@@ -12,7 +14,7 @@ type Anim =
 type Piece = { anchor: Anchor; color: number; pattern: string; glow?: boolean; anim?: Anim; pose?: number[]; boxes: number[] };
 export type BoxItem = { id: string; name: string; slot: Slot; color: number; pieces: Piece[] };
 
-export const BOX_ITEMS = CATALOG as BoxItem[];
+export const BOX_ITEMS = [...(CATALOG as BoxItem[]), ...(VOXELS as BoxItem[])];
 export const boxItem = (id: string) => BOX_ITEMS.find((i) => i.id === id);
 
 export const PALETTE = [0xfff2f2f2, 0xff262626, 0xffd93a3a, 0xfff08a24, 0xffffc83d, 0xff7bd93a, 0xff2e8b3e, 0xff4fe3e8, 0xff3a6fd9, 0xff8e44d9, 0xffff9ec4, 0xff7a4e2d];
@@ -118,7 +120,7 @@ export function rainbow(now = performance.now()) {
   return (f(5) << 16) | (f(3) << 8) | f(1);
 }
 
-const OFFSET: Record<Anchor, number> = { head: 0, body: 6, right_arm: 0, left_arm: 0 };
+const OFFSET: Record<Anchor, number> = { head: 0, body: 6, right_arm: 0, left_arm: 0, right_leg: 0, left_leg: 0 };
 
 type Built = { group: Group; anchor: Anchor; anim?: Anim; tinted: MeshStandardMaterial[] };
 
@@ -129,6 +131,20 @@ function buildPiece(item: BoxItem, p: Piece, index: number): Built {
   const pose = p.pose ?? [0, 0, 0, 0, 0, 0];
   pivot.position.set(pose[0], -pose[1] + OFFSET[p.anchor], -pose[2]);
   pivot.rotation.set(pose[3], -pose[4], -pose[5], "ZYX");
+  if (p.pattern === "flat") {
+    const parts: BoxGeometry[] = [];
+    for (let i = 0; i < p.boxes.length; i += 6) {
+      const [x, y, z, w, h, d] = p.boxes.slice(i, i + 6);
+      parts.push(new BoxGeometry(w, h, d).translate(x + w / 2, -(y + h / 2), -(z + d / 2)));
+    }
+    const m = new MeshStandardMaterial({ roughness: 1, metalness: 0 });
+    if (p.glow) m.emissive.set(0x555555);
+    tinted.push(m);
+    pivot.add(new Mesh(mergeGeometries(parts), m));
+    const group = new Group();
+    group.add(pivot);
+    return { group, anchor: p.anchor, anim: p.anim, tinted };
+  }
   for (let i = 0; i < p.boxes.length; i += 6) {
     const [x, y, z, w, h, d] = p.boxes.slice(i, i + 6);
     const faces: [Face, number, number][] = [
@@ -190,7 +206,14 @@ function animate(b: Built, base: number[], age: number) {
   }
 }
 
-const PART: Record<Anchor, "head" | "body" | "rightArm" | "leftArm"> = { head: "head", body: "body", right_arm: "rightArm", left_arm: "leftArm" };
+const PART: Record<Anchor, "head" | "body" | "rightArm" | "leftArm" | "rightLeg" | "leftLeg"> = {
+  head: "head",
+  body: "body",
+  right_arm: "rightArm",
+  left_arm: "leftArm",
+  right_leg: "rightLeg",
+  left_leg: "leftLeg",
+};
 
 export function wearBox(v: SkinViewer, id: string, color: () => number) {
   const item = boxItem(id);

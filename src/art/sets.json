@@ -1,0 +1,121 @@
+[
+  {
+    "id": "inferno",
+    "name": "Lord of Fire",
+    "items": [
+      "fire_crown",
+      "fire_mask",
+      "phoenix_wings",
+      "flame_blade",
+      "inferno_armor"
+    ],
+    "effect": "flames"
+  },
+  {
+    "id": "demon",
+    "name": "Demon Lord",
+    "items": [
+      "demon_horns",
+      "demon_skull",
+      "demon_wings",
+      "demon_scythe",
+      "demon_armor"
+    ],
+    "effect": "ash"
+  },
+  {
+    "id": "frost",
+    "name": "Frost King",
+    "items": [
+      "frost_crown",
+      "frost_visor",
+      "frost_mantle",
+      "crystal_wings",
+      "frost_trident",
+      "frost_armor"
+    ],
+    "effect": "snow"
+  },
+  {
+    "id": "angel",
+    "name": "Archangel",
+    "items": [
+      "angel_halo",
+      "angel_amulet",
+      "angel_wings",
+      "angel_sword",
+      "angel_armor"
+    ],
+    "effect": "sparkles"
+  },
+  {
+    "id": "void",
+    "name": "Void Walker",
+    "items": [
+      "void_horns",
+      "void_visor",
+      "void_wings",
+      "void_staff",
+      "void_armor"
+    ],
+    "effect": "portal"
+  },
+  {
+    "id": "dragon",
+    "name": "Wild Dragon",
+    "items": [
+      "dragon_horns",
+      "dragon_scarf",
+      "dragon_wings",
+      "dragon_axe",
+      "dragon_armor"
+    ],
+    "effect": "spores"
+  },
+  {
+    "id": "cyber",
+    "name": "Neon Runner",
+    "items": [
+      "cyber_helmet",
+      "cyber_visor",
+      "cyber_wings",
+      "cyber_katana",
+      "cyber_armor"
+    ],
+    "effect": "sparks"
+  },
+  {
+    "id": "shadow",
+    "name": "Shadow Ninja",
+    "items": [
+      "shadow_hood",
+      "shadow_mask",
+      "shadow_scarf",
+      "shadow_katana",
+      "shadow_suit"
+    ],
+    "effect": "souls"
+  },
+  {
+    "id": "knight",
+    "name": "Knight",
+    "items": [
+      "knight_helm",
+      "knight_sword",
+      "knight_armor"
+    ],
+    "effect": "crit"
+  },
+  {
+    "id": "royal",
+    "name": "Royal",
+    "items": [
+      "royal_crown",
+      "royal_mantle",
+      "royal_wings",
+      "royal_staff",
+      "royal_armor"
+    ],
+    "effect": "enchant"
+  }
+]

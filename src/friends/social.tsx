@@ -121,16 +121,22 @@ function useSocialState() {
     loadParty();
   };
   useEffect(() => {
-    invoke<{ id: string; dev?: boolean } | null>("social_me").then((m) => {
-      if (!m) return;
-      connect(m.id);
+    const syncDev = (m: { dev?: boolean }) => {
       const o = savedOutfit();
       if (!!o.dev !== !!m.dev) {
         const next = { ...o, dev: !!m.dev };
         storeOutfit(next);
         pushOutfit(next).catch(() => {});
       }
+    };
+    invoke<{ id: string; dev?: boolean } | null>("social_me").then((m) => {
+      if (!m) return;
+      connect(m.id);
+      syncDev(m);
     }, () => {});
+    const onFocus = () => invoke<{ dev?: boolean } | null>("social_me").then((m) => m && syncDev(m), () => {});
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
   }, []);
 
   const openChat = (id: string | null) => {

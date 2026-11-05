@@ -150,7 +150,7 @@ public final class Players extends Module {
 	}
 
 	public static Component badged(String nick, Component name) {
-		boolean self = Fx.PLAYERS.enabled && Fx.PLAYERS.host != null && nick.equalsIgnoreCase(Minecraft.getInstance().getUser().getName());
+		boolean self = Fx.PLAYERS.enabled && nick.equalsIgnoreCase(Minecraft.getInstance().getUser().getName());
 		if (name == null || !self && worn(nick) == null) return name;
 		MutableComponent out = Component.literal("").append(Badge.glyph(Badge.KROMVIA)).append(" ").append(name);
 		Seen s = Fx.PLAYERS.seen.get(nick.toLowerCase(Locale.ROOT));

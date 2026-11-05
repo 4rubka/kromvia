@@ -510,6 +510,9 @@ fn prepare_from(inst: &Instance, session: &Session, version: VersionJson, java_b
     }
     jvm_extra.extend(client_flag(inst, paths::client_jar(&inst.mc_version).map(|j| pinned_client(&j)).transpose()?));
     sync_forge_client(inst, &game_dir)?;
+    for file in crate::engine::content::conflicts::drop_superseded(&game_dir.join("mods")) {
+        crate::engine::core::crashlog::write("launch", &format!("removed {file}: conflicts with an installed mod"));
+    }
     jvm_extra.extend(inst.jvm_args.iter().flat_map(|a| a.split_whitespace().map(String::from)));
     for flag in tuning::drop_unknown_flags(&java_bin, &mut jvm_extra) {
         crate::engine::core::crashlog::write("launch", &format!("dropped JVM option {flag}: not supported by {}", java_bin.display()));
@@ -713,11 +716,12 @@ fn spawn<R: Runtime>(
     let _ = app.emit("game-started", RunInfo { run_id, instance_id: instance_id.to_string() });
 
     let tail = Arc::new(Mutex::new(VecDeque::new()));
-    let out = tauri::async_runtime::spawn(pump(app.clone(), run_id, child.stdout.take().unwrap(), tail.clone()));
-    let err = tauri::async_runtime::spawn(pump(app.clone(), run_id, child.stderr.take().unwrap(), tail.clone()));
+    let out = tauri::async_runtime::spawn(pump(app.clone(), run_id, who.name.clone(), child.stdout.take().unwrap(), tail.clone()));
+    let err = tauri::async_runtime::spawn(pump(app.clone(), run_id, who.name.clone(), child.stderr.take().unwrap(), tail.clone()));
     let instance_id = instance_id.to_string();
     instances::record_start(&instance_id);
     let metrics = child.id().map(|pid| crate::engine::metrics::watch(instance_id.clone(), pid));
+    tauri::async_runtime::spawn(watch_mods(app.clone(), run_id, instance_id.clone()));
     let started = Instant::now();
     tauri::async_runtime::spawn(async move {
         let (status, stopped) = tokio::select! {
@@ -764,6 +768,38 @@ fn spawn<R: Runtime>(
         }
     });
     Ok(())
+}
+
+fn mod_jars(dir: &Path) -> std::collections::BTreeSet<String> {
+    std::fs::read_dir(dir)
+        .map(|entries| {
+            entries
+                .flatten()
+                .map(|e| e.file_name().to_string_lossy().into_owned())
+                .filter(|n| n.ends_with(".jar") && n != crate::engine::content::BUILT_IN_CLIENT)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+async fn watch_mods<R: Runtime>(app: AppHandle<R>, run_id: u64, instance_id: String) {
+    let Ok(dir) = instances::game_dir(&instance_id).map(|d| d.join("mods")) else { return };
+    let start = mod_jars(&dir);
+    let mut last = start.clone();
+    loop {
+        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+        if !app.state::<Games>().running.lock().unwrap().contains_key(&run_id) {
+            return;
+        }
+        let now = mod_jars(&dir);
+        if now == last {
+            continue;
+        }
+        let removed: Vec<&String> = start.difference(&now).collect();
+        let added: Vec<&String> = now.difference(&start).collect();
+        let _ = app.emit("game-mods-changed", serde_json::json!({ "runId": run_id, "instanceId": instance_id, "removed": removed, "added": added }));
+        last = now;
+    }
 }
 
 const TAIL_LINES: usize = 3000;
@@ -908,6 +944,10 @@ fn playing<R: Runtime>(app: &AppHandle<R>, run_id: u64, text: &str) {
     let _ = app.emit("game-server", serde_json::json!({ "runId": run_id, "host": at.map(|a| a.0) }));
 }
 
+fn room_domain(text: &str) -> Option<&str> {
+    text.strip_prefix("Domain assigned: ")?.split_whitespace().next().filter(|d| valid_address(d))
+}
+
 fn scene_of(text: &str) -> Option<&'static str> {
     if text.starts_with("Starting integrated minecraft server") {
         Some("singleplayer")
@@ -920,7 +960,7 @@ fn scene_of(text: &str) -> Option<&'static str> {
     }
 }
 
-async fn pump<R: Runtime>(app: AppHandle<R>, run_id: u64, stream: impl AsyncRead + Unpin, tail: Arc<Mutex<VecDeque<String>>>) {
+async fn pump<R: Runtime>(app: AppHandle<R>, run_id: u64, nick: String, stream: impl AsyncRead + Unpin, tail: Arc<Mutex<VecDeque<String>>>) {
     let mut lines = BufReader::new(stream).lines();
     let mut parser = LogParser::default();
     while let Ok(Some(line)) = lines.next_line().await {
@@ -935,6 +975,11 @@ async fn pump<R: Runtime>(app: AppHandle<R>, run_id: u64, stream: impl AsyncRead
             if line.logger == PRESENCE_LOGGER {
                 playing(&app, run_id, &line.text);
             } else if let Some(scene) = scene_of(&line.text) {
+                match scene {
+                    "room" => app.state::<Live>().set_playing(room_domain(&line.text).map(|d| (d, nick.as_str()))),
+                    "menu" => app.state::<Live>().set_playing(None),
+                    _ => {}
+                }
                 let _ = app.emit("game-scene", serde_json::json!({ "runId": run_id, "scene": scene }));
             }
             let _ = app.emit("game-log", LogEvent { run_id, line: &line });
@@ -981,6 +1026,8 @@ mod tests {
     #[test]
     fn validates_addresses() {
         assert!(valid_address("abc-def.relay.e4mc.link"));
+        assert_eq!(room_domain("Domain assigned: abc-def.relay.e4mc.link"), Some("abc-def.relay.e4mc.link"));
+        assert_eq!(room_domain("Stopping server"), None);
         assert!(valid_address("mc.hypixel.net:25565"));
         assert!(!valid_address("--demo"));
         assert!(!valid_address("a b"));

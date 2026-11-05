@@ -106,7 +106,7 @@ export function UpdatePrompt() {
     if (!saved) return;
     getVersion().then((v) => {
       const notes = JSON.parse(saved) as Available;
-      if (notes.version === v) setInstalled(notes);
+      if (notes.version === v && notes.notes?.trim()) setInstalled(notes);
       write(NOTES_KEY, null);
     }, () => {});
   }, []);

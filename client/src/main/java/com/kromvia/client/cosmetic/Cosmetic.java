@@ -11,9 +11,9 @@ import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
 
 public record Cosmetic(String id, String name, Slot slot, int defaultColor, List<Piece> pieces) {
-	public enum Slot { HEAD, FACE, NECK, BACK, BODY, EFFECT }
+	public enum Slot { HEAD, FACE, NECK, BACK, WEAPON, BODY, EFFECT }
 
-	public enum Anchor { HEAD, BODY, RIGHT_ARM, LEFT_ARM }
+	public enum Anchor { HEAD, BODY, RIGHT_ARM, LEFT_ARM, RIGHT_LEG, LEFT_LEG }
 
 	@FunctionalInterface
 	public interface Animator {

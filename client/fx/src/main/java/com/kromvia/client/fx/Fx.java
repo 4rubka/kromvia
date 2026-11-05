@@ -82,13 +82,11 @@ public final class Fx {
 		public void render(Minecraft mc, Object target, Object pool) {
 			if (!enabled || !haveFrame) return;
 			String name = "motion_blur_" + strength.current().toLowerCase(Locale.ROOT);
-			Vec3 delta = position.subtract(prevPosition);
-			boolean still = !havePrevious || delta.lengthSqr() > 64;
+			boolean still = !havePrevious || position.subtract(prevPosition).lengthSqr() > 64;
 			Matrix4f inverse = new Matrix4f(projection).mul(view).invert();
 			Matrix4f previous = still ? new Matrix4f(projection).mul(view) : new Matrix4f(prevProjection).mul(prevView);
-			if (still) delta = Vec3.ZERO;
 			try {
-				BlurBackend.draw(mc, name, inverse, previous, delta, target, pool);
+				BlurBackend.draw(mc, name, inverse, previous, Vec3.ZERO, target, pool);
 			} catch (RuntimeException e) {
 				LOG.warn("Motion blur {} failed, switching it off", name, e);
 				enabled = false;
@@ -485,6 +483,7 @@ public final class Fx {
 		all.addAll(Tweaks.modules());
 		all.addAll(More.modules());
 		all.add(Media.INSTANCE);
+		all.add(Lyrics.INSTANCE);
 		return all;
 	}
 

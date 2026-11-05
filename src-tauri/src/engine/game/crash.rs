@@ -10,6 +10,7 @@ pub enum Cause {
     MissingMod,
     DuplicateMod,
     BrokenMod,
+    ModRemoved,
     Driver,
     Unknown,
 }
@@ -38,7 +39,9 @@ pub fn analyze(log: &str, report_path: Option<String>, report: &str) -> Crash {
         (Cause::WrongJava, line_with("class file version"))
     } else if any(&["Found duplicate mods", "DuplicateModsFoundException", "Duplicate mods found"]) {
         (Cause::DuplicateMod, line_with("Mod ID").or_else(|| line_with("duplicate")))
-    } else if let Some(l) = text.lines().find(|l| l.contains("which is missing") || (l.contains("requires") && l.contains("version") && l.trim_start().starts_with("- "))) {
+    } else if let Some(l) = text.lines().find(|l| l.contains("NoSuchFileException") && (l.contains("/mods/") || l.contains("\\mods\\"))) {
+        (Cause::ModRemoved, l.rsplit(['/', '\\']).next().map(|f| f.trim().chars().take(200).collect()))
+    } else if let Some(l) = text.lines().find(|l| (l.contains("which is missing") && !l.contains("recommends") && !l.contains("suggests")) || (l.contains("requires") && l.contains("version") && l.trim_start().starts_with("- "))) {
         (Cause::MissingMod, Some(l.trim().trim_start_matches("- ").chars().take(300).collect()))
     } else if text.contains("Missing or unsupported mandatory dependencies") {
         (Cause::MissingMod, line_with("Mod ID:"))
@@ -53,10 +56,13 @@ pub fn analyze(log: &str, report_path: Option<String>, report: &str) -> Crash {
 }
 
 fn mixin_mod(text: &str) -> Option<String> {
-    ["from mod ", "for mod "].iter().find_map(|m| {
-        let rest = &text[text.find(m)? + m.len()..];
-        let id: String = rest.chars().take_while(|c| c.is_ascii_alphanumeric() || "_-.".contains(*c)).collect();
-        (!id.is_empty()).then_some(id)
+    let failing = |l: &&str| ["failed injection check", "Critical injection failure", "Mixin apply for mod", "Mixin apply failed"].iter().any(|n| l.contains(n));
+    text.lines().filter(failing).find_map(|l| {
+        ["from mod ", "for mod "].iter().find_map(|m| {
+            let rest = &l[l.find(m)? + m.len()..];
+            let id: String = rest.chars().take_while(|c| c.is_ascii_alphanumeric() || "_-.".contains(*c)).collect();
+            (!id.is_empty()).then_some(id)
+        })
     })
 }
 
@@ -89,6 +95,19 @@ mod tests {
         assert_eq!(
             cause("org.spongepowered.asm.mixin.transformer.throwables.MixinTransformerError: An unexpected critical error was encountered\nMixin [sodium.mixins.json:core.MixinWindow] from mod sodium failed injection check"),
             (Cause::BrokenMod, Some("sodium".into()))
+        );
+        assert_eq!(
+            cause("@Mixin target net.minecraft.class_8609 was not found e4mc.mixins.json:Accessor from mod e4mc\nMixinTransformerError: An unexpected critical error\nCritical injection failure: Redirector x in kromvia.qol.mixins.json:QolGameRendererMixin from mod kromvia failed injection check"),
+            (Cause::BrokenMod, Some("kromvia".into()))
+        );
+        assert_eq!(cause("@Mixin target a was not found x.json:A from mod e4mc\nMixinTransformerError: boom").1, None);
+        assert_eq!(
+            cause("Mod 'Spawn Animations' (spawnanimations) 1.11.6 recommends any version of compats, which is missing!\nsomething else").0,
+            Cause::Unknown
+        );
+        assert_eq!(
+            cause("Caused by: java.nio.file.NoSuchFileException: ~/.local/share/k/instances/a/minecraft/mods/Essential_1-5-0-1_fabric_26-3.jar"),
+            (Cause::ModRemoved, Some("Essential_1-5-0-1_fabric_26-3.jar".into()))
         );
         assert_eq!(cause("[LWJGL] GLFW error 65542: WGL: The driver does not appear to support OpenGL").0, Cause::Driver);
         assert_eq!(cause("Something odd").0, Cause::Unknown);

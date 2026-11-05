@@ -16,6 +16,7 @@ public class KButton extends DrawnButton {
 	private float hover;
 	private float press;
 	private boolean flat;
+	private boolean toggle;
 	private int clipTop = Integer.MIN_VALUE, clipBottom = Integer.MAX_VALUE;
 
 	public KButton(int x, int y, int w, int h, Component label, OnPress onPress, BooleanSupplier selected) {
@@ -34,6 +35,11 @@ public class KButton extends DrawnButton {
 
 	public KButton flat() {
 		flat = true;
+		return this;
+	}
+
+	public KButton toggle() {
+		toggle = true;
 		return this;
 	}
 
@@ -67,6 +73,17 @@ public class KButton extends DrawnButton {
 		g.pose().translate((1 - in) * -24, 0);
 		if (flat) {
 			if (hover > 0.02F) g.fill(getX(), getY(), getX() + getWidth(), getY() + getHeight(), UiStyle.fade(0x22FFFFFF, hover));
+		} else if (toggle) {
+			boolean on = selected.getAsBoolean();
+			UiStyle.button(g, getX(), getY(), getWidth(), getHeight(), active, on);
+			if (hover > 0.02F) g.fill(getX(), getY(), getX() + getWidth(), getY() + getHeight() - 2, UiStyle.fade(0x14FFFFFF, hover));
+			int s = 7, bx = getX() + getWidth() - s - 6, by = getY() + (getHeight() - 2 - s) / 2;
+			int edge = on ? UiStyle.TEXT : 0xFF3A414E;
+			g.fill(bx, by, bx + s, by + 1, edge);
+			g.fill(bx, by + s - 1, bx + s, by + s, edge);
+			g.fill(bx, by, bx + 1, by + s, edge);
+			g.fill(bx + s - 1, by, bx + s, by + s, edge);
+			if (on) g.fill(bx + 2, by + 2, bx + s - 2, by + s - 2, UiStyle.TEXT);
 		} else {
 			boolean lit = selected.getAsBoolean() || isHoveredOrFocused();
 			UiStyle.button(g, getX(), getY(), getWidth(), getHeight(), active, lit);

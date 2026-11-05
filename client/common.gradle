@@ -73,6 +73,7 @@ processResources {
 	}
 	from(rootProject.file('../src/art/cosmetics.json')) { into 'kromvia' }
 	from(rootProject.file('../src/art/effects.json')) { into 'kromvia' }
+	from(rootProject.file('../src/art/voxels.json')) { into 'kromvia' }
 	if (fx) {
 		from(rootProject.file('../public/models')) {
 			include(['horns', 'horns-small','wings-angel', 'wings-low-poly', 'boots-of-swiftness', 'christmas', 'mage-robe', 'mecha-boost'].collect { "${it}.glb" })

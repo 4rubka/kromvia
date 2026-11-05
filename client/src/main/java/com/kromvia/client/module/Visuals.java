@@ -1,5 +1,7 @@
 package com.kromvia.client.module;
 
+import net.minecraft.core.particles.ParticleOptions;
+import com.kromvia.client.module.setting.ChoiceSetting;
 import com.kromvia.client.compat.Mc;
 import com.kromvia.client.compat.Gfx;
 import com.kromvia.client.KromviaClient;
@@ -92,6 +94,7 @@ public final class Visuals {
 
 	public static final class HitParticles extends Flag {
 		final SliderSetting amount = add(new SliderSetting("amount", "Extra bursts", 2, 1, 5, 1, "x"));
+		final ChoiceSetting type = add(new ChoiceSetting("type", "Particle", 0, "Crit", "Magic", "Flame", "Hearts", "Totem", "End Rod", "Notes"));
 		final BoolSetting sharpness = add(new BoolSetting("sharpness", "Sharpness sparks", true));
 
 		HitParticles() {
@@ -102,6 +105,18 @@ public final class Visuals {
 
 	public static final HitParticles PARTICLES = new HitParticles();
 
+	private static ParticleOptions hitParticle() {
+		switch (PARTICLES.type.index()) {
+			case 1: return ParticleTypes.ENCHANTED_HIT;
+			case 2: return ParticleTypes.FLAME;
+			case 3: return ParticleTypes.HEART;
+			case 4: return ParticleTypes.TOTEM_OF_UNDYING;
+			case 5: return ParticleTypes.END_ROD;
+			case 6: return ParticleTypes.NOTE;
+			default: return ParticleTypes.CRIT;
+		}
+	}
+
 	public static void onAttack(Minecraft mc, Entity hit) {
 		if (hit instanceof LivingEntity le) {
 			target = le;
@@ -109,7 +124,7 @@ public final class Visuals {
 		}
 		if (!PARTICLES.enabled) return;
 		for (int i = 0; i < Math.round(PARTICLES.amount.value()); i++) {
-			mc.particleEngine.createTrackingEmitter(hit, ParticleTypes.CRIT);
+			mc.particleEngine.createTrackingEmitter(hit, hitParticle());
 			if (PARTICLES.sharpness.on()) mc.particleEngine.createTrackingEmitter(hit, ParticleTypes.ENCHANTED_HIT);
 		}
 	}

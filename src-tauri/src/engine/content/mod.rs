@@ -96,7 +96,7 @@ pub fn list(instance_id: &str) -> Result<Vec<InstalledFile>, String> {
         let Ok(entries) = std::fs::read_dir(game.join(folder)) else { continue };
         for entry in entries.flatten().filter(|e| e.path().is_file()) {
             let name = entry.file_name().to_string_lossy().into_owned();
-            if folder == "mods" && name == BUILT_IN_CLIENT {
+            if folder == "mods" && name == BUILT_IN_CLIENT || folder == "shaderpacks" && name.ends_with(".txt") {
                 continue;
             }
             let (file, enabled) = match name.strip_suffix(DISABLED) {

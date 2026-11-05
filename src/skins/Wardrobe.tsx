@@ -7,6 +7,8 @@ import { SkinViewer3D } from "./SkinViewer3D";
 import { SkinEditor } from "./SkinEditor";
 import { Cosmetics } from "./Cosmetics";
 import { capeOn, setCapeOn } from "../lib/cape";
+import { savedOutfit } from "../lib/outfit";
+import { capeTexture } from "../art/capes";
 import { Glyph } from "../ui/Glyph";
 import { usePaged } from "../ui/Pager";
 import { Empty } from "../ui/Empty";
@@ -235,7 +237,7 @@ export function Wardrobe() {
           {!account && <p className="muted">{t(elyActive ? "wardrobe.elyAccount" : "wardrobe.needAccount")}</p>}
           <div className="wardrobe">
             <section className="card wardrobe-stage">
-              <SkinViewer3D skin={(s ?? fallback)?.dataUrl ?? null} slim={(s ?? fallback)?.slim ?? false} cape={optifineShown ? optifineCape : null} />
+              <SkinViewer3D skin={(s ?? fallback)?.dataUrl ?? null} slim={(s ?? fallback)?.slim ?? false} cape={optifineShown ? optifineCape : kromviaCape ? capeTexture(savedOutfit().style).toDataURL() : cape?.url ?? null} />
               {shown?.kind === "library" && (
                 <input
                   key={shown.skin.id}

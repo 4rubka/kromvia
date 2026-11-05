@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { IdleAnimation, SkinViewer } from "skinview3d";
 import { useI18n } from "../i18n";
+import { Glyph } from "../ui/Glyph";
 import type { MessageKey } from "../i18n/en";
 import { MODELS, type ModelEntry, type Slot } from "../art/catalog";
 import { modelShot, shot } from "../art/gltf";
@@ -8,12 +9,25 @@ import { BOX_ITEMS, PALETTE, RAINBOW, boxItem, boxModel, rainbow, wearBox, type 
 import { wear, wearable } from "../art/wear";
 import { effectIcon } from "../art/effectIcons";
 import { capeTexture, type CapeStyle } from "../art/capes";
+import SETS from "../art/sets.json";
 import { OUTFIT_EVENT, pushOutfit, savedOutfit, storeOutfit, type Back, type Outfit } from "../lib/outfit";
 
-const SLOTS: (Slot | "effect")[] = ["head", "face", "neck", "back", "body", "feet", "effect"];
+const SLOTS: (Slot | "effect")[] = ["head", "face", "neck", "back", "weapon", "body", "feet", "effect"];
 
 const colorOf = (o: Outfit, id: string) => o.colors?.[id] ?? boxItem(id)?.color ?? 0xffffffff;
 const STYLES: CapeStyle[] = ["kromvia", "ember", "frost"];
+
+type CosmeticSet = { id: string; name: string; items: string[]; effect?: string };
+
+function withSet(o: Outfit, set: CosmeticSet): Outfit {
+  const equipped = { ...o.equipped };
+  for (const id of set.items) {
+    const item = boxItem(id);
+    if (item) equipped[item.slot] = id;
+  }
+  if (set.effect) equipped.effect = set.effect;
+  return { ...o, equipped, back: equipped.back ? "none" : o.back };
+}
 
 function Stage({ skin, slim, outfit }: { skin: string | null; slim: boolean; outfit: Outfit }) {
   const host = useRef<HTMLDivElement>(null);
@@ -163,12 +177,42 @@ export function Cosmetics({ skin, slim }: { skin: string | null; slim: boolean }
   const pick = (slot: Slot | "effect", id: string) => {
     setOutfit((o) => ({ ...o, equipped: { ...o.equipped, [slot]: o.equipped[slot] === id ? undefined : id } }));
   };
+  const [preview, setPreview] = useState<number | null>(null);
+  const sets = SETS as CosmeticSet[];
+  const step = (d: number) =>
+    setPreview((i) => {
+      const next = (((i ?? -1) + 1 + d) % (sets.length + 1) + sets.length + 1) % (sets.length + 1);
+      return next === 0 ? null : next - 1;
+    });
+  const shown = preview === null ? outfit : withSet(outfit, sets[preview]);
   const recolor = (id: string, c: number) => setOutfit((o) => ({ ...o, colors: { ...o.colors, [id]: c } }));
 
   return (
     <div className="cosmetics">
       <section className="card cosmetics-stage-card">
-        <Stage skin={skin} slim={slim} outfit={outfit} />
+        <Stage skin={skin} slim={slim} outfit={shown} />
+        <div className="cosmetic-sets">
+          <button className="btn btn-ghost" aria-label={t("cosmetics.prevSet")} onClick={() => step(-1)}>
+            <Glyph name="chevron-left" />
+          </button>
+          <div className="cosmetic-set-name">
+            <small className="muted">{t("cosmetics.sets")}</small>
+            <strong>{preview === null ? t("cosmetics.yourLook") : sets[preview].name}</strong>
+          </div>
+          <button className="btn btn-ghost" aria-label={t("cosmetics.nextSet")} onClick={() => step(1)}>
+            <Glyph name="chevron-right" />
+          </button>
+        </div>
+        {preview !== null && (
+          <div className="cosmetic-set-actions">
+            <button className="btn" onClick={() => (setOutfit(shown), setPreview(null))}>
+              <Glyph name="check" /> {t("cosmetics.wearSet")}
+            </button>
+            <button className="btn btn-ghost" onClick={() => setPreview(null)}>
+              {t("common.cancel")}
+            </button>
+          </div>
+        )}
         <div className="cosmetic-controls">
           <div className="segmented" role="group" aria-label={t("cosmetics.back")}>
             {(["none", "cape", "elytra"] as Back[]).map((b) => (

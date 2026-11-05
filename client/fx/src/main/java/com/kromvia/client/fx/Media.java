@@ -22,7 +22,12 @@ public final class Media extends Module {
 	private static final int KP_4 = 324, KP_5 = 325, KP_6 = 326;
 	private static final int ART = 32, W = 150, H = ART + 6;
 
-	private record Track(String title, String artist, boolean playing, long position, long length, String art, long at) {}
+	record Track(String title, String artist, boolean playing, long position, long length, String art, long at) {
+		long now() {
+			long pos = position + (playing ? System.currentTimeMillis() - at : 0);
+			return length > 0 ? Math.min(length, pos) : pos;
+		}
+	}
 
 	private final BoolSetting cover = add(new BoolSetting("cover", "Cover art", true));
 	private final BoolSetting bar = add(new BoolSetting("bar", "Progress bar", true));
@@ -41,6 +46,10 @@ public final class Media extends Module {
 	}
 
 	static final Media INSTANCE = new Media();
+
+	static Track current() {
+		return INSTANCE.enabled || Lyrics.INSTANCE.enabled ? INSTANCE.track : null;
+	}
 
 	static void set(JsonObject m) {
 		INSTANCE.track = m == null ? null : new Track(

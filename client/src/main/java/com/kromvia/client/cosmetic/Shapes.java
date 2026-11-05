@@ -24,6 +24,7 @@ final class Shapes {
 	}
 
 	static Built build(Pattern pattern, PartPose pose, float... b) {
+		if (pattern == Pattern.FLAT) return flat(pose, b);
 		int n = b.length / 6;
 		int width = 64;
 		for (int i = 0; i < n; i++) {
@@ -72,9 +73,30 @@ final class Shapes {
 		});
 	}
 
+	private static Built flat(PartPose pose, float[] b) {
+		int uw = 1, vh = 1;
+		for (int i = 0; i < b.length; i += 6) {
+			int w = (int) Math.ceil(b[i + 3]), h = (int) Math.ceil(b[i + 4]), d = (int) Math.ceil(b[i + 5]);
+			uw = Math.max(uw, 2 * (w + d));
+			vh = Math.max(vh, d + h);
+		}
+		CubeListBuilder cubes = CubeListBuilder.create();
+		for (int i = 0; i < b.length; i += 6) cubes.texOffs(0, 0).addBox(b[i], b[i + 1], b[i + 2], b[i + 3], b[i + 4], b[i + 5]);
+		MeshDefinition mesh = new MeshDefinition();
+		mesh.getRoot().addOrReplaceChild("part", cubes, pose);
+		int width = pow2(uw), height = pow2(vh);
+		ModelPart part = LayerDefinition.create(mesh, width, height).bakeRoot().getChild("part");
+		return new Built(part, 1, () -> {
+			NativeImage img = new NativeImage(width, height, true);
+			img.fillRect(0, 0, width, height, 0xFFFFFFFF);
+			return new NativeImage[] {img};
+		});
+	}
+
 	static Built cape(int frames, Supplier<NativeImage[]> images) {
 		MeshDefinition mesh = new MeshDefinition();
-		mesh.getRoot().addOrReplaceChild("part", CubeListBuilder.create().texOffs(0, 0).addBox(-5, 0, 0, 10, 16, 1), PartPose.offset(0, 0, 2.3f));
+		mesh.getRoot().addOrReplaceChild("part", CubeListBuilder.create(), PartPose.offset(0, 0, 2.3f))
+				.addOrReplaceChild("cloth", CubeListBuilder.create().texOffs(0, 0).addBox(-5, 0, -1, 10, 16, 1), PartPose.rotation(0, (float) Math.PI, 0));
 		return new Built(LayerDefinition.create(mesh, CapeArt.W, CapeArt.H).bakeRoot().getChild("part"), frames, images);
 	}
 

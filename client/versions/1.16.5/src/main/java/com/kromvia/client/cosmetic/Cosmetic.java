@@ -44,9 +44,9 @@ public final class Cosmetic {
 		return pieces;
 	}
 
-	public enum Slot { HEAD, FACE, NECK, BACK, BODY, EFFECT }
+	public enum Slot { HEAD, FACE, NECK, BACK, WEAPON, BODY, EFFECT }
 
-	public enum Anchor { HEAD, BODY, RIGHT_ARM, LEFT_ARM }
+	public enum Anchor { HEAD, BODY, RIGHT_ARM, LEFT_ARM, RIGHT_LEG, LEFT_LEG }
 
 	@FunctionalInterface
 	public interface Animator {

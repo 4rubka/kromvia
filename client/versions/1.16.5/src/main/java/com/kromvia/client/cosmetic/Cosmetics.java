@@ -112,7 +112,13 @@ public final class Cosmetics {
 
 	private static List<Cosmetic> load() {
 		List<Cosmetic> list = new ArrayList<>();
-		try (InputStream in = Cosmetics.class.getResourceAsStream("/kromvia/cosmetics.json")) {
+		load("/kromvia/cosmetics.json", list);
+		load("/kromvia/voxels.json", list);
+		return list;
+	}
+
+	private static void load(String file, List<Cosmetic> list) {
+		try (InputStream in = Cosmetics.class.getResourceAsStream(file)) {
 			JsonArray items = new Gson().fromJson(new InputStreamReader(in, StandardCharsets.UTF_8), JsonArray.class);
 			for (JsonElement e : items) {
 				JsonObject o = e.getAsJsonObject();
@@ -129,9 +135,8 @@ public final class Cosmetics {
 				list.add(new Cosmetic(id, o.get("name").getAsString(), slot, (int) o.get("color").getAsLong(), java.util.Collections.unmodifiableList(pieces)));
 			}
 		} catch (IOException | RuntimeException e) {
-			LOG.error("Could not read the cosmetics catalog", e);
+			LOG.error("Could not read the cosmetics catalog " + file, e);
 		}
-		return list;
 	}
 
 	private static Piece piece(String name, JsonObject o) {

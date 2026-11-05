@@ -382,9 +382,19 @@ fn check(metas: &[(String, Meta)], mc: &str, loader: Option<LoaderKind>) -> Vec<
             out.push(Conflict { severity, kind: "breaks", id: other.clone(), name: name_of(other), files, wanted: Some(m.name.clone()), found: Some(hits[0].0.clone()) });
         }
     }
+    for (a, b) in KNOWN {
+        let (Some(fa), Some(fb)) = (present.get(a), present.get(b)) else { continue };
+        if fa[0].1 == fb[0].1 || out.iter().any(|c| c.kind == "breaks" && (c.id == b && c.files.contains(&fa[0].1) || c.id == a && c.files.contains(&fb[0].1))) {
+            continue;
+        }
+        out.push(Conflict { severity: "error", kind: "breaks", id: b.to_string(), name: name_of(b), files: vec![fa[0].1.clone(), fb[0].1.clone()], wanted: name_of(a), found: Some(fb[0].0.clone()) });
+    }
     out.dedup();
     out
 }
+
+const KNOWN: [(&str, &str); 6] =
+    [("krypton", "e4mc"), ("iris", "embeddium"), ("iris", "oculus"), ("sodium", "embeddium"), ("rubidium", "embeddium"), ("sodium", "rubidium")];
 
 pub async fn scan(instance_id: &str) -> Result<Vec<Conflict>, String> {
     let inst = instances::get(instance_id)?;
@@ -409,12 +419,61 @@ pub async fn scan(instance_id: &str) -> Result<Vec<Conflict>, String> {
     .map_err(|e| e.to_string())
 }
 
+pub fn jar_id(path: &std::path::Path) -> Option<String> {
+    let mut zip = zip::ZipArchive::new(std::fs::File::open(path).ok()?).ok()?;
+    Some(read_meta(&mut zip, Family::Fabric, 2).id).filter(|id| !id.is_empty())
+}
+
+const SUPERSEDED: [(&str, &str); 1] = [("krypton", "e4mc")];
+
+pub fn drop_superseded(mods: &std::path::Path) -> Vec<String> {
+    let Ok(entries) = std::fs::read_dir(mods) else { return vec![] };
+    let jars: Vec<(std::path::PathBuf, String)> = entries
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.extension().is_some_and(|e| e == "jar"))
+        .filter_map(|p| jar_id(&p).map(|id| (p, id)))
+        .collect();
+    let mut removed = vec![];
+    for (drop, when) in SUPERSEDED {
+        if !jars.iter().any(|(_, id)| id == when) {
+            continue;
+        }
+        for (path, _) in jars.iter().filter(|(_, id)| id == drop) {
+            if std::fs::remove_file(path).is_ok() {
+                removed.push(path.file_name().unwrap_or_default().to_string_lossy().into_owned());
+            }
+        }
+    }
+    removed
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn fab(alts: &[&str]) -> Range {
         Range::Fabric(alts.iter().map(|s| s.to_string()).collect())
+    }
+
+    #[test]
+    fn drops_krypton_next_to_e4mc() {
+        use std::io::Write;
+        let dir = std::env::temp_dir().join(format!("kromvia-superseded-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let jar = |name: &str, id: &str| {
+            let mut z = zip::ZipWriter::new(std::fs::File::create(dir.join(name)).unwrap());
+            z.start_file("fabric.mod.json", zip::write::SimpleFileOptions::default()).unwrap();
+            z.write_all(format!("{{\"id\":\"{id}\",\"version\":\"1\"}}").as_bytes()).unwrap();
+            z.finish().unwrap();
+        };
+        jar("krypton-0.3.2.jar", "krypton");
+        assert!(drop_superseded(&dir).is_empty());
+        jar("e4mc.jar", "e4mc");
+        assert_eq!(drop_superseded(&dir), vec!["krypton-0.3.2.jar".to_string()]);
+        assert!(dir.join("e4mc.jar").is_file() && !dir.join("krypton-0.3.2.jar").exists());
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]
@@ -484,5 +543,13 @@ mod tests {
         assert!(kinds.contains(&("breaks", "optifabric")), "{kinds:?}");
         assert!(kinds.contains(&("loader", "f")), "{kinds:?}");
         assert!(!kinds.iter().any(|(_, id)| *id == "fabric-api-base" || *id == "fabricloader"), "{kinds:?}");
+    }
+
+    #[test]
+    fn flags_known_pairs() {
+        let metas = vec![("iris.jar".to_string(), meta("iris", Family::Forge, &[])), ("emb.jar".to_string(), meta("embeddium", Family::Forge, &[]))];
+        let found = check(&metas, "1.21.1", Some(LoaderKind::NeoForge));
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert_eq!((found[0].kind, found[0].id.as_str(), found[0].files.clone()), ("breaks", "embeddium", vec!["iris.jar".to_string(), "emb.jar".to_string()]));
     }
 }

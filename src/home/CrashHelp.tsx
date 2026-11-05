@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useI18n } from "../i18n";
 import type { MessageKey } from "../i18n/en";
@@ -7,6 +7,8 @@ import { Glyph } from "../ui/Glyph";
 import { Empty } from "../ui/Empty";
 
 const MAX_MB = 16384;
+
+type Clash = { kind: string; id: string; name: string | null; files: string[]; wanted: string | null };
 
 export function CrashHelp({ inst, crash }: { inst: Instance; crash: Crash }) {
   const { t } = useI18n();
@@ -21,14 +23,47 @@ export function CrashHelp({ inst, crash }: { inst: Instance; crash: Crash }) {
       (e) => setError(String(e)),
     );
   const more = Math.min(MAX_MB, Math.ceil(((inst.memoryMb ?? 4096) * 1.5) / 512) * 512);
+  const [clashes, setClashes] = useState<Clash[]>([]);
+  const [off, setOff] = useState<string[]>([]);
+  useEffect(() => {
+    invoke<Clash[]>("content_conflicts", { instanceId: inst.id }).then(
+      (list) => setClashes(list.filter((c) => (c.kind === "breaks" || c.kind === "duplicate") && c.files.length > 1)),
+      () => {},
+    );
+  }, [inst.id]);
+  const disable = (file: string) =>
+    invoke("content_set_enabled", { instanceId: inst.id, file, enabled: false }).then(
+      () => setOff((o) => [...o, file]),
+      (e) => setError(String(e)),
+    );
   const openMods = () => invoke("instance_open_folder", { instanceId: inst.id, folder: "mods" }).catch((e) => setError(String(e)));
 
   return (
     <Empty bee="crash">
       <div className="crash-help">
         <p className="error">{t(`crash.${crash.cause}` as MessageKey, { mod: crash.detail ?? "?" })}</p>
-        {crash.detail && crash.cause !== "brokenMod" && <p className="muted small">{crash.detail}</p>}
+        {crash.detail && crash.cause !== "brokenMod" && crash.cause !== "modRemoved" && <p className="muted small">{crash.detail}</p>}
         {error && <p className="error">{error}</p>}
+        {clashes.map((c) => (
+          <div key={c.kind + c.files.join()} className="crash-clash">
+            <p>
+              {c.kind === "duplicate"
+                ? t("crash.clashDuplicate", { mod: c.name ?? c.id })
+                : t("crash.clash", { a: c.wanted ?? c.files[0], b: c.name ?? c.id })}
+            </p>
+            {c.files.map((f) =>
+              off.includes(f) ? (
+                <span key={f} className="muted small">
+                  <Glyph name="check" /> {f}
+                </span>
+              ) : (
+                <button key={f} className="btn btn-ghost" onClick={() => disable(f)}>
+                  <Glyph name="x" /> {t("crash.disable", { file: f })}
+                </button>
+              ),
+            )}
+          </div>
+        ))}
         {!fixed && crash.cause === "outOfMemory" && (inst.memoryMb ?? 0) < MAX_MB && (
           <button className="btn" onClick={() => fix(updateInstance(inst, { memoryMb: more }))}>
             <Glyph name="bolt" /> {t("crash.moreMemory", { mb: more })}
@@ -44,7 +79,7 @@ export function CrashHelp({ inst, crash }: { inst: Instance; crash: Crash }) {
             <Glyph name="bolt" /> {t("crash.autoJava")}
           </button>
         )}
-        {["missingMod", "duplicateMod", "brokenMod"].includes(crash.cause) && (
+        {["missingMod", "duplicateMod", "brokenMod", "modRemoved"].includes(crash.cause) && (
           <button className="btn btn-ghost" onClick={openMods}>
             <Glyph name="folder" /> {t("crash.openMods")}
           </button>

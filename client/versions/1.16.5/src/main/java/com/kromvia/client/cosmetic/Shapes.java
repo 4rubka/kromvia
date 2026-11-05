@@ -36,6 +36,7 @@ final class Shapes {
 	}
 
 	static Built build(Pattern pattern, PartPose pose, float... b) {
+		if (pattern == Pattern.FLAT) return flat(pose, b);
 		int n = b.length / 6;
 		int width = 64;
 		for (int i = 0; i < n; i++) {
@@ -82,10 +83,32 @@ final class Shapes {
 		return new Built(part, img);
 	}
 
+	private static Built flat(PartPose pose, float[] b) {
+		int uw = 1, vh = 1;
+		for (int i = 0; i < b.length; i += 6) {
+			int w = (int) Math.ceil(b[i + 3]), h = (int) Math.ceil(b[i + 4]), d = (int) Math.ceil(b[i + 5]);
+			uw = Math.max(uw, 2 * (w + d));
+			vh = Math.max(vh, d + h);
+		}
+		int width = pow2(uw), height = pow2(vh);
+		ModelPart part = new ModelPart(width, height, 0, 0);
+		for (int i = 0; i < b.length; i += 6) part.texOffs(0, 0).addBox(b[i], b[i + 1], b[i + 2], b[i + 3], b[i + 4], b[i + 5]);
+		part.setPos(pose.x, pose.y, pose.z);
+		part.xRot = pose.xRot;
+		part.yRot = pose.yRot;
+		part.zRot = pose.zRot;
+		NativeImage img = new NativeImage(width, height, true);
+		img.fillRect(0, 0, width, height, 0xFFFFFFFF);
+		return new Built(part, img);
+	}
+
 	static Built cape(NativeImage image) {
 		ModelPart part = new ModelPart(64, 32, 0, 0);
-		part.texOffs(0, 0).addBox(-5, 0, 0, 10, 16, 1);
 		part.setPos(0, 0, 2.3f);
+		ModelPart cloth = new ModelPart(64, 32, 0, 0);
+		cloth.texOffs(0, 0).addBox(-5, 0, -1, 10, 16, 1);
+		cloth.yRot = (float) Math.PI;
+		part.addChild(cloth);
 		return new Built(part, image);
 	}
 

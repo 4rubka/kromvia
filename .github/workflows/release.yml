@@ -45,6 +45,13 @@ jobs:
         shell: bash
         run: ./gradlew bundle --no-daemon
 
+      - name: Release notes
+        shell: bash
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          awk -v v="$v" '/^## / {p = ($2 == v); next} p' CHANGELOG.md > notes.md || true
+          { echo 'NOTES<<KROMVIA_NOTES'; cat notes.md; echo 'KROMVIA_NOTES'; } >> "$GITHUB_ENV"
+
       - uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # action-v1.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -54,6 +61,7 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: Kromvia ${{ github.ref_name }}
+          releaseBody: ${{ env.NOTES }}
           releaseDraft: true
           uploadUpdaterJson: true
           tauriScript: bun run tauri
