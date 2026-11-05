@@ -45,6 +45,8 @@ public class KromviaClient implements ClientModInitializer {
 			new Toggles.AutoSprint(),
 			Features.TOGGLE_SNEAK,
 			Features.FREELOOK,
+			Features.SNAPLOOK,
+			Features.CRASH_PATCH,
 			Features.CROSSHAIR,
 			Features.NO_HURT_CAM,
 			Features.LOW_FIRE,

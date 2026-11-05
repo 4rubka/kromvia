@@ -1,7 +1,7 @@
 
 import { Hono } from "hono";
 import { b64url, verify } from "./auth";
-import { NAME } from "./playing";
+import { NAME, isDev } from "./playing";
 import { asset, downloads, manifest } from "./update";
 export { Hub } from "./hub";
 
@@ -179,12 +179,19 @@ app.get("/link/discord/callback", async (c) => {
   if (!id || !secret) return fail(503, "discord linking is not configured");
   const account = await claimCode(c.env.DB, c.req.query("state"), "discord");
   const code = c.req.query("code");
-  if (!account || !code) return linkPage(false);
+  if (!account || !code) {
+    console.error("discord link: bad or expired state", { account: !!account, code: !!code });
+    return linkPage(false);
+  }
   const token = await fetch("https://discord.com/api/oauth2/token", {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ client_id: id, client_secret: secret, grant_type: "authorization_code", code, redirect_uri: discordRedirect(c) }),
-  }).then((r) => (r.ok ? r.json<{ access_token: string }>() : null));
+  }).then(async (r) => {
+    if (r.ok) return r.json<{ access_token: string }>();
+    console.error("discord token exchange failed", r.status, await r.text());
+    return null;
+  });
   if (!token) return linkPage(false);
   const user = await fetch("https://discord.com/api/users/@me", { headers: { authorization: `Bearer ${token.access_token}` } }).then((r) =>
     r.ok ? r.json<{ id: string; username: string }>() : null,
@@ -238,6 +245,17 @@ app.get("/v1/top", async (c) => {
     "SELECT a.id, a.name, a.mc_uuid, COUNT(*) AS likes FROM likes l JOIN accounts a ON a.id = l.to_id GROUP BY l.to_id ORDER BY likes DESC, a.name_lower LIMIT 50",
   ).all<{ id: string; name: string; mc_uuid: string | null; likes: number }>();
   return c.json(results.map((a) => ({ ...publicAccount(a), likes: a.likes })));
+});
+
+app.get("/v1/users", async (c) => {
+  const q = (c.req.query("q") ?? "").trim().toLowerCase();
+  if (!/^[a-z0-9_]{1,16}$/.test(q)) return c.json([]);
+  const { results } = await c.env.DB.prepare(
+    "SELECT a.id, a.name, a.mc_uuid FROM accounts a WHERE a.name_lower >= ?1 AND a.name_lower < ?1 || char(127) ORDER BY a.name_lower = ?1 DESC, a.seen DESC LIMIT 20",
+  )
+    .bind(q)
+    .all<Pick<Account, "id" | "name" | "mc_uuid">>();
+  return c.json(results.map(publicAccount));
 });
 
 app.get("/v1/users/:name", async (c) => {
@@ -365,9 +383,9 @@ app.post("/v1/accounts", async (c) => {
 
 app.get("/v1/me", async (c) => {
   const me = c.var.account;
-  const [likes, links] = await c.env.DB.batch<{ n?: number; provider?: string; name?: string }>([
+  const [likes, links] = await c.env.DB.batch<{ n?: number; provider?: string; name?: string; ext_id?: string }>([
     c.env.DB.prepare("SELECT COUNT(*) AS n FROM likes WHERE to_id = ?").bind(me.id),
-    c.env.DB.prepare("SELECT provider, name FROM links WHERE account = ?").bind(me.id),
+    c.env.DB.prepare("SELECT provider, name, ext_id FROM links WHERE account = ?").bind(me.id),
   ]);
   return c.json({
     ...publicAccount(me),
@@ -375,6 +393,7 @@ app.get("/v1/me", async (c) => {
     cosmetics: JSON.parse(me.cosmetics),
     likes: likes.results[0]?.n ?? 0,
     links: Object.fromEntries(links.results.map((l) => [l.provider, l.name])),
+    dev: isDev({ name_lower: me.name.toLowerCase(), mc_uuid: me.mc_uuid }, links.results.find((l) => l.provider === "discord")?.ext_id),
   });
 });
 

@@ -49,7 +49,22 @@ fn parse_event(xml: &str) -> LogLine {
     LogLine { level, thread: attr(xml, "thread").unwrap_or_default(), text, noise, logger: attr(xml, "logger").unwrap_or_default() }
 }
 
+/// Forge and NeoForge swap in their own console pattern once FML is up:
+/// `[12:00:00] [Render thread/INFO] [kromvia-presence/]: text`.
+fn fml(line: &str) -> Option<LogLine> {
+    let rest = line.strip_prefix('[')?;
+    let rest = &rest[rest.find("] [")? + 3..];
+    let (thread_level, rest) = rest.split_once("] [")?;
+    let (logger_marker, text) = rest.split_once("]: ")?;
+    let (thread, level) = thread_level.rsplit_once('/')?;
+    let logger = logger_marker.split_once('/').map_or(logger_marker, |(l, _)| l);
+    Some(LogLine { level: level.into(), thread: thread.into(), text: text.into(), noise: is_noise(text), logger: logger.into() })
+}
+
 fn plain(line: &str) -> LogLine {
+    if let Some(l) = fml(line) {
+        return l;
+    }
     let level = ["FATAL", "ERROR", "WARN", "DEBUG"]
         .into_iter()
         .find(|l| line.contains(&format!("/{l}]")))
@@ -132,5 +147,17 @@ mod tests {
         let line = p.push("[12:00:00] [main/WARN]: Mixin something").unwrap();
         assert_eq!(line.level, "WARN");
         assert_eq!(p.push("hello").unwrap().level, "INFO");
+    }
+
+    #[test]
+    fn parses_fml_lines() {
+        let mut p = LogParser::default();
+        let line = p.push(r#"[08:47:31] [Render thread/INFO] [kromvia-presence/]: {"social":{"do":"load"}}"#).unwrap();
+        assert_eq!(line.logger, "kromvia-presence");
+        assert_eq!(line.thread, "Render thread");
+        assert_eq!(line.level, "INFO");
+        assert_eq!(line.text, r#"{"social":{"do":"load"}}"#);
+        let line = p.push("[08:47:31] [main/WARN] [ne.ne.fm.lo.Thing/LOADING]: odd ]: text").unwrap();
+        assert_eq!((line.level.as_str(), line.logger.as_str(), line.text.as_str()), ("WARN", "ne.ne.fm.lo.Thing", "odd ]: text"));
     }
 }

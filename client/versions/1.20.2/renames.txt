@@ -54,3 +54,6 @@ SystemToast.SystemToastId ID = new SystemToast.SystemToastId(5000L) -> SystemToa
 .withColor(VIOLET) -> .withStyle(net.minecraft.network.chat.Style.EMPTY.withColor(VIOLET))
 # Before 1.20.3 WorldOpenFlows.loadLevel took the parent screen.
 createWorldOpenFlows().openWorld(id, back) -> createWorldOpenFlows().loadLevel(this, id)
+# Kromvia CrashPatch leaves the world the way this version can.
+mc.level.disconnect(ClientLevel.DEFAULT_QUIT_MESSAGE) -> mc.level.disconnect()
+mc.disconnect(next, false) -> mc.disconnect(next)

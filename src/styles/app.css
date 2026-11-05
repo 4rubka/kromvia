@@ -3594,3 +3594,8 @@ kbd {
 .tabs-menu .tab-alert {
   margin-left: auto;
 }
+
+.pixel-icon {
+  display: block;
+  image-rendering: pixelated;
+}

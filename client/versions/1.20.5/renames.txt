@@ -44,3 +44,5 @@ mc.hasShiftDown() -> net.minecraft.client.gui.screens.Screen.hasShiftDown()
 getDeltaTracker -> getTimer
 mc.schedule( -> mc.tell(
 ResourceLocation.withDefaultNamespace( -> new ResourceLocation(
+# Kromvia CrashPatch leaves the world the way this version can.
+mc.level.disconnect(ClientLevel.DEFAULT_QUIT_MESSAGE) -> mc.level.disconnect()

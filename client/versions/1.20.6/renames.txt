@@ -45,3 +45,5 @@ getDeltaTracker -> getTimer
 mc.schedule( -> mc.tell(
 ResourceLocation.fromNamespaceAndPath( -> new ResourceLocation(
 ResourceLocation.withDefaultNamespace( -> new ResourceLocation(
+# Kromvia CrashPatch leaves the world the way this version can.
+mc.level.disconnect(ClientLevel.DEFAULT_QUIT_MESSAGE) -> mc.level.disconnect()

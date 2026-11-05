@@ -30,9 +30,10 @@
 
 .chat-log {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: var(--space-2);
-  max-height: 340px;
+  min-height: 0;
   overflow-y: auto;
   padding: var(--space-2) 0;
 }
@@ -58,4 +59,229 @@
   margin-top: 2px;
   font-size: var(--text-xs);
   opacity: 0.7;
+}
+
+.friends-split {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: var(--space-3);
+  height: calc(100vh - 170px);
+  min-height: 420px;
+}
+
+.friends-side,
+.friends-main {
+  max-width: none;
+}
+
+.friends-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.friends-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.friends-search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  color: var(--text-muted);
+}
+
+.friends-search .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.friends-heading {
+  margin: var(--space-3) 0 var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.friends-note {
+  padding: var(--space-1) var(--space-2);
+}
+
+.friends-list li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.friend-join {
+  flex: none;
+  padding: 4px 8px;
+  font-size: var(--text-xs);
+}
+
+.friends-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.friend-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 36px;
+  padding: 4px var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+button.friend-row {
+  cursor: pointer;
+}
+
+button.friend-row:hover,
+button.friend-row[aria-pressed="true"] {
+  background: var(--surface-2);
+}
+
+.friend-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.friend-name.link {
+  text-align: left;
+  text-decoration: none;
+}
+
+.head {
+  display: block;
+  flex: none;
+  border-radius: 4px;
+  background: var(--surface-2);
+  image-rendering: pixelated;
+}
+
+.head-wrap {
+  position: relative;
+  flex: none;
+}
+
+.head-wrap .presence-dot {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.btn-icon {
+  padding-inline: 8px;
+}
+
+.chat {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 0;
+}
+
+.chat-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.chat-head .friend-row {
+  flex: 1;
+  width: auto;
+}
+
+.chat .field .input {
+  flex: 1;
+}
+
+.chat-msg[data-shot="true"] {
+  padding: 4px;
+}
+
+.chat-msg img {
+  display: block;
+  max-width: 320px;
+  max-height: 220px;
+  border-radius: var(--radius-sm);
+}
+
+.chat-shots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: var(--space-2);
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.chat-shots .shot {
+  cursor: pointer;
+}
+
+.player-view {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+}
+
+.player-art {
+  flex: none;
+  width: 200px;
+  height: 280px;
+}
+
+.player-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  .friends-split {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .friends-main {
+    min-height: 420px;
+  }
+
+  .player-view {
+    flex-direction: column;
+  }
+}
+
+.chat-img {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
 }

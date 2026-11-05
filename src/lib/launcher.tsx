@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useJobs, type JobProgress } from "./jobs";
 import { useAccounts, type Account } from "../accounts/Accounts";
-import { outfitFromGame, pushOutfit } from "./outfit";
+import { outfitFromGame, pushOutfit, type Outfit } from "./outfit";
 import type { LogLine } from "../home/Console";
 
 export type LoaderKind = "fabric" | "quilt" | "legacyfabric" | "ornithe" | "forge" | "neoforge";
@@ -20,6 +20,7 @@ export type Instance = {
   resolution: { width: number; height: number } | null;
   created: number;
   icon: string | null;
+  noClient: boolean;
 };
 
 export const LOADER_NAMES: Record<LoaderKind, string> = {
@@ -117,6 +118,12 @@ function useLauncherState() {
       setRooms(({ [payload.instanceId]: _, ...rest }) => rest);
       setHosting((h) => (h === payload.instanceId ? null : h));
     });
+    const unScene = listen<{ runId: number; scene: string }>("game-scene", ({ payload }) => {
+      const id = runs[payload.runId];
+      if (!id || payload.scene !== "menu") return;
+      setRooms(({ [id]: _, ...rest }) => rest);
+      setHosting((h) => (h === id ? null : h));
+    });
     const playRequested = (id: string | null) => {
       if (!id) return;
       Promise.all([invoke<Instance[]>("instance_list"), invoke<Account[]>("account_list")]).then(([list, accs]) => {
@@ -132,14 +139,17 @@ function useLauncherState() {
         if (inst && !runs.some((r) => r.instanceId === inst.id)) launch(inst, { join: payload.host }, accs.find((a) => a.active)?.id ?? null, savedNick().trim());
       });
     });
-    pushOutfit().catch(() => {});
+    invoke<Omit<Outfit, "colors"> & { colors: Record<string, number> } | null>("wardrobe_get").then(
+      (w) => (w ? outfitFromGame(w) : pushOutfit()),
+      () => pushOutfit(),
+    ).catch(() => {});
     const unWardrobe = listen<Parameters<typeof outfitFromGame>[0]>("wardrobe-changed", ({ payload }) => outfitFromGame(payload));
     const unSwitch = listen<{ id: string | null; name: string }>("account-switched", ({ payload }) => {
       if (!payload.id) setNick(payload.name);
       refreshAccounts();
     });
     return () => {
-      [unStart, unLog, unExit, unRequest, unJoin, unWardrobe, unSwitch].forEach((u) => u.then((f) => f()));
+      [unStart, unLog, unExit, unScene, unRequest, unJoin, unWardrobe, unSwitch].forEach((u) => u.then((f) => f()));
     };
   }, []);
 
@@ -190,6 +200,12 @@ function useLauncherState() {
     if (!account) rememberNick();
     launch(inst, extra, account?.id ?? null, nick.trim());
   };
+  const joinRoom = (room: string, mc: string) => {
+    const inst = (current?.mcVersion === mc ? current : undefined) ?? instances.find((i) => i.mcVersion === mc && i.loader) ?? instances.find((i) => i.mcVersion === mc);
+    if (!inst) return false;
+    play(inst, { join: room });
+    return true;
+  };
   const name = account?.name ?? nick.trim();
 
   const current = instances.find((i) => i.id === selected) ?? instances[0];
@@ -221,6 +237,7 @@ function useLauncherState() {
     logs,
     rooms,
     hosting,
+    joinRoom,
     play,
     jobOf,
     runOf,

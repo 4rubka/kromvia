@@ -12,9 +12,8 @@ import { VersionPicker, versionReady, type VersionChoice } from "../home/Version
 import { Glyph } from "../ui/Glyph";
 import { usePaged } from "../ui/Pager";
 import { Empty } from "../ui/Empty";
-import { BlockIcon, ICON_BLOCKS, InstanceIcon } from "../art/ModelIcon";
-import { MODELS } from "../art/catalog";
-import { modelShot } from "../art/gltf";
+import { InstanceIcon } from "../art/ModelIcon";
+import { PIXEL_ICONS, pixelIcon } from "../art/pixelIcons";
 import { MOD_QUERY_KEY } from "../ui/Palette";
 import { aimContent, InstalledList, type Installed, type Kind } from "../content/Content";
 import { PackOrder, SafetyCheck } from "../content/Tools";
@@ -452,6 +451,7 @@ function InstanceSettings({ inst, groups, onSaved }: { inst: Instance; groups: s
   const [java, setJava] = useState(inst.javaPath ?? "");
   const [jvmArgs, setJvmArgs] = useState(inst.jvmArgs ?? "");
   const [gpu, setGpu] = useState(inst.gpu);
+  const [client, setClient] = useState(!inst.noClient);
   const [group, setGroup] = useState(inst.group ?? "");
   const [width, setWidth] = useState(inst.resolution ? String(inst.resolution.width) : "");
   const [height, setHeight] = useState(inst.resolution ? String(inst.resolution.height) : "");
@@ -472,6 +472,7 @@ function InstanceSettings({ inst, groups, onSaved }: { inst: Instance; groups: s
         jvmArgs,
         gpu,
         group,
+        noClient: !client,
         resolution: w && h ? { width: w, height: h } : null,
       },
     }).then(
@@ -509,6 +510,19 @@ function InstanceSettings({ inst, groups, onSaved }: { inst: Instance; groups: s
         <span>{t("builds.jvmArgs")}</span>
         <input className="input" value={jvmArgs} placeholder="-Dfoo=bar" onChange={(e) => setJvmArgs(e.currentTarget.value)} />
       </div>
+      {choice.loader && choice.loader !== "legacyfabric" && choice.loader !== "ornithe" && (
+        <div className="field">
+          <span>{t("builds.client")}</span>
+          <div className="segmented wrap">
+            {[true, false].map((on) => (
+              <button key={String(on)} aria-pressed={client === on} onClick={() => setClient(on)}>
+                {t(on ? "builds.clientOn" : "builds.clientOff")}
+              </button>
+            ))}
+          </div>
+          <span className="muted small">{t("builds.clientHint")}</span>
+        </div>
+      )}
       <RendererChoice inst={inst} />
       {!navigator.userAgent.includes("Mac") && (
         <div className="field">
@@ -640,13 +654,10 @@ function IconPicker({ inst, onChange, onError }: { inst: Instance; onChange: () 
     <section className="card icon-picker">
       <InstanceIcon inst={inst} size={56} />
       <div className="icon-choices">
-        {ICON_BLOCKS.map((b) => (
-          <button key={b} className="icon-choice" aria-pressed={inst.icon === `block:${b}`} aria-label={b} onClick={() => set(`block:${b}`)}>
-            <BlockIcon kind={b} size={32} />
+        {PIXEL_ICONS.map((id) => (
+          <button key={id} className="icon-choice" aria-pressed={inst.icon === pixelIcon(id)} aria-label={id} title={id} onClick={() => set(pixelIcon(id))}>
+            <img className="pixel-icon" src={pixelIcon(id)} width={32} height={32} alt="" />
           </button>
-        ))}
-        {MODELS.filter((m) => ICON_MODELS.includes(m.id)).map((m) => (
-          <ModelChoice key={m.id} id={m.id} name={m.name} onPick={(shot) => fetch(shot).then((r) => r.blob()).then(toIcon).then(set, (err) => onError(String(err)))} />
         ))}
         <label className="btn btn-ghost">
           <Glyph name="upload" /> {t("builds.iconUpload")}
@@ -668,21 +679,6 @@ function IconPicker({ inst, onChange, onError }: { inst: Instance; onChange: () 
         )}
       </div>
     </section>
-  );
-}
-
-const ICON_MODELS = ["bee", "fox", "allay", "warden", "wands", "diamond-sword", "wrench", "book", "boots-of-swiftness", "earth-cube"];
-
-function ModelChoice({ id, name, onPick }: { id: string; name: string; onPick: (shot: string) => void }) {
-  const [shot, setShot] = useState<string | null>(null);
-  useEffect(() => {
-    modelShot(id).then(setShot, () => {});
-  }, [id]);
-  if (!shot) return null;
-  return (
-    <button className="icon-choice" title={name} aria-label={name} onClick={() => onPick(shot)}>
-      <img src={shot} width={32} height={32} alt="" />
-    </button>
   );
 }
 

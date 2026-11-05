@@ -121,15 +121,12 @@ public final class Features {
 			icon(Items.LEATHER_BOOTS);
 		}
 
-		private boolean was;
 		private boolean on;
 
 		@Override
 		public void tick(Minecraft mc) {
 			if (mc.player == null) return;
-			boolean pressed = Mc.keyDown(org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_SHIFT) && Mc.screen() == null;
-			if (pressed && !was) on = !on;
-			was = pressed;
+			while (mc.options.keyShift.consumeClick()) on = !on;
 			if (on) mc.options.keyShift.setDown(true);
 		}
 
@@ -182,6 +179,54 @@ public final class Features {
 	}
 
 	public static final Freelook FREELOOK = new Freelook();
+
+	public static final Module CRASH_PATCH = new Flag("crash_patch", "Crash Patch", Module.Category.UTILITY, true) {
+		{
+			icon(Items.TOTEM_OF_UNDYING);
+		}
+	};
+
+	private static long lastCrash;
+
+	public static boolean survive(Throwable error) {
+		long now = System.currentTimeMillis();
+		if (!CRASH_PATCH.enabled || now - lastCrash < 10_000) return false;
+		lastCrash = now;
+		org.apache.logging.log4j.LogManager.getLogger("kromvia").error("Crash Patch kept the game open after this crash", error);
+		try {
+			Mc.leaveWorld(new com.kromvia.client.ui.CrashScreen(error));
+		} catch (RuntimeException | Error again) {
+			return false;
+		}
+		return true;
+	}
+
+	public static final Module SNAPLOOK = new Flag("snaplook", "Snaplook (hold V)", Module.Category.PVP, false) {
+		{
+			icon(Items.COMPASS);
+		}
+
+		private Integer saved;
+
+		@Override
+		public void tick(Minecraft mc) {
+			if (mc.player == null) return;
+			boolean down = Mc.screen() == null && Mc.keyDown(org.lwjgl.glfw.GLFW.GLFW_KEY_V);
+			if (down && saved == null) {
+				saved = mc.options.thirdPersonView;
+				mc.options.thirdPersonView = 2;
+			} else if (!down && saved != null) {
+				mc.options.thirdPersonView = saved;
+				saved = null;
+			}
+		}
+
+		@Override
+		public void disable(Minecraft mc) {
+			if (saved != null) mc.options.thirdPersonView = saved;
+			saved = null;
+		}
+	};
 
 	private static float lastReach;
 	private static long lastHit;

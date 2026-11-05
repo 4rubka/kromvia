@@ -85,6 +85,48 @@ tasks.withType(JavaCompile).configureEach {
 	it.options.release = project.java_version as int
 }
 
+// Fabric's Mixin 0.17 made `at` an array on these. The Mixin in Forge and NeoForge wants one @At, and
+// MixinExtras 0.5.0 (bundled with Fabric Loader 0.18.x) crashes on the array form of @Redirect.
+def singleAt = ['Redirect', 'ModifyArg', 'ModifyArgs', 'ModifyVariable'].collect { "Lorg/spongepowered/asm/mixin/injection/${it};".toString() }
+def unwrapAt = { org.objectweb.asm.tree.ClassNode node ->
+	node.methods.each { m ->
+		((m.visibleAnnotations ?: []) + (m.invisibleAnnotations ?: [])).findAll { it.desc in singleAt }.each { a ->
+			int i = a.values.indexOf('at')
+			if (i < 0 || !(a.values[i + 1] instanceof List)) return
+			def ats = a.values[i + 1]
+			if (ats.size() != 1) throw new GradleException("${node.name}.${m.name}: needs exactly one @At")
+			a.values[i + 1] = ats[0]
+		}
+	}
+}
+
+def fabricJar = tasks.findByName('remapJar') ?: tasks.jar
+fabricJar.doLast {
+	def file = fabricJar.archiveFile.get().asFile
+	def tmp = new File(file.path + '.tmp')
+	def zip = new java.util.zip.ZipFile(file)
+	tmp.withOutputStream { os ->
+		def out = new java.util.zip.ZipOutputStream(os)
+		zip.entries().each { e ->
+			byte[] bytes = zip.getInputStream(e).bytes
+			if (e.name.endsWith('.class') && new String(bytes, 'ISO-8859-1').contains('Lorg/spongepowered/asm/mixin/Mixin;')) {
+				def node = new org.objectweb.asm.tree.ClassNode()
+				new org.objectweb.asm.ClassReader(bytes).accept(node, 0)
+				unwrapAt(node)
+				def writer = new org.objectweb.asm.ClassWriter(0)
+				node.accept(writer)
+				bytes = writer.toByteArray()
+			}
+			out.putNextEntry(new java.util.zip.ZipEntry(e.name))
+			out.write(bytes)
+			out.closeEntry()
+		}
+		out.finish()
+	}
+	zip.close()
+	java.nio.file.Files.move(tmp.toPath(), file.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+}
+
 def bundledName = "kromvia-client-${project.minecraft_version}.jar"
 tasks.register('bundle', Copy) {
 	from(tasks.findByName('remapJar') ?: tasks.jar)
@@ -94,7 +136,7 @@ tasks.register('bundle', Copy) {
 
 // Forge and NeoForge run Minecraft with Mojang names since 1.20.6, so the unremapped jar works there
 // once Fabric Loader's API is swapped for the shim in forge/ and FML gets its mods.toml.
-def forgeVersions = ['1.21', '1.21.1', '1.21.2', '1.21.3', '1.21.4', '1.21.5', '1.21.6', '1.21.7', '1.21.8', '1.21.9', '1.21.10']
+def forgeVersions = ['1.20.6', '1.21', '1.21.1', '1.21.2', '1.21.3', '1.21.4', '1.21.5', '1.21.6', '1.21.7', '1.21.8', '1.21.9', '1.21.10', '1.21.11', '26.1', '26.1.1', '26.1.2', '26.2', '26.3']
 if (project.minecraft_version in forgeVersions) {
 	def shim = rootProject.file('forge')
 
@@ -128,19 +170,6 @@ if (project.minecraft_version in forgeVersions) {
 				'net/fabricmc/api/ClientModInitializer': 'com/kromvia/client/platform/ClientModInitializer',
 			]
 			def remapper = new org.objectweb.asm.commons.SimpleRemapper(relocate)
-			// Fabric's Mixin 0.17 made `at` an array on these; the Mixin in Forge and NeoForge wants one @At.
-			def singleAt = ['Redirect', 'ModifyArg', 'ModifyArgs', 'ModifyVariable'].collect { "Lorg/spongepowered/asm/mixin/injection/${it};".toString() }
-			def unwrapAt = { org.objectweb.asm.tree.ClassNode node ->
-				node.methods.each { m ->
-					((m.visibleAnnotations ?: []) + (m.invisibleAnnotations ?: [])).findAll { it.desc in singleAt }.each { a ->
-						int i = a.values.indexOf('at')
-						if (i < 0 || !(a.values[i + 1] instanceof List)) return
-						def ats = a.values[i + 1]
-						if (ats.size() != 1) throw new GradleException("${node.name}.${m.name}: Forge needs exactly one @At")
-						a.values[i + 1] = ats[0]
-					}
-				}
-			}
 			def mixins = []
 			def out = new java.util.zip.ZipOutputStream(new FileOutputStream(forgeJar.get().asFile))
 			def put = { String name, byte[] bytes ->
@@ -163,7 +192,10 @@ if (project.minecraft_version in forgeVersions) {
 				if (e.name ==~ /kromvia(\.\w+)?\.mixins\.json/) {
 					mixins << e.name
 					def json = new String(bytes, 'UTF-8')
-					if (!json.contains('"minVersion"')) bytes = json.replaceFirst(/\{/, '{\n\t"minVersion": "0.8",').getBytes('UTF-8')
+					// Forge ships Mixin 0.8.5–0.8.7, which knows no compatibility level past JAVA_17.
+					if (flavor == 'forge') json = json.replaceFirst(/"compatibilityLevel": "JAVA_\d+"/, '"compatibilityLevel": "JAVA_17"')
+					if (!json.contains('"minVersion"')) json = json.replaceFirst(/\{/, '{\n\t"minVersion": "0.8",')
+					bytes = json.getBytes('UTF-8')
 				}
 				put(e.name, bytes)
 			}

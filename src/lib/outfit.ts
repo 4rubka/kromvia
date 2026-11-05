@@ -7,7 +7,7 @@ export const OUTFIT_KEY = "kromvia.outfit";
 
 export type Back = "none" | "cape" | "elytra";
 export type OutfitSlot = "head" | "face" | "neck" | "back" | "body" | "feet" | "effect";
-export type Outfit = { equipped: Partial<Record<OutfitSlot, string>>; back: Back; style: CapeStyle; colors?: Record<string, number> };
+export type Outfit = { equipped: Partial<Record<OutfitSlot, string>>; back: Back; style: CapeStyle; colors?: Record<string, number>; dev?: boolean };
 
 export const OUTFIT_EVENT = "kromvia-outfit";
 

@@ -47,6 +47,7 @@ pub fn clean(v: &Value) -> Result<Value, String> {
         "colors": colors,
         "back": pick("back", &BACKS, "cape"),
         "style": pick("style", &STYLES, "kromvia"),
+        "dev": v["dev"].as_bool().unwrap_or(false),
     }))
 }
 

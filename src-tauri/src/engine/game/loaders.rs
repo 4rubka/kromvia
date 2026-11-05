@@ -109,13 +109,17 @@ pub async fn versions(kind: LoaderKind, mc: &str) -> Result<Vec<LoaderVersion>, 
     check_id(mc)?;
     if let Some(meta) = kind.meta() {
         let entries: Vec<MetaEntry> = http::get_json(&meta_prefix(kind, meta, mc).await?).await?;
-        return Ok(entries
+        let mut list: Vec<LoaderVersion> = entries
             .into_iter()
             .map(|e| LoaderVersion {
                 stable: e.loader.stable.unwrap_or_else(|| !is_prerelease(&e.loader.version)),
                 version: e.loader.version,
             })
-            .collect());
+            .collect();
+        if kind == LoaderKind::Quilt {
+            list.sort_by_key(|v| std::cmp::Reverse(numeric_key(&v.version)));
+        }
+        return Ok(list);
     }
     match kind {
         LoaderKind::Forge => {

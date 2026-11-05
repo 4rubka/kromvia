@@ -28,3 +28,10 @@ dist-ssr
 
 # Local tooling scripts, kept out of the repo
 /scripts/
+
+# Internal planning notes, kept out of the repo
+/PLAN.md
+/docs/
+CLAUDE.md
+NOTES*.md
+TODO*.md

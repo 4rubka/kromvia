@@ -16,12 +16,16 @@ public final class Social {
 		public final String name;
 		public final boolean online;
 		public final int unread;
+		public final String head;
+		public final String room;
 
-		Friend(String id, String name, boolean online, int unread) {
+		Friend(String id, String name, boolean online, int unread, String head, String room) {
 			this.id = id;
 			this.name = name;
 			this.online = online;
 			this.unread = unread;
+			this.head = head;
+			this.room = room;
 		}
 	}
 
@@ -66,7 +70,7 @@ public final class Social {
 		List<Friend> fs = new ArrayList<>();
 		for (JsonElement e : arr(s, "friends")) {
 			JsonObject o = e.getAsJsonObject();
-			fs.add(new Friend(str(o, "id"), str(o, "name"), o.has("online") && o.get("online").getAsBoolean(), o.has("unread") ? o.get("unread").getAsInt() : 0));
+			fs.add(new Friend(str(o, "id"), str(o, "name"), o.has("online") && o.get("online").getAsBoolean(), o.has("unread") ? o.get("unread").getAsInt() : 0, str(o, "head"), str(o, "room")));
 		}
 		friends = Collections.unmodifiableList(fs);
 		JsonObject party = s.has("party") && s.get("party").isJsonObject() ? s.getAsJsonObject("party") : null;
@@ -171,6 +175,14 @@ public final class Social {
 		a.addProperty("to", to);
 		a.addProperty("text", text);
 		send(a);
+	}
+
+	public static void sendScreenshot(String to) {
+		ask("shot", "to", to);
+	}
+
+	public static void openUrl(String url) {
+		ask("url", "url", url);
 	}
 
 	public static void invite(String friend) {

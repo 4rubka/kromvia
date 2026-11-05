@@ -20,6 +20,7 @@ public abstract class Module {
 	public final Category category;
 	public final Corner corner;
 	public boolean enabled;
+	public boolean shown = true;
 	public float hudX = -1, hudY = -1;
 	public final List<Setting<?>> settings = new ArrayList<>();
 	private Item iconItem = Items.PAPER;

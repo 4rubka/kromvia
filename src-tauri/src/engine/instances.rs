@@ -31,6 +31,8 @@ pub struct Instance {
     pub created: u64,
     #[serde(default)]
     pub icon: Option<String>,
+    #[serde(default)]
+    pub no_client: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
@@ -53,6 +55,8 @@ pub struct Settings {
     pub gpu: Option<String>,
     #[serde(default)]
     pub group: Option<String>,
+    #[serde(default)]
+    pub no_client: Option<bool>,
 }
 
 pub fn dir(id: &str) -> Result<PathBuf, String> {
@@ -135,6 +139,7 @@ pub fn create(name: &str, mc_version: &str, loader: Option<Loader>) -> Result<In
         group: None,
         created: now(),
         icon: None,
+        no_client: false,
     };
     std::fs::create_dir_all(game_dir(&id)?).map_err(|e| e.to_string())?;
     std::fs::write(game_dir(&id)?.join("options.txt"), "guiScale:2\n").map_err(|e| e.to_string())?;
@@ -170,6 +175,9 @@ pub fn update(id: &str, s: Settings) -> Result<Instance, String> {
     inst.resolution = s.resolution;
     inst.gpu = s.gpu;
     inst.group = trimmed(s.group);
+    if let Some(off) = s.no_client {
+        inst.no_client = off;
+    }
     save(&inst)?;
     Ok(inst)
 }
@@ -419,6 +427,7 @@ mod tests {
             resolution: Some(Resolution { width: 1280, height: 720 }),
             gpu: None,
             group: Some("  PvP ".into()),
+            no_client: None,
         };
         assert!(update(&a.id, s("Pack", Some(100))).is_err());
         let u = update(&a.id, s("Renamed", Some(4096))).unwrap();

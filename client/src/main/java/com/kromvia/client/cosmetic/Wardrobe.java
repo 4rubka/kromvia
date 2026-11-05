@@ -29,6 +29,7 @@ public final class Wardrobe {
 
 	public static final Map<Slot, String> EQUIPPED = new EnumMap<>(Slot.class);
 	public static final Map<String, Integer> COLORS = new HashMap<>();
+	private static boolean dev;
 	public static final Map<String, String> MODELS = new LinkedHashMap<>();
 	public static final int RAINBOW = 0x00FFFFFF;
 
@@ -94,6 +95,10 @@ public final class Wardrobe {
 		return e != null && e.isJsonPrimitive() ? e.getAsString() : null;
 	}
 
+	public static boolean dev() {
+		return dev;
+	}
+
 	public static boolean loadShared() {
 		if (FILE == null || !Files.isRegularFile(FILE)) return false;
 		JsonObject o = read();
@@ -114,6 +119,7 @@ public final class Wardrobe {
 			}
 		}
 		Cosmetics.useCape(str(o, "style"));
+		dev = o.has("dev") && o.get("dev").isJsonPrimitive() && o.get("dev").getAsBoolean();
 		if ("cape".equals(str(o, "back")) && !EQUIPPED.containsKey(Slot.BACK) && !MODELS.containsKey("back")) {
 			EQUIPPED.put(Slot.BACK, Cosmetics.KROMVIA_CAPE);
 		}

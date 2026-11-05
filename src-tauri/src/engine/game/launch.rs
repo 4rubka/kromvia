@@ -124,8 +124,15 @@ impl Games {
 }
 
 fn client_flag(inst: &Instance, jar: Option<PathBuf>) -> Option<String> {
-    let fabric = inst.loader.as_ref().is_some_and(|l| l.kind == LoaderKind::Fabric);
-    fabric.then_some(jar?).map(|j| format!("-Dfabric.addMods={}", j.display()))
+    if inst.no_client {
+        return None;
+    }
+    let flag = match inst.loader.as_ref().map(|l| l.kind) {
+        Some(LoaderKind::Fabric) => "fabric.addMods",
+        Some(LoaderKind::Quilt) => "loader.addMods",
+        _ => return None,
+    };
+    jar.map(|j| format!("-D{flag}={}", j.display()))
 }
 
 /// Forge and NeoForge have no way to add a mod from outside the mods folder, so the client goes
@@ -133,7 +140,7 @@ fn client_flag(inst: &Instance, jar: Option<PathBuf>) -> Option<String> {
 fn sync_forge_client(inst: &Instance, game_dir: &Path) -> Result<(), String> {
     use crate::engine::core::http::sha1_file;
     let dest = game_dir.join("mods").join(crate::engine::content::BUILT_IN_CLIENT);
-    let flavor = match inst.loader.as_ref().map(|l| l.kind) {
+    let flavor = match inst.loader.as_ref().map(|l| l.kind).filter(|_| !inst.no_client) {
         Some(LoaderKind::Forge) => Some("forge"),
         Some(LoaderKind::NeoForge) => Some("neoforge"),
         _ => None,
@@ -341,8 +348,8 @@ fn has_mod(inst: &Instance, name: &str) -> bool {
 }
 
 async fn add_e4mc(inst: &Instance, job: &Arc<Job>) {
-    let client = match inst.loader.as_ref().map(|l| l.kind) {
-        Some(LoaderKind::Fabric) => paths::client_jar(&inst.mc_version),
+    let client = match inst.loader.as_ref().map(|l| l.kind).filter(|_| !inst.no_client) {
+        Some(LoaderKind::Fabric | LoaderKind::Quilt) => paths::client_jar(&inst.mc_version),
         Some(LoaderKind::Forge) => paths::forge_client_jar(&inst.mc_version, "forge"),
         Some(LoaderKind::NeoForge) => paths::forge_client_jar(&inst.mc_version, "neoforge"),
         _ => None,
@@ -467,7 +474,7 @@ async fn resolve(inst: &Instance, job: &Arc<Job>) -> Result<(VersionJson, PathBu
     install::ensure_files(&inst.mc_version, &vanilla, &game_dir, job).await?;
 
     let mut required = vanilla.java_version.as_ref().map_or(8, |j| j.major_version);
-    if inst.loader.as_ref().is_some_and(|l| l.kind == LoaderKind::Fabric) && paths::client_jar(&inst.mc_version).is_some() {
+    if !inst.no_client && inst.loader.as_ref().is_some_and(|l| matches!(l.kind, LoaderKind::Fabric | LoaderKind::Quilt)) && paths::client_jar(&inst.mc_version).is_some() {
         required = required.max(17);
     }
     let major = java::pick_major(required)?;
@@ -820,6 +827,27 @@ fn share_screenshot<R: Runtime>(app: &AppHandle<R>, run_id: u64, name: String) {
     });
 }
 
+fn send_latest_screenshot<R: Runtime>(app: &AppHandle<R>, run_id: u64, to: String) {
+    let Some((instance_id, stdin)) = app.state::<Games>().running.lock().unwrap().get(&run_id).map(|r| (r.instance_id.clone(), r.stdin.clone())) else {
+        return;
+    };
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let link = match crate::engine::worlds::list_screenshots(&instance_id).ok().and_then(|l| l.into_iter().next()) {
+            Some(shot) => crate::engine::social::share_screenshot(std::path::Path::new(&shot.path)).await.map(|code| format!("{}/share/{code}", crate::engine::social::base())),
+            None => Err("no screenshots yet, press F2 first".into()),
+        };
+        match link {
+            Ok(url) => {
+                let _ = app.emit("game-social", serde_json::json!({ "do": "send", "to": to, "text": url }));
+            }
+            Err(e) => {
+                let _ = stdin.send(serde_json::json!({ "toast": { "title": "Could not send", "text": e } }).to_string() + "\n");
+            }
+        }
+    });
+}
+
 fn discord_screenshot<R: Runtime>(app: &AppHandle<R>, run_id: u64, name: String) {
     let Some((instance_id, stdin)) = app.state::<Games>().running.lock().unwrap().get(&run_id).map(|r| (r.instance_id.clone(), r.stdin.clone())) else {
         return;
@@ -838,6 +866,10 @@ fn playing<R: Runtime>(app: &AppHandle<R>, run_id: u64, text: &str) {
     let v: serde_json::Value = serde_json::from_str(text).unwrap_or_default();
     if v["switch"].is_object() {
         switch_account(app, run_id, &v["switch"]);
+        return;
+    }
+    if v["social"]["do"] == "shot" {
+        send_latest_screenshot(app, run_id, v["social"]["to"].as_str().unwrap_or_default().to_string());
         return;
     }
     if v["social"].is_object() {
@@ -935,11 +967,15 @@ mod tests {
             gpu: None,
             group: None,
             icon: None,
+            no_client: false,
         };
         assert_eq!(client_flag(&inst, jar.clone()).as_deref(), Some("-Dfabric.addMods=/r/kromvia-client.jar"));
+        inst.no_client = true;
+        assert_eq!(client_flag(&inst, jar.clone()), None);
+        inst.no_client = false;
         assert_eq!(client_flag(&inst, None), None);
         inst.loader = Some(loaders::Loader { kind: LoaderKind::Quilt, version: "0.29.0".into() });
-        assert_eq!(client_flag(&inst, jar), None);
+        assert_eq!(client_flag(&inst, jar).as_deref(), Some("-Dloader.addMods=/r/kromvia-client.jar"));
     }
 
     #[test]
@@ -1125,6 +1161,7 @@ mod window_tests {
         let kind = match std::env::var("KROMVIA_TEST_LOADER").as_deref() {
             Ok("forge") => LoaderKind::Forge,
             Ok("neoforge") => LoaderKind::NeoForge,
+            Ok("quilt") => LoaderKind::Quilt,
             _ => LoaderKind::Fabric,
         };
         let jar = match kind {

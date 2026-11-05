@@ -86,6 +86,7 @@ public class ModuleMenu extends KScreen {
 		setInitialFocus(search);
 
 		for (Module m : KromviaClient.MODULES) {
+			if (!m.shown) continue;
 			ModuleCard card = new ModuleCard(0, 0, m, b -> {
 				m.enabled = !m.enabled;
 				if (!m.enabled) m.disable(minecraft);
@@ -105,7 +106,7 @@ public class ModuleMenu extends KScreen {
 
 	private String label(int i, Module.Category c) {
 		int n = 0;
-		for (Module m : KromviaClient.MODULES) if (c == null || m.category == c) n++;
+		for (Module m : KromviaClient.MODULES) if (m.shown && (c == null || m.category == c)) n++;
 		return CATEGORY_NAMES[i] + "  §8" + n;
 	}
 

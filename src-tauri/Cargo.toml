@@ -1,6 +1,6 @@
 [package]
 name = "kromvia"
-version = "0.1.8"
+version = "0.1.9"
 description = "Kromvia Minecraft launcher"
 authors = ["_4rubka_"]
 edition = "2021"

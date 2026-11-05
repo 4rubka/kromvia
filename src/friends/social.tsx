@@ -2,29 +2,37 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useI18n } from "../i18n";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { useLauncher } from "../lib/launcher";
+import { headOf } from "./Head";
+import { pushOutfit, savedOutfit, storeOutfit } from "../lib/outfit";
 
 export type ChatMessage = { id: number; from: string; to: string; text: string; time: number };
 type Player = { id: string; name: string; verified: boolean };
 export type Party = { id: string; leader: string; room: string | null; members: Player[] };
 export type PartyInvite = { party: string; from: Player };
+export type FriendRoom = { room: string; mc: string };
 
 type HubEvent =
   | { type: "connected" | "disconnected" | "stopped" }
-  | { type: "presence"; online: string[] }
+  | { type: "presence"; online: string[]; rooms?: Record<string, FriendRoom> }
+  | { type: "room"; id: string; room: FriendRoom | null }
   | { type: "online" | "offline"; id: string }
   | ({ type: "chat" } & ChatMessage)
   | { type: "error"; error: string }
   | { type: "party" }
   | { type: "party.invite"; party: string; from: Player };
 
-type GameAsk = { do?: string; id?: string; to?: string; text?: string; party?: string };
+type GameAsk = { do?: string; id?: string; to?: string; text?: string; party?: string; url?: string };
+
+const SHOT = /^https:\/\/api\.kromvia\.com\/share\/[A-Za-z0-9]{4,16}$/;
 
 function useSocialState() {
   const { t } = useI18n();
   const [myId, setMyId] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [online, setOnline] = useState<Set<string>>(new Set());
+  const [rooms, setRooms] = useState<Record<string, FriendRoom>>({});
   const [chats, setChats] = useState<Record<string, ChatMessage[]>>({});
   const [unread, setUnread] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
@@ -42,10 +50,13 @@ function useSocialState() {
   const gameChat = useRef<string | null>(null);
   const gameAsked = useRef(false);
   const [gameTick, setGameTick] = useState(0);
+  const [heads, setHeads] = useState<Record<string, string>>({});
+  const joinFriend = useRef<(id: string) => void>(() => {});
   const loadFriends = () =>
     invoke<{ friends: { id: string; name: string }[] }>("social_friends").then((f) => {
       for (const x of f.friends) names.current[x.id] = x.name;
       setGameFriends(f.friends.map((x) => ({ id: x.id, name: x.name })));
+      for (const x of f.friends) headOf(x.name).then((h) => h && setHeads((m) => (m[x.id] === h ? m : { ...m, [x.id]: h })));
     }, () => {});
 
   const toast = async (id: string, text: (name: string) => string) => {
@@ -69,17 +80,24 @@ function useSocialState() {
       else if (e.type === "disconnected" || e.type === "stopped") {
         setConnected(false);
         setOnline(new Set());
-      } else if (e.type === "presence") setOnline(new Set(e.online));
+        setRooms({});
+      } else if (e.type === "presence") {
+        setOnline(new Set(e.online));
+        setRooms(e.rooms ?? {});
+      } else if (e.type === "room")
+        setRooms(({ [e.id]: _, ...rest }) => (e.room ? { ...rest, [e.id]: e.room } : rest));
       else if (e.type === "online") {
         setOnline((s) => new Set(s).add(e.id));
         toast(e.id, (name) => t("friends.toastOnline", { name }));
       }
-      else if (e.type === "offline")
+      else if (e.type === "offline") {
+        setRooms(({ [e.id]: _, ...rest }) => rest);
         setOnline((s) => {
           const n = new Set(s);
           n.delete(e.id);
           return n;
         });
+      }
       else if (e.type === "chat") {
         const other = e.from === me.current ? e.to : e.from;
         add(other, [e]);
@@ -103,7 +121,16 @@ function useSocialState() {
     loadParty();
   };
   useEffect(() => {
-    invoke<{ id: string } | null>("social_me").then((m) => m && connect(m.id), () => {});
+    invoke<{ id: string; dev?: boolean } | null>("social_me").then((m) => {
+      if (!m) return;
+      connect(m.id);
+      const o = savedOutfit();
+      if (!!o.dev !== !!m.dev) {
+        const next = { ...o, dev: !!m.dev };
+        storeOutfit(next);
+        pushOutfit(next).catch(() => {});
+      }
+    }, () => {});
   }, []);
 
   const openChat = (id: string | null) => {
@@ -130,6 +157,10 @@ function useSocialState() {
   const l = useLauncher();
   const hostedRoom = (l.hosting && l.rooms[l.hosting]) || null;
   const leads = !!party && party.leader === myId;
+  const hostedMc = (l.hosting && l.instances.find((i) => i.id === l.hosting)?.mcVersion) || null;
+  useEffect(() => {
+    if (connected) invoke("social_room", { room: hostedRoom, mc: hostedRoom ? hostedMc : null }).catch(() => {});
+  }, [connected, hostedRoom, hostedMc]);
   useEffect(() => {
     if (leads && party!.room !== hostedRoom) partyActions.setRoom(hostedRoom);
   }, [leads, hostedRoom]);
@@ -151,6 +182,8 @@ function useSocialState() {
       else if (a.do === "join" && a.party) partyActions.join(a.party);
       else if (a.do === "decline" && a.party) partyActions.decline(a.party);
       else if (a.do === "leave") partyActions.leave();
+      else if (a.do === "url" && a.url && SHOT.test(a.url)) openUrl(a.url).catch(() => {});
+      else if (a.do === "joinFriend" && a.id) joinFriend.current(a.id);
       setGameTick((n) => n + 1);
     });
     return () => {
@@ -164,16 +197,23 @@ function useSocialState() {
       me: myId,
       connected,
       error,
-      friends: gameFriends.map((f) => ({ ...f, online: online.has(f.id), unread: unread[f.id] ?? 0 })),
+      friends: gameFriends.map((f) => ({ ...f, online: online.has(f.id), unread: unread[f.id] ?? 0, head: heads[f.id] ?? null, room: rooms[f.id]?.room ?? null })),
       party,
       invites,
       chat: chatWith ? { with: chatWith, messages: (chats[chatWith] ?? []).slice(-50).map((m) => ({ from: m.from, text: m.text, time: m.time })) } : null,
     };
     invoke("game_social", { state }).catch(() => {});
-  }, [gameTick, myId, connected, error, gameFriends, online, unread, party, invites, chats]);
+  }, [gameTick, myId, connected, error, gameFriends, online, unread, party, invites, chats, heads, rooms]);
   const totalUnread = Object.values(unread).reduce((a, b) => a + b, 0);
+  const join = (id: string) => {
+    const r = rooms[id];
+    if (!r) return;
+    setError(null);
+    if (!l.joinRoom(r.room, r.mc)) setError(t("friends.noBuildFor", { mc: r.mc }));
+  };
+  joinFriend.current = join;
 
-  return { party, invites, partyActions, myId, connected, online, chats, unread, totalUnread, error, connect, openChat, send, refreshPresence: () => invoke("social_presence").catch(() => {}) };
+  return { party, invites, partyActions, myId, connected, online, rooms, join, chats, unread, totalUnread, error, connect, openChat, send, refreshPresence: () => invoke("social_presence").catch(() => {}) };
 }
 
 type Social = ReturnType<typeof useSocialState>;

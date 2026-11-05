@@ -52,3 +52,6 @@ allMessages.removeFirst() -> allMessages.remove(0)
 ps.mulPose(nodes[d[0]]) -> ps.mulPoseMatrix(nodes[d[0]])
 # 1.20.5 renamed WorldOpenFlows.checkForBackupAndLoad.
 createWorldOpenFlows().openWorld( -> createWorldOpenFlows().checkForBackupAndLoad(
+# Kromvia CrashPatch leaves the world the way this version can.
+mc.level.disconnect(ClientLevel.DEFAULT_QUIT_MESSAGE) -> mc.level.disconnect()
+mc.disconnect(next, false) -> mc.disconnect(next)

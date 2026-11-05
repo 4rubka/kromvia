@@ -64,7 +64,7 @@ public final class Cosmetics {
 	}
 
 	public static boolean devSelf() {
-		return Accounts.licensed() && DEV_NICK.equalsIgnoreCase(Minecraft.getInstance().getUser().getName());
+		return Wardrobe.dev() || Accounts.licensed() && DEV_NICK.equalsIgnoreCase(Minecraft.getInstance().getUser().getName());
 	}
 
 	public static Cosmetic cape() {

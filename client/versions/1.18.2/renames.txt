@@ -121,3 +121,6 @@ MutableComponent out = net.minecraft.network.chat.TextComponent.EMPTY; -> Mutabl
 minecraft.createWorldOpenFlows().openWorld(id, back) -> minecraft.loadLevel(id)
 # ServerData took a LAN flag before 1.20.2.
 ServerData.Type.OTHER -> false
+# Kromvia CrashPatch leaves the world the way this version can.
+mc.level.disconnect(ClientLevel.DEFAULT_QUIT_MESSAGE) -> mc.level.disconnect()
+mc.disconnect(next, false) -> mc.clearLevel(next)

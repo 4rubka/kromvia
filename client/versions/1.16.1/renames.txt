@@ -121,3 +121,6 @@ minecraft.createWorldOpenFlows().openWorld(id, back) -> minecraft.loadLevel(id)
 ServerData.Type.OTHER -> false
 InputConstants.KEY_RETURN -> org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER
 InputConstants.KEY_NUMPADENTER -> org.lwjgl.glfw.GLFW.GLFW_KEY_KP_ENTER
+# Kromvia CrashPatch leaves the world the way this version can.
+mc.level.disconnect(ClientLevel.DEFAULT_QUIT_MESSAGE) -> mc.level.disconnect()
+mc.disconnect(next, false) -> mc.clearLevel(next)

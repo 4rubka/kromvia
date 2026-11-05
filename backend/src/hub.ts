@@ -4,7 +4,11 @@ import type { Env } from "./index";
 import { WINDOW_MS } from "./auth";
 import { setPlaying, wornAround } from "./playing";
 
-type Who = { id: string; name: string };
+type Who = { id: string; name: string; room?: Room | null };
+type Room = { room: string; mc: string };
+
+const ROOM_HOST = /^[a-z0-9-]{1,63}(\.[a-z0-9-]{1,63}){1,6}(:[0-9]{1,5})?$/;
+const MC_VERSION = /^[0-9a-z.+-]{1,32}$/i;
 
 export const MAX_TEXT = 500;
 
@@ -27,14 +31,14 @@ export class Hub extends DurableObject<Env> {
     this.ctx.acceptWebSocket(server, [who.id]);
     server.serializeAttachment(who);
     const friends = await this.friendsOf(who.id);
-    server.send(JSON.stringify({ type: "presence", online: friends.filter((f) => this.online(f)) }));
+    server.send(JSON.stringify(this.presence(friends)));
     if (!wasOnline) this.tell(friends, { type: "online", id: who.id });
     return new Response(null, { status: 101, webSocket: client });
   }
 
   async webSocketMessage(ws: WebSocket, raw: string | ArrayBuffer) {
     const who = ws.deserializeAttachment() as Who;
-    let msg: { type?: unknown; to?: unknown; text?: unknown; host?: unknown; nick?: unknown; names?: unknown };
+    let msg: { type?: unknown; to?: unknown; text?: unknown; host?: unknown; nick?: unknown; names?: unknown; room?: unknown; mc?: unknown };
     try {
       msg = JSON.parse(typeof raw === "string" ? raw : new TextDecoder().decode(raw));
     } catch {
@@ -42,8 +46,9 @@ export class Hub extends DurableObject<Env> {
     }
     if (msg.type === "presence") {
       const friends = await this.friendsOf(who.id);
-      return ws.send(JSON.stringify({ type: "presence", online: friends.filter((f) => this.online(f)) }));
+      return ws.send(JSON.stringify(this.presence(friends)));
     }
+    if (msg.type === "room") return this.setRoom(ws, who, msg.room, msg.mc);
     if (msg.type === "chat") return this.chat(ws, who, msg.to, msg.text);
     if (msg.type === "server") {
       if (!(await this.env.LIMIT.limit({ key: `server:${who.id}` })).success) return ws.send(JSON.stringify({ type: "error", error: "too many messages, slow down" }));
@@ -62,6 +67,7 @@ export class Hub extends DurableObject<Env> {
   async webSocketClose(ws: WebSocket) {
     const who = ws.deserializeAttachment() as Who;
     ws.close();
+    if (who.room && !this.roomOf(who.id, ws)) this.tell(await this.friendsOf(who.id), { type: "room", id: who.id, room: null });
     if (this.online(who.id, ws)) return;
     await setPlaying(this.env.DB, who, null, null);
     this.tell(await this.friendsOf(who.id), { type: "offline", id: who.id });
@@ -84,6 +90,33 @@ export class Hub extends DurableObject<Env> {
       .bind(a, b, who.id, body, time)
       .first<number>("id");
     this.tell([who.id, to], { type: "chat", id: row, from: who.id, to, text: body, time });
+  }
+
+  private async setRoom(ws: WebSocket, who: Who, room: unknown, mc: unknown) {
+    const next: Room | null =
+      typeof room === "string" && ROOM_HOST.test(room.toLowerCase()) && typeof mc === "string" && MC_VERSION.test(mc) ? { room: room.toLowerCase(), mc } : null;
+    if (room !== null && !next) return ws.send(JSON.stringify({ type: "error", error: "bad room" }));
+    ws.serializeAttachment({ ...who, room: next });
+    this.tell(await this.friendsOf(who.id), { type: "room", id: who.id, room: next });
+  }
+
+  private roomOf(id: string, except?: WebSocket): Room | null {
+    for (const s of this.ctx.getWebSockets(id)) {
+      if (s === except || s.readyState !== WebSocket.OPEN) continue;
+      const room = (s.deserializeAttachment() as Who).room;
+      if (room) return room;
+    }
+    return null;
+  }
+
+  private presence(friends: string[]) {
+    const online = friends.filter((f) => this.online(f));
+    const rooms: Record<string, Room> = {};
+    for (const f of online) {
+      const room = this.roomOf(f);
+      if (room) rooms[f] = room;
+    }
+    return { type: "presence", online, rooms };
   }
 
   notify(ids: string[], msg: unknown) {

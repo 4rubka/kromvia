@@ -17,6 +17,7 @@ import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
+import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -40,6 +41,7 @@ public final class Tweaks {
 	public static final class Chat extends Flag {
 		public final BoolSetting compact = add(new BoolSetting("compact", "Stack repeats (xN)", true));
 		public final BoolSetting keep = add(new BoolSetting("keep", "Keep after leaving", true));
+		public final BoolSetting slide = add(new BoolSetting("slide", "New messages slide in", true));
 		public final ColorSetting background = add(new ColorSetting("background", "Background colour", 0xFF000000));
 		public final SliderSetting strength = add(new SliderSetting("strength", "Background strength", 100, 0, 200, 10, "%"));
 		public final SliderSetting corners = add(new SliderSetting("corners", "Rounded corners", 0, 0, 6, 1, "px"));
@@ -48,10 +50,92 @@ public final class Tweaks {
 			super("better_chat", "Better Chat", Category.UTILITY);
 			icon(Items.BOOK);
 			corners.shown = false;
+			slide.shown = false;
 		}
 	}
 
 	public static final Chat CHAT = new Chat();
+
+	public static final class Scoreboard extends Flag {
+		public final BoolSetting numbers = add(new BoolSetting("numbers", "Red numbers", false));
+		public final SliderSetting background = add(new SliderSetting("background", "Background", 100, 0, 200, 10, "%"));
+		public final SliderSetting scale = add(new SliderSetting("scale", "Size", 1, 0.5F, 1.5F, 0.05F, "x"));
+		public final SliderSetting offset = add(new SliderSetting("offset", "Move up or down", 0, -120, 120, 5, "px"));
+
+		Scoreboard() {
+			super("scoreboard", "Scoreboard", Category.HUD);
+			icon(Items.OAK_SIGN);
+			shown = false;
+		}
+
+		public int background(int argb) {
+			if (!enabled) return argb;
+			int a = Math.min(255, Math.round((argb >>> 24) * background.value() / 100));
+			return a << 24 | argb & 0xFFFFFF;
+		}
+	}
+
+	public static final Scoreboard SCOREBOARD = new Scoreboard();
+
+	public static final class VanillaHud extends Flag {
+		public final BoolSetting title = add(new BoolSetting("title", "Show titles", true));
+		public final SliderSetting titleScale = add(new SliderSetting("title_scale", "Title size", 1, 0.3F, 1.5F, 0.05F, "x"));
+		public final BoolSetting actionbar = add(new BoolSetting("actionbar", "Show the action bar", true));
+		public final SliderSetting actionbarScale = add(new SliderSetting("actionbar_scale", "Action bar size", 1, 0.5F, 2, 0.05F, "x"));
+		public final SliderSetting actionbarOffset = add(new SliderSetting("actionbar_offset", "Action bar height", 0, -150, 50, 5, "px"));
+		public final BoolSetting bossbar = add(new BoolSetting("bossbar", "Show boss bars", true));
+		public final SliderSetting bossbarScale = add(new SliderSetting("bossbar_scale", "Boss bar size", 1, 0.5F, 1.5F, 0.05F, "x"));
+
+		VanillaHud() {
+			super("vanilla_hud", "Vanilla HUD", Category.HUD);
+			icon(Items.ITEM_FRAME);
+			shown = false;
+		}
+	}
+
+	public static final VanillaHud VANILLA_HUD = new VanillaHud();
+
+	public static final class Glint extends Flag {
+		private static final String[] TEXTURES = {"textures/misc/enchanted_glint_item.png", "textures/misc/enchanted_glint_armor.png", "textures/misc/enchanted_item_glint.png"};
+		private static final int SIZE = 64;
+		public final ColorSetting colour = add(new ColorSetting("colour", "Glint colour", 0xFF8B5CF6));
+		private Integer applied;
+
+		Glint() {
+			super("glint", "Glint Colour", Category.UTILITY);
+			icon(Items.ENCHANTED_BOOK);
+		}
+
+		@Override
+		public void tick(Minecraft mc) {
+			int argb = colour.argb();
+			if (applied != null && applied == argb) return;
+			applied = argb;
+			for (String path : TEXTURES) {
+				com.mojang.blaze3d.platform.NativeImage image = new com.mojang.blaze3d.platform.NativeImage(SIZE, SIZE, true);
+				for (int y = 0; y < SIZE; y++) {
+					for (int x = 0; x < SIZE; x++) {
+						double a = (Math.sin((x * 2 + y) * Math.PI / 16) + 1) / 2;
+						double b = (Math.sin((x - y * 2) * Math.PI / 32) + 1) / 2;
+						double v = Math.pow(a * 0.6 + b * 0.4, 2);
+						int r = (int) ((argb >> 16 & 0xFF) * v), g = (int) ((argb >> 8 & 0xFF) * v), bl = (int) ((argb & 0xFF) * v);
+						Ver.setPixel(image, x, y, 0xFF000000 | r << 16 | g << 8 | bl);
+					}
+				}
+				Identifier id = Identifier.fromNamespaceAndPath("minecraft", path);
+				mc.getTextureManager().register(id, com.kromvia.client.fx.Chat.texture("kromvia glint", image));
+			}
+		}
+
+		@Override
+		public void disable(Minecraft mc) {
+			if (applied == null) return;
+			applied = null;
+			for (String path : TEXTURES) mc.getTextureManager().release(Identifier.fromNamespaceAndPath("minecraft", path));
+		}
+	}
+
+	public static final Glint GLINT = new Glint();
 
 	private static String lastLine;
 	private static int repeats;
@@ -65,7 +149,19 @@ public final class Tweaks {
 		boolean same = CHAT.enabled && CHAT.compact.on() && k.equals(lastLine);
 		repeats = same ? repeats + 1 : 1;
 		lastLine = k;
+		if (!same) arrived = System.currentTimeMillis();
 		return same;
+	}
+
+	private static long arrived;
+	private static final float SLIDE_MS = 160;
+
+	public static float chatSlide() {
+		if (!CHAT.enabled || !CHAT.slide.on()) return 0;
+		float t = (System.currentTimeMillis() - arrived) / SLIDE_MS;
+		if (t >= 1) return 0;
+		float left = 1 - t;
+		return 9 * left * left * left;
 	}
 
 	public static Component counted(Component message) {
@@ -379,6 +475,6 @@ public final class Tweaks {
 	};
 
 	public static List<Module> modules() {
-		return List.of(CHAT, NAMETAGS, OVERLAYS, CAMERA, PARTICLES, WEATHER, SOUNDS, ARMOR_ALERT, STRETCHED);
+		return List.of(CHAT, SCOREBOARD, VANILLA_HUD, GLINT, NAMETAGS, OVERLAYS, CAMERA, PARTICLES, WEATHER, SOUNDS, ARMOR_ALERT, STRETCHED);
 	}
 }

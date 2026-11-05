@@ -19,11 +19,15 @@ public class SocialScreen extends KScreen {
 	private static final int ROW = 22;
 	private static final int LEFT_W = 160;
 	private static final int PARTY_MAX = 8;
+	private static final int HEAD = 12;
+	private static final String SHOT_PREFIX = "https://api.kromvia.com/share/";
 	private final Screen parent;
 	private EditBox input;
 	private String draft = "";
 	private int builtW, builtH;
 	private String built = "";
+	private final List<int[]> shotRects = new ArrayList<>();
+	private final List<String> shotUrls = new ArrayList<>();
 
 	public SocialScreen(Screen parent) {
 		super(Component.literal("Social"));
@@ -58,7 +62,7 @@ public class SocialScreen extends KScreen {
 	private static String layoutKey() {
 		StringBuilder k = new StringBuilder();
 		k.append(Social.received()).append(Social.signedOut()).append(Social.inParty()).append(Social.leads()).append(Social.room()).append(Social.chatWith());
-		for (Social.Friend f : Social.friends()) k.append('|').append(f.id).append(f.online).append(f.unread);
+		for (Social.Friend f : Social.friends()) k.append('|').append(f.id).append(f.online).append(f.unread).append(f.room);
 		for (String m : Social.members()) k.append('#').append(m);
 		for (Social.Invite i : Social.invites()) k.append('!').append(i.party);
 		return k.toString();
@@ -74,11 +78,13 @@ public class SocialScreen extends KScreen {
 		for (int i = 0; i < Math.min(rows, friends.size()); i++) {
 			Social.Friend f = friends.get(i);
 			String dot = f.online ? "§a● §r" : "§8● §7";
-			String label = dot + f.name + (f.unread > 0 ? "  §d" + f.unread : "");
+			String label = "    " + dot + f.name + (f.unread > 0 ? "  §d" + f.unread : "");
 			int y = TOP + 14 + i * ROW;
 			boolean invite = canInvite && f.online && !Social.members().contains(f.name);
-			addRenderableWidget(new KButton(x, y, invite ? LEFT_W - 24 : LEFT_W, ROW - 2, Component.literal(label), b -> Social.open(f.id),
+			int side = (invite ? 24 : 0) + (f.room != null ? 36 : 0);
+			addRenderableWidget(new KButton(x, y, LEFT_W - side, ROW - 2, Component.literal(label), b -> Social.open(f.id),
 					() -> f.id.equals(Social.chatWith())));
+			if (f.room != null) addRenderableWidget(new KButton(x + LEFT_W - side + 2, y, 34, ROW - 2, Component.literal("Join"), b -> join(f.room)));
 			if (invite) addRenderableWidget(new KButton(x + LEFT_W - 22, y, 22, ROW - 2, Component.literal("+"), b -> Social.invite(f.id)).flat());
 		}
 
@@ -98,7 +104,7 @@ public class SocialScreen extends KScreen {
 		}
 
 		if (input == null || builtW != width || builtH != height) {
-			input = new EditBox(font, rx, bottom() - 20, rw - 54, 20, Component.literal("Message"));
+			input = new EditBox(font, rx, bottom() - 20, rw - 80, 20, Component.literal("Message"));
 			input.setMaxLength(500);
 			input.setValue(draft);
 			input.setResponder(v -> draft = v);
@@ -107,6 +113,7 @@ public class SocialScreen extends KScreen {
 		}
 		if (Social.chatWith() != null) {
 			addRenderableWidget(input);
+			addRenderableWidget(new KButton(rx + rw - 76, bottom() - 20, 24, 20, Component.literal("F2"), b -> Social.sendScreenshot(Social.chatWith())).flat());
 			addRenderableWidget(new KButton(rx + rw - 50, bottom() - 20, 50, 20, Component.literal("Send"), b -> send()));
 		}
 		addRenderableWidget(new KButton(x, height - 24, 80, 20, Component.literal("Back"), b -> onClose()));
@@ -142,6 +149,17 @@ public class SocialScreen extends KScreen {
 	}
 
 	@Override
+	protected void mouseDown(double mx, double my) {
+		for (int i = 0; i < shotRects.size(); i++) {
+			int[] r = shotRects.get(i);
+			if (mx >= r[0] && mx < r[2] && my >= r[1] && my < r[3]) {
+				Social.openUrl(shotUrls.get(i));
+				return;
+			}
+		}
+	}
+
+	@Override
 	protected boolean keyDown(int key) {
 		if ((key == InputConstants.KEY_RETURN || key == InputConstants.KEY_NUMPADENTER) && input != null && input.isFocused()) {
 			send();
@@ -159,6 +177,12 @@ public class SocialScreen extends KScreen {
 	protected void draw(Gfx g, int mouseX, int mouseY, float delta) {
 		super.draw(g, mouseX, mouseY, delta);
 		int x = left();
+		List<Social.Friend> shown = sorted();
+		int rows = Math.max(1, (bottom() - TOP - 14) / ROW);
+		for (int i = 0; i < Math.min(rows, shown.size()); i++) {
+			Social.Friend f = shown.get(i);
+			Heads.draw(g, f.id, f.head, x + 5, TOP + 14 + i * ROW + (ROW - 2 - HEAD) / 2, HEAD);
+		}
 		int rx = right();
 		int rw = rightW();
 		g.drawString(font, "SOCIAL", x, 14, UiStyle.TEXT, false);
@@ -188,6 +212,7 @@ public class SocialScreen extends KScreen {
 		String with = Social.chatWith();
 		int top = chatTop();
 		if (with == null) {
+			shotRects.clear();
 			g.drawString(font, "Pick a friend to chat.", rx, top + 4, UiStyle.MUTED, false);
 			return;
 		}
@@ -195,17 +220,27 @@ public class SocialScreen extends KScreen {
 		g.drawString(font, "CHAT  · " + name, rx, top, UiStyle.FRONT, false);
 		List<String> wrapped = new ArrayList<>();
 		List<Integer> colours = new ArrayList<>();
+		List<String> urls = new ArrayList<>();
 		for (Social.Line l : Social.lines()) {
-			for (String part : wrap((l.mine ? "You: " : name + ": ") + l.text, rw)) {
+			boolean shot = isShot(l.text);
+			for (String part : wrap((l.mine ? "You: " : name + ": ") + (shot ? "[Screenshot] click to open" : l.text), rw)) {
 				wrapped.add(part);
-				colours.add(l.mine ? UiStyle.MUTED : UiStyle.TEXT);
+				colours.add(shot ? UiStyle.TOP : l.mine ? UiStyle.MUTED : UiStyle.TEXT);
+				urls.add(shot ? l.text : null);
 			}
 		}
 		int lineH = font.lineHeight + 2;
 		int fits = Math.max(0, (bottom() - 26 - (top + 14)) / lineH);
 		int from = Math.max(0, wrapped.size() - fits);
+		shotRects.clear();
+		shotUrls.clear();
 		for (int i = from; i < wrapped.size(); i++) {
-			g.drawString(font, wrapped.get(i), rx, top + 14 + (i - from) * lineH, colours.get(i), false);
+			int ly = top + 14 + (i - from) * lineH;
+			g.drawString(font, wrapped.get(i), rx, ly, colours.get(i), false);
+			if (urls.get(i) != null) {
+				shotRects.add(new int[] {rx, ly - 1, rx + font.width(wrapped.get(i)), ly + lineH - 1});
+				shotUrls.add(urls.get(i));
+			}
 		}
 		if (wrapped.isEmpty()) g.drawString(font, "No messages yet.", rx, top + 14, UiStyle.MUTED, false);
 	}
@@ -216,6 +251,12 @@ public class SocialScreen extends KScreen {
 		if (Social.error() != null) return Social.error();
 		if (!Social.connected()) return "Connecting to Kromvia…";
 		return null;
+	}
+
+	private static boolean isShot(String text) {
+		if (text == null || !text.startsWith(SHOT_PREFIX)) return false;
+		String code = text.substring(SHOT_PREFIX.length());
+		return code.length() >= 4 && code.length() <= 16 && code.chars().allMatch(Character::isLetterOrDigit);
 	}
 
 	private static String nameOf(String id) {

@@ -22,3 +22,5 @@ mc.hasShiftDown() -> net.minecraft.client.gui.screens.Screen.hasShiftDown()
 # ChatScreen takes only the text before 1.21.9.
 ChatScreen(text, false) -> ChatScreen(text)
 mc.screen.resize(w.getGuiScaledWidth(), w.getGuiScaledHeight()); -> mc.screen.resize(mc, w.getGuiScaledWidth(), w.getGuiScaledHeight());
+# Kromvia CrashPatch leaves the world the way this version can.
+mc.level.disconnect(ClientLevel.DEFAULT_QUIT_MESSAGE) -> mc.level.disconnect()

@@ -1,8 +1,6 @@
 package com.kromvia.client;
 
-import com.kromvia.client.compat.Mc;
 import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
 import net.minecraft.util.HttpUtil;
 
 public final class Rooms {
@@ -30,8 +28,6 @@ public final class Rooms {
 		if (!(HOSTING || hostNext) || server == null || mc.player == null || server == tried) return;
 		tried = server;
 		hostNext = false;
-		if (!server.isPublished() && server.publishServer(null, false, HttpUtil.getAvailablePort())) {
-			Mc.say(new net.minecraft.network.chat.TextComponent("§2[§aK§2] §7Room is open. Your friends can join with the code from the launcher."));
-		}
+		if (!server.isPublished()) server.publishServer(null, false, HttpUtil.getAvailablePort());
 	}
 }

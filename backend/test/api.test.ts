@@ -2,7 +2,7 @@ import { beforeEach, expect, test } from "bun:test";
 import app from "../src/index";
 import { b64url, payload, WINDOW_MS } from "../src/auth";
 import { testDb } from "./d1";
-import { normHost, setPlaying, STALE_MS, wornAround, wornOn } from "../src/playing";
+import { DEV_DISCORD, normHost, setPlaying, STALE_MS, wornAround, wornOn } from "../src/playing";
 
 let env: { DB: D1Database; LIMIT: RateLimit; HUB: unknown; SHOTS: unknown };
 let r2: Map<string, Uint8Array>;
@@ -256,6 +256,30 @@ test("public profiles by name, any case", async () => {
   expect(p.json).toMatchObject({ id: b.id, name: "Bob", verified: false, mc_uuid: null, likes: 1, cosmetics: { items: ["cap"], cape: true } });
   expect(p.json.pubkey).toBeUndefined();
   expect((await call(null, "GET", "/v1/users/nobody")).status).toBe(404);
+});
+
+test("players are searchable by name prefix", async () => {
+  await signup("Alice");
+  await signup("Alfred");
+  await signup("Bob");
+  const names = async (q: string) => (await call(null, "GET", `/v1/users?q=${q}`)).json.map((p: any) => p.name).sort();
+  expect(await names("al")).toEqual(["Alfred", "Alice"]);
+  expect(await names("ALI")).toEqual(["Alice"]);
+  expect(await names("x")).toEqual([]);
+  expect(await names("%")).toEqual([]);
+});
+
+test("the dev badge follows the owner's Discord, not just the nick", async () => {
+  const a = await signup("Alice");
+  const c = await signup("Carol");
+  await call(a, "PUT", "/v1/me/cosmetics", { cosmetics: { cape: true, dev: true } });
+  await setPlaying(env.DB, { id: a.id, name: "Alice" }, "play.test", "Alice");
+  await setPlaying(env.DB, { id: c.id, name: "Carol" }, "play.test", "Carol");
+  expect(await wornOn(env.DB, "play.test", ["alice"])).toEqual({ alice: { cape: true } });
+  expect((await call(a, "GET", "/v1/me")).json.dev).toBe(false);
+  await env.DB.prepare("INSERT INTO links (account, provider, ext_id, name, created) VALUES (?, 'discord', ?, 'x', 0)").bind(a.id, DEV_DISCORD).run();
+  expect(await wornOn(env.DB, "play.test", ["alice"])).toEqual({ alice: { cape: true, dev: true } });
+  expect((await call(a, "GET", "/v1/me")).json.dev).toBe(true);
 });
 
 test("links need keys, then a one-time code links the account", async () => {

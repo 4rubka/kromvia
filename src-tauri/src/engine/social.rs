@@ -145,6 +145,22 @@ pub async fn top() -> Result<Value, String> {
     send(Method::GET, "/v1/top", None).await
 }
 
+pub async fn search(q: &str) -> Result<Value, String> {
+    let q = q.trim();
+    if q.is_empty() || q.len() > 16 || !q.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') {
+        return Ok(json!([]));
+    }
+    send(Method::GET, &format!("/v1/users?q={q}"), None).await
+}
+
+pub async fn user(name: &str) -> Result<Value, String> {
+    let name = name.trim();
+    if name.is_empty() || name.len() > 16 || !name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') {
+        return Err("bad player name".into());
+    }
+    send(Method::GET, &format!("/v1/users/{name}"), None).await
+}
+
 pub async fn likes() -> Result<Value, String> {
     send(Method::GET, "/v1/likes", None).await
 }

@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import java.util.function.Supplier;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.EntityType;
@@ -25,6 +26,11 @@ public final class Mc {
 
 	public static void setScreen(Screen screen) {
 		mc().setScreen(screen);
+	}
+
+	public static void leaveWorld(Screen next) {
+		if (mc().level != null) mc().disconnectFromWorld(ClientLevel.DEFAULT_QUIT_MESSAGE);
+		setScreen(next);
 	}
 
 	public static boolean hudHidden() {

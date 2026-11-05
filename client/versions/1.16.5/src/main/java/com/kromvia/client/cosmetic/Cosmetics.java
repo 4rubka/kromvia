@@ -75,7 +75,7 @@ public final class Cosmetics {
 	public static final String DEV_STYLE = "dev";
 
 	public static boolean devSelf() {
-		return com.kromvia.client.Accounts.licensed() && "_4rubka_".equalsIgnoreCase(net.minecraft.client.Minecraft.getInstance().getUser().getName());
+		return Wardrobe.dev() || com.kromvia.client.Accounts.licensed() && "_4rubka_".equalsIgnoreCase(net.minecraft.client.Minecraft.getInstance().getUser().getName());
 	}
 
 	public static void prewarm() {}

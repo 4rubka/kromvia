@@ -63,6 +63,16 @@ pub async fn social_top() -> Result<Value, String> {
 }
 
 #[tauri::command]
+pub async fn social_search(q: String) -> Result<Value, String> {
+    social::search(&q).await
+}
+
+#[tauri::command]
+pub async fn social_user(name: String) -> Result<Value, String> {
+    social::user(&name).await
+}
+
+#[tauri::command]
 pub async fn social_likes() -> Result<Value, String> {
     social::likes().await
 }
@@ -97,6 +107,11 @@ pub fn social_connect(app: AppHandle, live: State<'_, Live>) {
 #[tauri::command]
 pub fn social_chat(live: State<'_, Live>, to: String, text: String) -> Result<(), String> {
     live.send(serde_json::json!({ "type": "chat", "to": to, "text": text }))
+}
+
+#[tauri::command]
+pub fn social_room(live: State<'_, Live>, room: Option<String>, mc: Option<String>) -> Result<(), String> {
+    live.send(serde_json::json!({ "type": "room", "room": room, "mc": mc }))
 }
 
 #[tauri::command]
@@ -181,6 +196,18 @@ pub async fn share_screenshot(instance_id: String, name: String) -> Result<Strin
 }
 
 #[tauri::command]
+pub async fn share_screenshot_file(app: AppHandle) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let picked = tauri::async_runtime::spawn_blocking(move || app.dialog().file().add_filter("Images", &["png", "jpg", "jpeg"]).blocking_pick_file())
+        .await
+        .map_err(|e| e.to_string())?;
+    let Some(path) = picked.and_then(|p| p.into_path().ok()) else {
+        return Ok(None);
+    };
+    Ok(Some(format!("{}/share/{}", social::base(), social::share_screenshot(&path).await?)))
+}
+
+#[tauri::command]
 pub async fn share_get(code: String) -> Result<Value, String> {
     social::shared(&code).await
 }
@@ -188,6 +215,11 @@ pub async fn share_get(code: String) -> Result<Value, String> {
 #[tauri::command]
 pub fn build_install(app: AppHandle, jobs: State<'_, Jobs>, manifest: Value) -> Result<u64, String> {
     jobs.spawn(&app, "build-install".into(), move |job| async move { mrpack::install_manifest(manifest, &job).await.map(|_| ()) })
+}
+
+#[tauri::command]
+pub fn wardrobe_get() -> Option<Value> {
+    crate::engine::wardrobe::load()
 }
 
 #[tauri::command]

@@ -86,7 +86,12 @@ public final class Qol {
 
 	public static final ChatFilter FILTER = new ChatFilter();
 
+	private static boolean relayNotice(String text) {
+		return text.contains("e4mc.link") || text.startsWith("Local game hosted on domain") || text.startsWith("Local game no longer publicly hosted");
+	}
+
 	public static @Nullable Component filter(Component message) {
+		if (relayNotice(message.getString())) return null;
 		if (!FILTER.enabled) return message;
 		List<String> words = FILTER.list();
 		String text = message.getString().toLowerCase(Locale.ROOT);
