@@ -1,8 +1,8 @@
 package com.kromvia.client.ui;
 
+import com.kromvia.client.Binds;
 import com.kromvia.client.compat.Mc;
 import com.kromvia.client.compat.Gfx;
-import com.mojang.blaze3d.platform.InputConstants;
 import com.kromvia.client.compat.KScreen;
 import java.util.ArrayList;
 import java.util.List;
@@ -64,12 +64,15 @@ public class ModuleMenu extends KScreen {
 			}, () -> category == c).flat().appear(60 + i * 40);
 			tabs.add(addRenderableWidget(tab));
 		}
-		addRenderableWidget(new KButton(px + 8, py + ph - 102, SIDEBAR - 16, 20, Component.literal("Profiles"),
+		int lift = com.kromvia.client.Launcher.PRESENT ? 0 : 24;
+		addRenderableWidget(new KButton(px + 8, py + ph - 102 + lift, SIDEBAR - 16, 20, Component.literal("Profiles"),
 				b -> Mc.setScreen(new ProfilesScreen(this))).appear(160));
-		addRenderableWidget(new KButton(px + 8, py + ph - 78, SIDEBAR - 16, 20, Component.literal("Edit HUD"),
+		addRenderableWidget(new KButton(px + 8, py + ph - 78 + lift, SIDEBAR - 16, 20, Component.literal("Edit HUD"),
 				b -> Mc.setScreen(new HudEditor(this))).appear(200));
-		addRenderableWidget(new KButton(px + 8, py + ph - 54, SIDEBAR - 16, 20, Component.literal("Wardrobe"),
-				b -> Mc.setScreen(new CosmeticsScreen(this))).appear(240));
+		if (lift == 0) {
+			addRenderableWidget(new KButton(px + 8, py + ph - 54, SIDEBAR - 16, 20, Component.literal("Wardrobe"),
+					b -> Mc.setScreen(new CosmeticsScreen(this))).appear(240));
+		}
 		addRenderableWidget(new KButton(px + 8, py + ph - 30, SIDEBAR - 16, 20, Component.literal("Done"), b -> onClose()).appear(280));
 
 		int gx = px + SIDEBAR + 10;
@@ -282,7 +285,7 @@ public class ModuleMenu extends KScreen {
 
 	@Override
 	protected boolean keyDown(int key) {
-		if (key == InputConstants.KEY_RSHIFT) {
+		if (key == Binds.code(Binds.MENU)) {
 			onClose();
 			return true;
 		}

@@ -112,7 +112,6 @@ fn mime(bytes: &[u8]) -> &'static str {
 }
 
 pub fn start<R: Runtime>(app: &AppHandle<R>) {
-    loudness::start(app);
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         let mut last: Option<Now> = None;
@@ -151,7 +150,7 @@ pub fn start<R: Runtime>(app: &AppHandle<R>) {
                 let for_game = now.as_ref().map(|n| {
                     serde_json::json!({
                         "title": n.title, "artist": n.artist, "playing": n.playing,
-                        "position": n.position_ms, "length": n.length_ms,
+                        "position": n.position_ms, "length": n.length_ms, "at": at,
                         "art": path.as_ref().map(|p| p.to_string_lossy().into_owned()),
                         "album": n.album, "player": n.player, "playerId": n.player_id,
                         "shuffle": n.shuffle, "repeat": n.repeat, "players": n.players,
@@ -175,7 +174,7 @@ fn changed(last: &Option<Now>, last_at: u64, now: &Option<Now>, at: u64) -> bool
         return true;
     }
     let expected = if a.playing { a.position_ms + at.saturating_sub(last_at) } else { a.position_ms };
-    expected.abs_diff(b.position_ms) > 2000
+    expected.abs_diff(b.position_ms) > 400
 }
 
 fn save_art(key: &str, bytes: &[u8]) -> Option<PathBuf> {
@@ -455,7 +454,14 @@ mod platform {
             album,
             art_key,
             playing: status == Status::Playing,
-            position_ms: ticks_ms(timeline.Position()?.Duration),
+            position_ms: {
+                let read = ticks_ms(timeline.Position()?.Duration);
+                let updated = (timeline.LastUpdatedTime()?.UniversalTime - 116_444_736_000_000_000) / 10_000;
+                let since = u64::try_from(super::epoch_ms() as i64 - updated).unwrap_or(0);
+                let end = ticks_ms(timeline.EndTime()?.Duration);
+                let pos = if status == Status::Playing && updated > 0 { read + since } else { read };
+                if end > 0 { pos.min(end) } else { pos }
+            },
             length_ms: ticks_ms(timeline.EndTime()?.Duration),
         };
         Ok(Some((now, thumb)))
@@ -501,64 +507,4 @@ mod platform {
     pub async fn control(_action: Action) -> Result<(), String> {
         Err("not supported on this system".into())
     }
-}
-
-#[cfg(target_os = "linux")]
-mod loudness {
-    use std::process::Stdio;
-    use std::time::Duration;
-
-    use tauri::{AppHandle, Manager, Runtime};
-    use tokio::io::AsyncReadExt;
-
-    use crate::engine::game::launch::Games;
-
-    const RATE: usize = 11025;
-    const CHUNK: usize = RATE / 20;
-
-    fn wanted() -> bool {
-        super::last().is_some_and(|t| t.playing)
-    }
-
-    pub fn start<R: Runtime>(app: &AppHandle<R>) {
-        let app = app.clone();
-        tauri::async_runtime::spawn(async move {
-            loop {
-                tokio::time::sleep(Duration::from_secs(1)).await;
-                if !app.state::<Games>().any_running() || !wanted() {
-                    continue;
-                }
-                let Ok(mut child) = tokio::process::Command::new("parec")
-                    .args(["-d", "@DEFAULT_MONITOR@", "--format=s16le", "--channels=1", "--latency-msec=40", "--raw"])
-                    .arg(format!("--rate={RATE}"))
-                    .stdout(Stdio::piped())
-                    .stderr(Stdio::null())
-                    .kill_on_drop(true)
-                    .spawn()
-                else {
-                    tokio::time::sleep(Duration::from_secs(30)).await;
-                    continue;
-                };
-                let Some(mut out) = child.stdout.take() else { continue };
-                let mut buf = vec![0u8; CHUNK * 2];
-                while app.state::<Games>().any_running() && wanted() {
-                    if out.read_exact(&mut buf).await.is_err() {
-                        break;
-                    }
-                    let sum: f64 = buf.as_chunks::<2>().0.iter().map(|b| f64::from(i16::from_le_bytes(*b)).powi(2)).sum();
-                    let rms = (sum / CHUNK as f64).sqrt() / 32768.0;
-                    app.state::<Games>().level(rms.min(1.0) as f32);
-                }
-                let _ = child.kill().await;
-                app.state::<Games>().level(-1.0);
-            }
-        });
-    }
-}
-
-#[cfg(not(target_os = "linux"))]
-mod loudness {
-    use tauri::{AppHandle, Runtime};
-
-    pub fn start<R: Runtime>(_app: &AppHandle<R>) {}
 }

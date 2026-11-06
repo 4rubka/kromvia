@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { wearable } from "../art/wear";
 import { boxItem } from "../art/procedural";
 import { capeTexture, type CapeStyle } from "../art/capes";
+import type { Worn } from "../art/worn";
 
 export const OUTFIT_KEY = "kromvia.outfit";
 
@@ -40,13 +41,18 @@ function gameCape(style: CapeStyle) {
   return c.toDataURL("image/png");
 }
 
-export function pushOutfit(o = savedOutfit()) {
+export function outfitWorn(o: Outfit): Worn {
   const ids = Object.values(o.equipped).filter((id): id is string => !!id);
+  return { models: ids.filter((id) => wearable(id)), items: ids.filter((id) => boxItem(id)), cape: o.back === "cape", style: o.style, colors: o.colors, dev: o.dev };
+}
+
+export function pushOutfit(o = savedOutfit()) {
+  const w = outfitWorn(o);
   return invoke("wardrobe_push", {
     wardrobe: o,
     capePng: o.back === "cape" ? gameCape(o.style) : null,
-    models: ids.filter((id) => wearable(id)),
-    items: ids.filter((id) => boxItem(id)),
+    models: w.models,
+    items: w.items,
   });
 }
 

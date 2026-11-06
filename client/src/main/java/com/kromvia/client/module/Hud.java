@@ -9,7 +9,9 @@ import java.util.Map;
 
 import com.kromvia.client.KromviaClient;
 import com.kromvia.client.ui.HudEditor;
+import com.mojang.blaze3d.platform.Window;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.network.chat.Component;
 
 public final class Hud {
@@ -68,6 +70,17 @@ public final class Hud {
 			boxes.add(b);
 		}
 		return boxes;
+	}
+
+	public static boolean click(Minecraft mc) {
+		if (mc.player == null || !(Mc.screen() instanceof ChatScreen)) return false;
+		Window w = mc.getWindow();
+		double mx = mc.mouseHandler.xpos() * w.getGuiScaledWidth() / w.getScreenWidth();
+		double my = mc.mouseHandler.ypos() * w.getGuiScaledHeight() / w.getScreenHeight();
+		for (Box b : layout(mc, w.getGuiScaledWidth(), w.getGuiScaledHeight(), false)) {
+			if (mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h && b.module.click(mc)) return true;
+		}
+		return false;
 	}
 
 	public static void drawScaled(Gfx g, Minecraft mc, Module m, int x, int y) {

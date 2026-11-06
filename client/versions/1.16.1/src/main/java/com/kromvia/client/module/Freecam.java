@@ -1,22 +1,25 @@
 package com.kromvia.client.module;
 
+import com.kromvia.client.Binds;
 import com.kromvia.client.compat.Mc;
 import com.kromvia.client.module.setting.BoolSetting;
 import com.kromvia.client.module.setting.ChoiceSetting;
 import com.kromvia.client.module.setting.SliderSetting;
 import net.minecraft.client.KeyMapping;
+import com.kromvia.client.compat.Gfx;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import org.lwjgl.glfw.GLFW;
 
 public final class Freecam extends Module {
-	private static final String[] KEY_NAMES = {"F4", "G", "H", "J", "N"};
-	private static final int[] KEY_CODES = {GLFW.GLFW_KEY_F4, GLFW.GLFW_KEY_G, GLFW.GLFW_KEY_H, GLFW.GLFW_KEY_J, GLFW.GLFW_KEY_N};
-
 	static Freecam instance;
 	private static boolean active, bypass;
 	private static double x, y, z, vx, vy, vz;
@@ -24,13 +27,12 @@ public final class Freecam extends Module {
 	private static boolean placed;
 	private static long last;
 
-	final ChoiceSetting key = add(new ChoiceSetting("key", "Toggle key", 0, KEY_NAMES));
 	final ChoiceSetting mode = add(new ChoiceSetting("mode", "Activation", 0, "Toggle", "Hold"));
 	final SliderSetting speed = add(new SliderSetting("speed", "Speed", 10, 1, 60, 1, " b/s"));
 	final SliderSetting boost = add(new SliderSetting("boost", "Sprint boost", 3, 1, 10, 0.5F, "x"));
 	final SliderSetting sensitivity = add(new SliderSetting("sensitivity", "Mouse sensitivity", 100, 25, 200, 5, "%"));
 	final ChoiceSetting movement = add(new ChoiceSetting("movement", "Fly direction", 0, "Where I look", "Flat"));
-	final ChoiceSetting interact = add(new ChoiceSetting("interact", "Block interaction", 0, "Off", "From player"));
+	final ChoiceSetting interact = add(new ChoiceSetting("interact", "Block interaction", 0, "Off", "Where I look (in reach)"));
 	final BoolSetting collide = add(new BoolSetting("collide", "Collide with blocks", false));
 	final BoolSetting smooth = add(new BoolSetting("smooth", "Smooth movement", true));
 	final BoolSetting remember = add(new BoolSetting("remember", "Remember last position", false));
@@ -60,7 +62,7 @@ public final class Freecam extends Module {
 			placed = false;
 			return;
 		}
-		boolean down = Mc.screen() == null && Mc.keyDown(KEY_CODES[key.index()]);
+		boolean down = Mc.screen() == null && Binds.down(Binds.FREECAM);
 		boolean hold = mode.index() == 1;
 		if (down && !held) {
 			if (!active) start(mc);
@@ -175,7 +177,51 @@ public final class Freecam extends Module {
 		else vy = 0;
 		if (!solid || free(mc, x, y, z + vz * dt)) z += vz * dt;
 		else vz = 0;
+		aim(mc);
 		return new Vec3(x, y, z);
+	}
+
+	public static void aim(Minecraft mc) {
+		if (!active || instance.interact.index() == 0 || mc.player == null || mc.level == null) return;
+		Vec3 from = new Vec3(x, y, z);
+		double ry = Math.toRadians(yaw), rp = Math.toRadians(pitch);
+		Vec3 dir = new Vec3(-Math.sin(ry) * Math.cos(rp), -Math.sin(rp), Math.cos(ry) * Math.cos(rp));
+		Vec3 eye = mc.player.getEyePosition(1F);
+		double blockReach = mc.player.isCreative() ? 5 : 4.5, entityReach = 3;
+		double far = eye.distanceTo(from) + blockReach;
+		Vec3 to = from.add(dir.scale(far));
+		HitResult hit = mc.level.clip(new ClipContext(from, to, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, mc.player));
+		double limit = hit.getType() == HitResult.Type.MISS ? far : from.distanceTo(hit.getLocation());
+		Entity best = null;
+		Vec3 bestAt = null;
+		for (Entity e : mc.level.getEntities(mc.player, new AABB(from, to).inflate(1), e -> !e.isSpectator() && e.isPickable())) {
+			Vec3 at = e.getBoundingBox().inflate(e.getPickRadius()).clip(from, to).orElse(null);
+			if (at == null || from.distanceTo(at) >= limit) continue;
+			limit = from.distanceTo(at);
+			best = e;
+			bestAt = at;
+		}
+		if (best != null) {
+			mc.hitResult = eye.distanceTo(bestAt) <= entityReach ? new EntityHitResult(best, bestAt) : miss(to);
+		} else if (hit.getType() == HitResult.Type.BLOCK) {
+			mc.hitResult = eye.distanceTo(hit.getLocation()) <= blockReach ? hit : miss(to);
+		} else {
+			mc.hitResult = miss(to);
+		}
+	}
+
+	private static HitResult miss(Vec3 to) {
+		return BlockHitResult.miss(to, net.minecraft.core.Direction.UP, net.minecraft.core.BlockPos.ZERO);
+	}
+
+	@Override
+	public void overlay(Gfx g, Minecraft mc) {
+		if (!active || interact.index() == 0 || mc.options.hideGui) return;
+		int cx = g.guiWidth() / 2, cy = g.guiHeight() / 2;
+		boolean target = mc.hitResult != null && mc.hitResult.getType() != HitResult.Type.MISS;
+		int col = target ? 0xFFFFFFFF : 0x80FFFFFF;
+		g.fill(cx - 4, cy, cx + 5, cy + 1, col);
+		g.fill(cx, cy - 4, cx + 1, cy + 5, col);
 	}
 
 	private static boolean free(Minecraft mc, double px, double py, double pz) {

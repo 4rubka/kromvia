@@ -2,14 +2,16 @@ package com.kromvia.client.fx;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.kromvia.client.Binds;
 import com.kromvia.client.compat.Gfx;
 import com.kromvia.client.compat.Mc;
 import com.kromvia.client.module.Module;
 import com.kromvia.client.module.setting.BoolSetting;
-import com.kromvia.client.module.setting.ChoiceSetting;
 import com.kromvia.client.module.setting.ColorSetting;
+import com.mojang.blaze3d.platform.InputConstants;
 import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Items;
@@ -18,7 +20,6 @@ import org.slf4j.LoggerFactory;
 
 public final class Media extends Module {
 	private static final Logger PRESENCE = LoggerFactory.getLogger("kromvia-presence");
-	private static final int KP_4 = 324, KP_5 = 325, KP_6 = 326;
 	private static final int ART = 32, W = 150, H = ART + 6;
 
 	record Source(String id, String name, boolean playing) {}
@@ -35,13 +36,14 @@ public final class Media extends Module {
 		}
 	}
 
-	private static final int[] MENU_KEYS = {77, 75, 85, 89, 320};
+	private static final KeyMapping MENU = Binds.add("Music menu", InputConstants.KEY_M);
+	private static final KeyMapping[] CONTROLS = {Binds.add("Previous track", InputConstants.KEY_NUMPAD4),
+			Binds.add("Play / pause", InputConstants.KEY_NUMPAD5), Binds.add("Next track", InputConstants.KEY_NUMPAD6)};
 
 	private final BoolSetting cover = add(new BoolSetting("cover", "Cover art", true));
 	private final BoolSetting bar = add(new BoolSetting("bar", "Progress bar", true));
 	private final BoolSetting keys = add(new BoolSetting("keys", "Numpad 4 / 5 / 6: previous, pause, next", true));
 	private final ColorSetting accent = add(new ColorSetting("accent", "Bar colour", 0xFF8B5CF6));
-	private final ChoiceSetting menu = add(new ChoiceSetting("menu", "Music menu key", 0, "M", "K", "U", "Y", "Numpad 0"));
 	private boolean menuHeld;
 
 	volatile Track track;
@@ -84,7 +86,7 @@ public final class Media extends Module {
 				m.get("position").getAsLong(),
 				m.get("length").getAsLong(),
 				text(m, "art"),
-				System.currentTimeMillis(),
+				m.has("at") ? m.get("at").getAsLong() : System.currentTimeMillis(),
 				text(m, "album"),
 				text(m, "player"),
 				text(m, "playerId"),
@@ -108,17 +110,22 @@ public final class Media extends Module {
 
 	@Override
 	public void tick(Minecraft mc) {
-		boolean open = Mc.screen() == null && Mc.keyDown(MENU_KEYS[menu.index()]);
+		boolean open = Mc.screen() == null && Binds.down(MENU);
 		if (open && !menuHeld) Mc.setScreen(new MusicScreen());
 		menuHeld = open;
 		if (!keys.on() || Mc.screen() != null) return;
 		String[] actions = {"previous", "play_pause", "next"};
-		int[] codes = {KP_4, KP_5, KP_6};
 		for (int i = 0; i < 3; i++) {
-			boolean down = Mc.keyDown(codes[i]);
+			boolean down = Binds.down(CONTROLS[i]);
 			if (down && !held[i]) PRESENCE.info("{\"media\":\"" + actions[i] + "\"}");
 			held[i] = down;
 		}
+	}
+
+	@Override
+	public boolean click(Minecraft mc) {
+		Mc.setScreen(new MusicScreen());
+		return true;
 	}
 
 	@Override

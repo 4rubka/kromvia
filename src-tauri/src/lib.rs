@@ -204,6 +204,7 @@ pub fn run() {
             commands::social::social_me,
             commands::social::wardrobe_push,
             commands::social::wardrobe_get,
+            commands::social::social_cosmetics,
             commands::social::social_sign_up,
             commands::social::social_rename,
             commands::social::social_friends,

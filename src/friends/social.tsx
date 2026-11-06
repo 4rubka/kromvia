@@ -5,7 +5,7 @@ import { useI18n } from "../i18n";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useLauncher } from "../lib/launcher";
 import { headOf } from "./Head";
-import { pushOutfit, savedOutfit, storeOutfit } from "../lib/outfit";
+import { outfitWorn, pushOutfit, savedOutfit, storeOutfit } from "../lib/outfit";
 
 export type ChatMessage = { id: number; from: string; to: string; text: string; time: number };
 type Player = { id: string; name: string; verified: boolean };
@@ -133,6 +133,7 @@ function useSocialState() {
       if (!m) return;
       connect(m.id);
       syncDev(m);
+      invoke("social_cosmetics", { worn: outfitWorn(savedOutfit()) }).catch(() => {});
     }, () => {});
     const onFocus = () => invoke<{ dev?: boolean } | null>("social_me").then((m) => m && syncDev(m), () => {});
     window.addEventListener("focus", onFocus);

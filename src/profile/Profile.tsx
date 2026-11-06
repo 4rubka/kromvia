@@ -6,6 +6,7 @@ import { BlockIcon, InstanceIcon } from "../art/ModelIcon";
 import type { BlockKind } from "../art/blocks";
 import type { MessageKey } from "../i18n/en";
 import { SkinArt } from "../art/SkinArt";
+import { outfitWorn, savedOutfit } from "../lib/outfit";
 import { useSocial } from "../friends/social";
 import { Glyph } from "../ui/Glyph";
 import { Empty } from "../ui/Empty";
@@ -155,7 +156,7 @@ export function Profile({ onFriends }: { onFriends: () => void }) {
     <>
       <section className="card profile-hero">
         <div className="profile-art">
-          <SkinArt skin={skin?.dataUrl ?? null} slim={skin?.slim ?? false} back="cape" zoom={0.9} />
+          <SkinArt skin={skin?.dataUrl ?? null} slim={skin?.slim ?? false} back="cape" worn={outfitWorn(savedOutfit())} zoom={0.9} />
         </div>
         <div className="profile-info">
           <h1 className="page-title">

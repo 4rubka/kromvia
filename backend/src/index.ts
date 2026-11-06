@@ -260,12 +260,15 @@ app.get("/v1/users", async (c) => {
 
 app.get("/v1/users/:name", async (c) => {
   const a = await c.env.DB.prepare(
-    "SELECT a.id, a.name, a.mc_uuid, a.cosmetics, a.created, (SELECT COUNT(*) FROM likes WHERE to_id = a.id) AS likes FROM accounts a WHERE a.name_lower = ?",
+    "SELECT a.id, a.name, a.name_lower, a.mc_uuid, a.cosmetics, a.created, (SELECT COUNT(*) FROM likes WHERE to_id = a.id) AS likes, (SELECT l.ext_id FROM links l WHERE l.account = a.id AND l.provider = 'discord') AS discord FROM accounts a WHERE a.name_lower = ?",
   )
     .bind(c.req.param("name").toLowerCase())
-    .first<Pick<Account, "id" | "name" | "mc_uuid" | "cosmetics" | "created"> & { likes: number }>();
+    .first<Pick<Account, "id" | "name" | "mc_uuid" | "cosmetics" | "created"> & { name_lower: string; likes: number; discord: string | null }>();
   if (!a) return fail(404, "no such player");
-  return c.json({ ...publicAccount(a), mc_uuid: a.mc_uuid, created: a.created, likes: a.likes, cosmetics: JSON.parse(a.cosmetics) });
+  const cosmetics = JSON.parse(a.cosmetics);
+  delete cosmetics.dev;
+  if (isDev(a, a.discord)) cosmetics.dev = true;
+  return c.json({ ...publicAccount(a), mc_uuid: a.mc_uuid, created: a.created, likes: a.likes, cosmetics });
 });
 
 app.get("/share/:code", async (c) => {

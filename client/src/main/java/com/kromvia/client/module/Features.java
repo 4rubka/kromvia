@@ -1,8 +1,8 @@
 package com.kromvia.client.module;
 
+import com.kromvia.client.Binds;
 import com.kromvia.client.compat.Mc;
 import com.kromvia.client.compat.Gfx;
-import com.mojang.blaze3d.platform.InputConstants;
 import com.kromvia.client.KromviaClient;
 import com.kromvia.client.module.setting.BoolSetting;
 import com.kromvia.client.module.setting.ChoiceSetting;
@@ -172,7 +172,7 @@ public final class Features {
 		@Override
 		public void tick(Minecraft mc) {
 			if (mc.player == null) return;
-			boolean down = Mc.screen() == null && Mc.keyDown(InputConstants.KEY_LALT);
+			boolean down = Mc.screen() == null && Binds.down(Binds.FREELOOK);
 			if (down && !holding) {
 				saved = mc.options.getCameraType();
 				mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
@@ -229,7 +229,7 @@ public final class Features {
 		@Override
 		public void tick(Minecraft mc) {
 			if (mc.player == null) return;
-			boolean down = Mc.screen() == null && Mc.keyDown(InputConstants.KEY_V);
+			boolean down = Mc.screen() == null && Binds.down(Binds.SNAPLOOK);
 			if (down && saved == null) {
 				saved = mc.options.getCameraType();
 				mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT);

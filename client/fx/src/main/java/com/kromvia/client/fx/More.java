@@ -1,5 +1,6 @@
 package com.kromvia.client.fx;
 
+import com.kromvia.client.Binds;
 import com.kromvia.client.compat.Gfx;
 import com.kromvia.client.compat.Mc;
 import com.kromvia.client.module.Module;
@@ -7,6 +8,7 @@ import com.kromvia.client.module.setting.BoolSetting;
 import com.kromvia.client.module.setting.ColorSetting;
 import com.kromvia.client.module.setting.SliderSetting;
 import com.kromvia.client.module.setting.TextSetting;
+import com.mojang.blaze3d.platform.InputConstants;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -16,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.CameraType;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.SingleQuadParticle;
@@ -26,7 +29,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 public final class More {
-	private static final int KEY_B = 66, KEY_V = 86;
+	private static final KeyMapping LOOK_BACK = Binds.add("Behind You (back)", InputConstants.KEY_V);
+	private static final KeyMapping LOOK_FRONT = Binds.add("Behind You (front)", InputConstants.KEY_B);
 
 	private More() {}
 
@@ -118,8 +122,8 @@ public final class More {
 		@Override
 		public void tick(Minecraft mc) {
 			boolean free = Mc.screen() == null;
-			CameraType want = free && Mc.keyDown(KEY_V) ? CameraType.THIRD_PERSON_BACK
-					: free && Mc.keyDown(KEY_B) ? CameraType.THIRD_PERSON_FRONT : null;
+			CameraType want = free && Binds.down(LOOK_BACK) ? CameraType.THIRD_PERSON_BACK
+					: free && Binds.down(LOOK_FRONT) ? CameraType.THIRD_PERSON_FRONT : null;
 			if (want != null) {
 				if (before == null) before = mc.options.getCameraType();
 				if (mc.options.getCameraType() != want) mc.options.setCameraType(want);
@@ -222,7 +226,8 @@ public final class More {
 	};
 
 	public static final class Macros extends Flag {
-		private static final int[] KEYS = {295, 296, 297, 298};
+		private static final KeyMapping[] KEYS = {Binds.add("Chat macro F6", InputConstants.KEY_F6), Binds.add("Chat macro F7", InputConstants.KEY_F7),
+				Binds.add("Chat macro F8", InputConstants.KEY_F8), Binds.add("Chat macro F9", InputConstants.KEY_F9)};
 		final List<TextSetting> lines = new ArrayList<>();
 		private final boolean[] down = new boolean[KEYS.length];
 
@@ -235,7 +240,7 @@ public final class More {
 		@Override
 		public void tick(Minecraft mc) {
 			for (int i = 0; i < KEYS.length; i++) {
-				boolean now = Mc.screen() == null && Mc.keyDown(KEYS[i]);
+				boolean now = Mc.screen() == null && Binds.down(KEYS[i]);
 				if (now && !down[i] && mc.player != null) {
 					String text = lines.get(i).get().trim();
 					if (!text.isEmpty()) Say.send(mc, text);

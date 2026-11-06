@@ -1,7 +1,9 @@
 package com.kromvia.client.mixin;
 
 import com.kromvia.client.module.Clicks;
+import com.kromvia.client.module.Hud;
 import com.kromvia.client.module.Toggles;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
 import net.minecraft.client.input.MouseButtonInfo;
 import com.kromvia.client.compat.Mc;
@@ -18,6 +20,11 @@ public class MouseHandlerMixin {
 		if (action == InputConstants.PRESS && Mc.screen() == null) {
 			Clicks.press(info.button());
 		}
+	}
+
+	@Inject(method = "onButton", at = @At("HEAD"), cancellable = true)
+	private void kromvia$hudClick(long window, MouseButtonInfo info, int action, CallbackInfo ci) {
+		if (action == InputConstants.PRESS && info.button() == 0 && Hud.click(Minecraft.getInstance())) ci.cancel();
 	}
 
 	@Inject(method = "onScroll", at = @At("HEAD"), cancellable = true)

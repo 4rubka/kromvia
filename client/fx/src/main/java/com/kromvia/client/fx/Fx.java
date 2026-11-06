@@ -477,13 +477,16 @@ public final class Fx {
 	}
 
 	public static List<Module> modules() {
-		List<Module> all = new ArrayList<>(List.of(PLAYERS, AMBIENCE, OLD_ANIMATIONS, HAND, TRAILS, JUMP_CIRCLES, CHINA_HAT, TARGET_MARKER, HIT_BUBBLES, HITBOXES));
-		if (BlurBackend.SUPPORTED) all.add(1, MOTION_BLUR);
-		if (BlurBackend.SUPPORTED) all.add(2, SATURATION);
+		List<Module> all = new ArrayList<>(List.of(AMBIENCE, OLD_ANIMATIONS, HAND, TRAILS, JUMP_CIRCLES, CHINA_HAT, TARGET_MARKER, HIT_BUBBLES, HITBOXES));
+		if (BlurBackend.SUPPORTED) all.add(0, MOTION_BLUR);
+		if (BlurBackend.SUPPORTED) all.add(1, SATURATION);
+		if (com.kromvia.client.Launcher.PRESENT) all.add(0, PLAYERS);
 		all.addAll(Tweaks.modules());
 		all.addAll(More.modules());
-		all.add(Media.INSTANCE);
-		all.add(Lyrics.INSTANCE);
+		if (com.kromvia.client.Launcher.PRESENT) {
+			all.add(Media.INSTANCE);
+			all.add(Lyrics.INSTANCE);
+		}
 		return all;
 	}
 

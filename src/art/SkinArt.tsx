@@ -1,6 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { IdleAnimation, SkinViewer } from "skinview3d";
 import { capeTexture, type CapeStyle } from "./capes";
+import { useWorn, type Worn } from "./worn";
 
 export function SkinArt({
   skin,
@@ -9,6 +10,7 @@ export function SkinArt({
   style = "kromvia",
   zoom = 0.78,
   spin = 0.0025,
+  worn,
 }: {
   skin: string | null;
   slim: boolean;
@@ -16,10 +18,13 @@ export function SkinArt({
   style?: CapeStyle;
   zoom?: number;
   spin?: number;
+  worn?: Worn;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const viewer = useRef<SkinViewer | null>(null);
+  const [shown, setShown] = useState<SkinViewer | null>(null);
+  useWorn(shown, worn);
 
   useEffect(() => {
     const el = host.current!;
@@ -36,7 +41,7 @@ export function SkinArt({
     v.globalLight.intensity = 2.4;
     v.cameraLight.intensity = 0.7;
     v.playerWrapper.rotation.y = back === "elytra" ? Math.PI * 0.82 : -0.5;
-    v.loadCape(capeTexture(style), { backEquipment: back });
+    if (!worn) v.loadCape(capeTexture(style), { backEquipment: back });
 
     let raf = 0;
     const wings = (now: number) => {
@@ -54,6 +59,7 @@ export function SkinArt({
     const ro = new ResizeObserver(() => v.setSize(el.clientWidth, el.clientHeight));
     ro.observe(el);
     viewer.current = v;
+    setShown(v);
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();

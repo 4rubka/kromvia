@@ -2,13 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { IdleAnimation, SkinViewer } from "skinview3d";
-import { capeTexture, type CapeStyle } from "@launcher/art/capes";
-import { boxItem, wearBox } from "@launcher/art/procedural";
-import { wear, wearable } from "@launcher/art/wear";
+import { useWorn } from "@launcher/art/worn";
 import type { Cosmetics } from "@/lib/api";
 import { mascotSkin } from "@/lib/mascotSkin";
-
-const STYLES: CapeStyle[] = ["kromvia", "ember", "frost"];
 
 export function Player3D({
   skin,
@@ -66,38 +62,7 @@ export function Player3D({
     Promise.resolve(loaded).then(() => onReady?.());
   }, [viewer, skin]);
 
-  const models = (cosmetics.models ?? []).filter(wearable);
-  const items = (cosmetics.items ?? []).filter((id) => boxItem(id)?.pieces.length);
-  const style = STYLES.includes(cosmetics.style as CapeStyle) ? (cosmetics.style as CapeStyle) : "kromvia";
-  const wings = models.some((id) => id.startsWith("wings")) || items.some((id) => boxItem(id)?.slot === "back");
-
-  useEffect(() => {
-    if (!viewer) return;
-    if (cosmetics.cape && !wings) viewer.loadCape(capeTexture(style));
-    else viewer.loadCape(null);
-  }, [viewer, cosmetics.cape, style, wings]);
-
-  const modelKey = models.join(",");
-  useEffect(() => {
-    if (!viewer) return;
-    let offs: (() => void)[] = [];
-    let alive = true;
-    Promise.all(models.map((id) => wear(viewer, id).catch(() => () => {}))).then((fns) => {
-      if (alive) offs = fns;
-      else fns.forEach((f) => f());
-    });
-    return () => {
-      alive = false;
-      offs.forEach((f) => f());
-    };
-  }, [viewer, modelKey]);
-
-  const itemKey = items.join(",");
-  useEffect(() => {
-    if (!viewer) return;
-    const offs = items.map((id) => wearBox(viewer, id, () => boxItem(id)?.color ?? 0xffffffff));
-    return () => offs.forEach((f) => f());
-  }, [viewer, itemKey]);
+  useWorn(viewer, cosmetics);
 
   return (
     <div ref={host} className={className} style={{ cursor: drag ? "grab" : undefined }}>

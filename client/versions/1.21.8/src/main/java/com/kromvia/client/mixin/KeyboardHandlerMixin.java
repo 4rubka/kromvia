@@ -1,5 +1,6 @@
 package com.kromvia.client.mixin;
 
+import com.kromvia.client.Binds;
 import com.kromvia.client.ui.ModuleMenu;
 import net.minecraft.client.KeyboardHandler;
 import com.kromvia.client.compat.Mc;
@@ -13,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class KeyboardHandlerMixin {
 	@Inject(method = "keyPress", at = @At("HEAD"), cancellable = true)
 	private void kromvia$openMenu(long window, int key, int scancode, int action, int modifiers, CallbackInfo ci) {
-		if (action == InputConstants.PRESS && key == InputConstants.KEY_RSHIFT && Mc.screen() == null) {
+		if (action == InputConstants.PRESS && Binds.MENU.matches(key, scancode) && Mc.screen() == null) {
 			Mc.setScreen(new ModuleMenu());
 			ci.cancel();
 		}

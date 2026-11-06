@@ -1,6 +1,8 @@
 export const API = process.env.KROMVIA_API ?? "https://api.kromvia.com";
 
-export type Cosmetics = { models?: string[]; items?: string[]; cape?: boolean; style?: string };
+import type { Worn } from "@launcher/art/worn";
+
+export type Cosmetics = Worn;
 
 export type Player = {
   id: string;
@@ -43,6 +45,11 @@ export async function player(name: string): Promise<Player | null> {
 
 export async function top(): Promise<Ranked[] | null> {
   const res = await get("/v1/top");
+  return res?.ok ? res.json() : null;
+}
+
+export async function search(q: string): Promise<Omit<Ranked, "likes">[] | null> {
+  const res = await get(`/v1/users?q=${encodeURIComponent(q)}`);
   return res?.ok ? res.json() : null;
 }
 

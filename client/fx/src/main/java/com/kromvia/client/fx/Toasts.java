@@ -50,10 +50,6 @@ final class Toasts {
 						mc.execute(com.kromvia.client.cosmetic.Wardrobe::loadShared);
 						continue;
 					}
-					if (msg.has("level")) {
-						Lyrics.level(msg.get("level").getAsFloat());
-						continue;
-					}
 					if (msg.has("media")) {
 						Media.set(msg.get("media").isJsonNull() ? null : msg.getAsJsonObject("media"));
 						continue;

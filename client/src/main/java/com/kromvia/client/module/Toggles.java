@@ -1,7 +1,7 @@
 package com.kromvia.client.module;
 
+import com.kromvia.client.Binds;
 import com.kromvia.client.compat.Mc;
-import com.mojang.blaze3d.platform.InputConstants;
 import com.kromvia.client.mixin.OptionInstanceAccessor;
 import com.kromvia.client.module.setting.BoolSetting;
 import com.kromvia.client.module.setting.SliderSetting;
@@ -49,7 +49,7 @@ public final class Toggles {
 
 		@Override
 		public void tick(Minecraft mc) {
-			held = Mc.screen() == null && Mc.keyDown(InputConstants.KEY_C);
+			held = Mc.screen() == null && Binds.down(Binds.ZOOM);
 			if (!held) wheel = 1;
 			float target = held ? 1F / (power.value() * wheel) : 1F;
 			current = smooth.on() ? Mth.lerp(0.5F, current, target) : target;

@@ -2,6 +2,8 @@ package com.kromvia.client.compat;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import java.util.function.Supplier;
+import net.minecraft.client.KeyMapping;
+import net.minecraft.resources.Identifier;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -52,6 +54,13 @@ public final class Mc {
 
 	public static boolean keyDown(int key) {
 		return InputConstants.isKeyDown(key);
+	}
+
+	private static KeyMapping.Category binds;
+
+	public static KeyMapping bind(String name, int key) {
+		if (binds == null) binds = KeyMapping.Category.register(Identifier.fromNamespaceAndPath("kromvia", "binds"));
+		return new KeyMapping(name, key, binds);
 	}
 
 	public static Item redDye() {

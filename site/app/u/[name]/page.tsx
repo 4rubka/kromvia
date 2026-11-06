@@ -11,13 +11,13 @@ import s from "./profile.module.css";
 const T = {
   en: {
     desc: (n: string) => `${n} on Kromvia: skin, cosmetics and likes.`, missing: "Player not found",
-    verified: "Verified Minecraft account", likes: "likes", joined: "joined", wearing: "Wearing", cape: "Kromvia cape", nothing: "Nothing yet.", badges: "Badges",
+    verified: "Verified Minecraft account", likes: "likes", joined: "joined", wearing: "Wearing", cape: "Kromvia cape", devCape: "Developer cape", nothing: "Nothing yet.", badges: "Badges",
     early: ["Early bird", "Joined in Kromvia's first year"], verifiedBadge: ["Verified", "Linked a Minecraft account"], liked: ["Liked", "10 likes or more"], famous: ["Famous", "100 likes or more"],
     like: (n: string) => `Like ${n} from the launcher: Profile → Top.`, get: "Get Kromvia",
   },
   uk: {
     desc: (n: string) => `${n} у Kromvia: скін, косметика й лайки.`, missing: "Гравця не знайдено",
-    verified: "Підтверджений акаунт Minecraft", likes: "лайків", joined: "з нами від", wearing: "Вдягнено", cape: "Плащ Kromvia", nothing: "Поки нічого.", badges: "Бейджі",
+    verified: "Підтверджений акаунт Minecraft", likes: "лайків", joined: "з нами від", wearing: "Вдягнено", cape: "Плащ Kromvia", devCape: "Плащ розробника", nothing: "Поки нічого.", badges: "Бейджі",
     early: ["Рання пташка", "Приєднався в перший рік Kromvia"], verifiedBadge: ["Підтверджений", "Привʼязав акаунт Minecraft"], liked: ["Улюбленець", "10 лайків і більше"], famous: ["Зірка", "100 лайків і більше"],
     like: (n: string) => `Лайкнути ${n} можна в лаунчері: Профіль → Топ.`, get: "Отримати Kromvia",
   },
@@ -71,7 +71,7 @@ export default async function Profile({ params }: PageProps<"/u/[name]">) {
         <h2 className={s.h2}>{t.wearing}</h2>
         {worn.length || p.cosmetics.cape ? (
           <div className={s.chips}>
-            {p.cosmetics.cape && <span className="chip on">{t.cape}</span>}
+            {p.cosmetics.cape && <span className="chip on">{p.cosmetics.dev ? t.devCape : t.cape}</span>}
             {worn.map((id) => (
               <span key={id} className="chip">{itemName(id)}</span>
             ))}

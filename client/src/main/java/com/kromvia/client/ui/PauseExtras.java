@@ -29,8 +29,10 @@ public final class PauseExtras {
 		int lx = side(width) / 2;
 		int rx = width - lx;
 		int mid = height / 2;
-		add.accept(new KButton(lx - BUTTON_W / 2, mid + previewH(height) / 2 - 4, BUTTON_W, 20, Component.literal("Wardrobe"),
-				b -> Mc.setScreen(new CosmeticsScreen(screen))));
+		if (com.kromvia.client.Launcher.PRESENT) {
+			add.accept(new KButton(lx - BUTTON_W / 2, mid + previewH(height) / 2 - 4, BUTTON_W, 20, Component.literal("Wardrobe"),
+					b -> Mc.setScreen(new CosmeticsScreen(screen))));
+		}
 		int y = mid - 22;
 		net.minecraft.client.server.IntegratedServer server = Minecraft.getInstance().getSingleplayerServer();
 		if (server != null && !server.isPublished()) {

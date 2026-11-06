@@ -1,5 +1,6 @@
 package com.kromvia.client.ui;
 
+import com.kromvia.client.Binds;
 import com.kromvia.client.compat.Mc;
 import com.kromvia.client.compat.Gfx;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -86,12 +87,15 @@ public class ModuleMenu extends KScreen {
 			}, () -> category == c).flat().appear(60 + i * 40);
 			tabs.add(addButton(tab));
 		}
-		addButton(new KButton(px + 8, py + ph - 102, SIDEBAR - 16, 20, new net.minecraft.network.chat.TextComponent("Profiles"),
+		int lift = com.kromvia.client.Launcher.PRESENT ? 0 : 24;
+		addButton(new KButton(px + 8, py + ph - 102 + lift, SIDEBAR - 16, 20, new net.minecraft.network.chat.TextComponent("Profiles"),
 				b -> Mc.setScreen(new ProfilesScreen(this))).appear(160));
-		addButton(new KButton(px + 8, py + ph - 78, SIDEBAR - 16, 20, new net.minecraft.network.chat.TextComponent("Edit HUD"),
+		addButton(new KButton(px + 8, py + ph - 78 + lift, SIDEBAR - 16, 20, new net.minecraft.network.chat.TextComponent("Edit HUD"),
 				b -> Mc.setScreen(new HudEditor(this))).appear(200));
-		addButton(new KButton(px + 8, py + ph - 54, SIDEBAR - 16, 20, new net.minecraft.network.chat.TextComponent("Wardrobe"),
-				b -> Mc.setScreen(new CosmeticsScreen(this))).appear(240));
+		if (lift == 0) {
+			addButton(new KButton(px + 8, py + ph - 54, SIDEBAR - 16, 20, new net.minecraft.network.chat.TextComponent("Wardrobe"),
+					b -> Mc.setScreen(new CosmeticsScreen(this))).appear(240));
+		}
 		addButton(new KButton(px + 8, py + ph - 30, SIDEBAR - 16, 20, new net.minecraft.network.chat.TextComponent("Done"), b -> onClose()).appear(280));
 
 		int gx = px + SIDEBAR + 10;
@@ -303,7 +307,7 @@ public class ModuleMenu extends KScreen {
 
 	@Override
 	protected boolean keyDown(int key) {
-		if (key == org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_SHIFT) {
+		if (key == Binds.code(Binds.MENU)) {
 			onClose();
 			return true;
 		}

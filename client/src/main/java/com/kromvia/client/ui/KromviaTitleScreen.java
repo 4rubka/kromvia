@@ -45,7 +45,7 @@ public class KromviaTitleScreen extends KScreen {
 	}
 
 	private int menuH() {
-		return (Social.available() ? 6 : 5) * 26 + 30;
+		return ((Social.available() ? 6 : 5) - (com.kromvia.client.Launcher.PRESENT ? 0 : 1)) * 26 + 30;
 	}
 
 	private boolean compact() {
@@ -76,8 +76,10 @@ public class KromviaTitleScreen extends KScreen {
 					b -> Mc.setScreen(new SocialScreen(this))).appear(120));
 			row += 26;
 		}
-		addRenderableWidget(new KButton(x, y + row, BUTTON_W, 22, Component.literal("Wardrobe"),
-				b -> Mc.setScreen(new CosmeticsScreen(this))).appear(160));
+		if (com.kromvia.client.Launcher.PRESENT) {
+			addRenderableWidget(new KButton(x, y + row, BUTTON_W, 22, Component.literal("Wardrobe"),
+					b -> Mc.setScreen(new CosmeticsScreen(this))).appear(160));
+		} else row -= 26;
 		addRenderableWidget(new KButton(x, y + row + 26, BUTTON_W, 22, Component.literal("Options"),
 				b -> Mc.setScreen(new OptionsScreen(this, minecraft.options))).appear(200));
 		addRenderableWidget(new KButton(x, y + row + 60, BUTTON_W, 22, Component.literal("Quit"), b -> minecraft.stop()).appear(240));

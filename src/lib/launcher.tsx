@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useJobs, type JobProgress } from "./jobs";
 import { useAccounts, type Account } from "../accounts/Accounts";
-import { outfitFromGame, pushOutfit, type Outfit } from "./outfit";
+import { outfitFromGame, outfitWorn, pushOutfit, savedOutfit, type Outfit } from "./outfit";
 import type { LogLine } from "../home/Console";
 
 export type LoaderKind = "fabric" | "quilt" | "legacyfabric" | "ornithe" | "forge" | "neoforge";
@@ -150,7 +150,10 @@ function useLauncherState() {
       (w) => (w ? outfitFromGame(w) : pushOutfit()),
       () => pushOutfit(),
     ).catch(() => {});
-    const unWardrobe = listen<Parameters<typeof outfitFromGame>[0]>("wardrobe-changed", ({ payload }) => outfitFromGame(payload));
+    const unWardrobe = listen<Parameters<typeof outfitFromGame>[0]>("wardrobe-changed", ({ payload }) => {
+      outfitFromGame(payload);
+      invoke("social_cosmetics", { worn: outfitWorn(savedOutfit()) }).catch(() => {});
+    });
     const unSwitch = listen<{ id: string | null; name: string }>("account-switched", ({ payload }) => {
       if (!payload.id) setNick(payload.name);
       refreshAccounts();

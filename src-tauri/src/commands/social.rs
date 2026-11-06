@@ -218,6 +218,11 @@ pub fn build_install(app: AppHandle, jobs: State<'_, Jobs>, manifest: Value) -> 
 }
 
 #[tauri::command]
+pub async fn social_cosmetics(worn: Value) -> Result<Value, String> {
+    social::set_cosmetics(worn).await
+}
+
+#[tauri::command]
 pub fn wardrobe_get() -> Option<Value> {
     crate::engine::wardrobe::load()
 }
@@ -233,7 +238,7 @@ pub async fn wardrobe_push(
     crate::engine::wardrobe::save(&wardrobe, cape_png.as_deref())?;
     app.state::<Games>().wardrobe_changed();
     let w = crate::engine::wardrobe::load().unwrap_or_default();
-    let worn = serde_json::json!({ "models": models, "items": items, "cape": w["back"] == "cape", "style": w["style"] });
+    let worn = serde_json::json!({ "models": models, "items": items, "cape": w["back"] == "cape", "style": w["style"], "colors": w["colors"] });
     tauri::async_runtime::spawn(async move {
         let _ = social::set_cosmetics(worn).await;
     });

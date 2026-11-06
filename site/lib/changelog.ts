@@ -1,6 +1,20 @@
 export const CHANGELOG: { date: string; title: string; items: string[] }[] = [
   {
     date: "2026-11-05",
+    title: "Freecam, 3D lyrics and a lag check",
+    items: [
+      "Freecam: fly the camera away from your player for screenshots, with speed, collision and interaction settings.",
+      "Lyrics can float in the world in front of you, as a whole line or word by word, and grow when the song gets louder.",
+      "A music menu in game: cover art, seeking, shuffle, repeat and switching between players. Press M.",
+      "Lag check in the launcher: finds what slows a build down, from memory and heavy mods to shaders and video settings, and fixes it in one click.",
+      "Easy Place: put blocks on trapdoors, doors and chests without sneaking.",
+      "Bind any module to a key. Every module has its own icon and a short description.",
+      "More looks for HUD text: flowing gradient, pulse, one-colour rainbow, background colour and accent lines.",
+      "Remove servers from Quick Join on the title screen.",
+    ],
+  },
+  {
+    date: "2026-11-05",
     title: "Voxel costumes and Forge",
     items: [
       "New voxel cosmetics: 56 items and 10 full costumes with wings, helmets, horns, armour and weapons.",

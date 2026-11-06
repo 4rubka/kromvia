@@ -6,7 +6,7 @@ import { NICK, useLauncher } from "../lib/launcher";
 import { Glyph } from "../ui/Glyph";
 import { Empty } from "../ui/Empty";
 import { SkinArt } from "../art/SkinArt";
-import type { CapeStyle } from "../art/capes";
+import type { Worn } from "../art/worn";
 import { useSocial } from "./social";
 import { Head, skinOf } from "./Head";
 import "./friends.css";
@@ -18,7 +18,6 @@ type PublicProfile = Player & { created: number; likes: number; cosmetics: Recor
 type View = { chat: string } | { profile: string } | null;
 
 const SHOT = /^https:\/\/api\.kromvia\.com\/share\/[A-Za-z0-9]{4,16}$/;
-const STYLES: CapeStyle[] = ["kromvia", "ember", "frost"];
 
 export function Friends() {
   const { t } = useI18n();
@@ -297,7 +296,6 @@ function PlayerView({
   if (p === null) return <Empty bee="search">{error}</Empty>;
   const rel = relation(p.id);
   const c = p.cosmetics ?? {};
-  const style = STYLES.includes(c.style as CapeStyle) ? (c.style as CapeStyle) : "kromvia";
   const like = () =>
     invoke("social_like", { id: p.id, on: !liked }).then(() => {
       setLiked(!liked);
@@ -307,7 +305,7 @@ function PlayerView({
   return (
     <div className="player-view">
       <div className="player-art">
-        <SkinArt skin={skin?.dataUrl ?? null} slim={skin?.slim ?? false} back={c.back === "elytra" ? "elytra" : "cape"} style={style} zoom={0.85} />
+        <SkinArt skin={skin?.dataUrl ?? null} slim={skin?.slim ?? false} back="cape" worn={c as Worn} zoom={0.85} />
       </div>
       <div className="player-info">
         <h2 className="player-name">

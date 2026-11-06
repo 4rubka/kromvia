@@ -74,6 +74,10 @@ public abstract class Module {
 		return true;
 	}
 
+	public boolean click(Minecraft mc) {
+		return false;
+	}
+
 	public String sample() {
 		return name;
 	}

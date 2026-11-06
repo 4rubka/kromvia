@@ -39,7 +39,7 @@ public final class Players extends Module {
 	private int ticks;
 
 	Players() {
-		super("kromvia_players", "Kromvia Players", Category.UTILITY, Corner.TOP_LEFT, true);
+		super("kromvia_players", "Kromvia Players", Category.UTILITY, Corner.TOP_LEFT, com.kromvia.client.Launcher.PRESENT);
 		icon(Items.AMETHYST_SHARD);
 		CosmeticsLayer.othersBack = id -> {
 			Minecraft mc = Minecraft.getInstance();

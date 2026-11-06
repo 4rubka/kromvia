@@ -2,6 +2,7 @@ package com.kromvia.client.compat;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import java.util.function.Supplier;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -56,6 +57,27 @@ public final class Mc {
 
 	public static boolean keyDown(int key) {
 		return InputConstants.isKeyDown(mc().getWindow().getWindow(), key);
+	}
+
+	private static final String BINDS = "Kromvia";
+	private static boolean sorted;
+
+	@SuppressWarnings("unchecked")
+	public static KeyMapping bind(String name, int key) {
+		if (!sorted) {
+			sorted = true;
+			try {
+				for (java.lang.reflect.Field f : KeyMapping.class.getDeclaredFields()) {
+					if (!java.lang.reflect.Modifier.isStatic(f.getModifiers()) || f.getType() != java.util.Map.class) continue;
+					f.setAccessible(true);
+					java.util.Map<Object, Object> order = (java.util.Map<Object, Object>) f.get(null);
+					if (order.get("key.categories.movement") instanceof Integer) order.put(BINDS, order.size() + 1);
+				}
+			} catch (ReflectiveOperationException e) {
+				throw new IllegalStateException(e);
+			}
+		}
+		return new KeyMapping(name, key, BINDS);
 	}
 
 	public static Item redDye() {

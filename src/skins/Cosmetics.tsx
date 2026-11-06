@@ -9,6 +9,7 @@ import { BOX_ITEMS, PALETTE, RAINBOW, boxItem, boxModel, rainbow, wearBox, type 
 import { wear, wearable } from "../art/wear";
 import { effectIcon } from "../art/effectIcons";
 import { capeTexture, type CapeStyle } from "../art/capes";
+import { wearDevCape } from "../art/devCape";
 import SETS from "../art/sets.json";
 import { OUTFIT_EVENT, pushOutfit, savedOutfit, storeOutfit, type Back, type Outfit } from "../lib/outfit";
 
@@ -65,7 +66,13 @@ function Stage({ skin, slim, outfit }: { skin: string | null; slim: boolean; out
   useEffect(() => {
     if (!viewer) return;
     if (outfit.back === "none" || outfit.equipped.back) viewer.loadCape(null);
-    else {
+    else if (outfit.back === "cape" && outfit.dev) {
+      const off = wearDevCape(viewer);
+      return () => {
+        off();
+        viewer.loadCape(null);
+      };
+    } else {
       viewer.loadCape(capeTexture(outfit.style), { backEquipment: outfit.back });
       if (outfit.back === "elytra") {
         const e = viewer.playerObject.elytra;
@@ -73,7 +80,7 @@ function Stage({ skin, slim, outfit }: { skin: string | null; slim: boolean; out
         e.updateRightWing();
       }
     }
-  }, [viewer, outfit.back, outfit.style, outfit.equipped.back]);
+  }, [viewer, outfit.back, outfit.style, outfit.equipped.back, outfit.dev]);
 
   const worn = SLOTS.map((s) => outfit.equipped[s]).filter((id): id is string => !!id && wearable(id));
   const key = worn.join(",");

@@ -44,8 +44,6 @@ public final class Lyrics extends Module {
 	private final BoolSetting shadow = add(new BoolSetting("shadow", "Text shadow", true));
 	private final BoolSetting plate = add(new BoolSetting("plate", "Background", false));
 	private final ChoiceSetting animation = add(new ChoiceSetting("animation", "Word animation", 0, "Pop", "Fade", "Rise", "Drop"));
-	private final ChoiceSetting react = add(new ChoiceSetting("react", "React to loudness", 1, "Off", "Size", "Size and shake"));
-	private final SliderSetting reactStrength = add(new SliderSetting("react_strength", "Loudness strength", 100, 0, 200, 10, "%"));
 	private final SliderSetting worldDistance = add(new SliderSetting("world_distance", "3D: distance", 6, 2, 16, 0.5F, " blocks"));
 	private final SliderSetting worldHeight = add(new SliderSetting("world_height", "3D: height", 0.5F, -2, 3, 0.25F, " blocks"));
 	private final SliderSetting worldSize = add(new SliderSetting("world_size", "3D: text size", 1.5F, 0.5F, 4, 0.25F, "x"));
@@ -61,8 +59,6 @@ public final class Lyrics extends Module {
 	private Vec3 lineAnchor;
 	private float lineYaw, linePitch;
 	private int worldLine = -2, worldWord = -1;
-	private static volatile float rawLevel = -1;
-	private static float level, loudest = 0.05F;
 	private final java.util.Random random = new java.util.Random();
 
 	private String key;
@@ -208,7 +204,7 @@ public final class Lyrics extends Module {
 			shownAt = now;
 		}
 		float e = ease(Math.min(1, (now - shownAt) / (float) MOVE_MS));
-		float big = size.value() * (1 + boost(0.35F)), small = size.value() * 0.6F;
+		float big = size.value(), small = size.value() * 0.6F;
 		int width = (int) (g.guiWidth() * 0.8F);
 		float cx = g.guiWidth() / 2F, cy = g.guiHeight() * height.value() / 100;
 		int main = color.argb(), dim = 0xFFAAAAAA;
@@ -278,7 +274,7 @@ public final class Lyrics extends Module {
 	private float draw(Gfx g, Minecraft mc, String text, float x, float y, float scale, int width, int argb) {
 		List<String> parts = wrap(mc, text, (int) (width / scale));
 		g.pose().pushMatrix();
-		g.pose().translate(x + shake(), y + shake());
+		g.pose().translate(x, y);
 		g.pose().scale(scale, scale);
 		long now = System.currentTimeMillis();
 		for (int k = 0; k < parts.size(); k++) {
@@ -308,39 +304,12 @@ public final class Lyrics extends Module {
 		return a << 24 | c & 0xFFFFFF;
 	}
 
-	static void level(float value) {
-		rawLevel = value;
-	}
-
-	private float boost(float k) {
-		if (react.index() == 0) return 0;
-		return k * level * reactStrength.value() / 100F;
-	}
-
-	private float shake() {
-		if (react.index() != 2) return 0;
-		return (random.nextFloat() - 0.5F) * 3 * level * reactStrength.value() / 100F;
-	}
-
-	private void updateLevel() {
-		float raw = rawLevel;
-		if (raw < 0) {
-			level = 0;
-			return;
-		}
-		loudest = Math.max(raw, loudest * 0.998F);
-		float rel = Math.max(0, Math.min(1, raw / Math.max(0.05F, loudest)));
-		float target = rel * rel;
-		level += (target - level) * (target > level ? 0.5F : 0.08F);
-	}
-
 	private static boolean shouted(String word) {
 		String letters = word.replaceAll("[^\\p{L}]", "");
 		return word.endsWith("!") || letters.length() > 1 && letters.equals(letters.toUpperCase(java.util.Locale.ROOT)) && !letters.equals(letters.toLowerCase(java.util.Locale.ROOT));
 	}
 
 	public void world(Minecraft mc, com.mojang.blaze3d.vertex.PoseStack pose, Object out, Vec3 cam) {
-		updateLevel();
 		if (!enabled || display.index() == 0) {
 			floating.clear();
 			return;
@@ -391,7 +360,7 @@ public final class Lyrics extends Module {
 
 	private void spawn(String[] words, int w, Vec3 cam, float yaw, long now) {
 		String word = words[w];
-		float big = 1 + boost(0.8F) + (shouted(word) ? 0.3F : 0);
+		float big = 1 + (shouted(word) ? 0.3F : 0);
 		int col = colorMode.index() == 1 ? mix(color.argb(), color2.argb(), words.length > 1 ? w / (float) (words.length - 1) : 0)
 				: colorMode.index() == 2 ? 0xFF000000 | net.minecraft.util.Mth.hsvToRgb(random.nextFloat(), 0.6F, 1F) : color.argb();
 		if (display.index() == 1) {

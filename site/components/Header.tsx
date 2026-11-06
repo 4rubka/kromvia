@@ -18,7 +18,7 @@ const T = {
         { href: "/features#client", label: "Modules" }, { href: "/cosmetics", label: "Cosmetics" },
       ] },
       { label: "Community", bee: "menu-community", title: "Community", links: [
-        { href: "/top", label: "Top players" }, { href: "/rooms", label: "Rooms" }, { href: DISCORD_INVITE, label: "Discord" },
+        { href: "/players", label: "Find players" }, { href: "/top", label: "Top players" }, { href: "/rooms", label: "Rooms" }, { href: DISCORD_INVITE, label: "Discord" },
       ] },
     ],
     download: "Download", home: "Kromvia home", open: "Open menu", close: "Close menu",
@@ -32,7 +32,7 @@ const T = {
         { href: "/features#client", label: "Модулі" }, { href: "/cosmetics", label: "Косметика" },
       ] },
       { label: "Спільнота", bee: "menu-community", title: "Спільнота", links: [
-        { href: "/top", label: "Топ гравців" }, { href: "/rooms", label: "Кімнати" }, { href: DISCORD_INVITE, label: "Discord" },
+        { href: "/players", label: "Пошук гравців" }, { href: "/top", label: "Топ гравців" }, { href: "/rooms", label: "Кімнати" }, { href: DISCORD_INVITE, label: "Discord" },
       ] },
     ],
     download: "Завантажити", home: "Kromvia, головна", open: "Відкрити меню", close: "Закрити меню",
