@@ -2,6 +2,7 @@ package com.kromvia.client.ui;
 
 import com.kromvia.client.compat.Mc;
 import com.kromvia.client.compat.Gfx;
+import com.kromvia.client.compat.Reload;
 import java.util.function.Supplier;
 
 import net.minecraft.client.renderer.entity.state.PlayerRenderState;
@@ -21,6 +22,8 @@ public final class PlayerPreview {
 	}
 
 	public static void render(Gfx g, int x1, int y1, int x2, int y2, float yaw, float ageTicks) {
+		// Entity/block models aren't ready during the initial reload.
+		if (Reload.active()) return;
 		PlayerRenderState s = new PlayerRenderState();
 		s.skin = skin();
 		s.id = ID;
