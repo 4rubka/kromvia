@@ -108,7 +108,6 @@ impl Games {
         }
     }
 
-    #[cfg(target_os = "linux")]
     pub fn social(&self, state: &serde_json::Value) {
         let line = serde_json::json!({ "social": state }).to_string() + "\n";
         for r in self.running.lock().unwrap().values() {
